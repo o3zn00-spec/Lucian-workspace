@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+const bundled = await build({entryPoints:['src/lib/bybit/client.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'isolated-owner',setup(b){b.onResolve({filter:/^(server-only)$|owner-credentials$/},args=>({path:args.path,namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},args=>({contents:args.path==='server-only'?'':'export async function readOwnerCredential(_owner,_service,key){return {api_key:"fixture-key",api_secret:"fixture-secret",environment:"mainnet"}[key];}'}));}}]});
+const {bybitRequest,bybitPublicRequest}=await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
+let calls=[];
+globalThis.fetch=async(url,init)=>{calls.push({url:String(url),...init});return new Response('<html>Forbidden</html>',{status:403});};
+await assert.rejects(bybitRequest('fixture-owner','/v5/account/wallet-balance'),error=>error.httpStatus===403 && error.message.includes('server region') && !error.message.includes('<html>'));
+assert.equal(calls.length,1);assert.equal(calls[0].method,'GET');assert(calls[0].signal);assert(!calls[0].url.includes('fixture-key'));assert(!calls[0].url.includes('fixture-secret'));
+globalThis.fetch=async(_url,init)=>{assert(init.signal);return Response.json({retCode:10003,retMsg:'Invalid API key',result:{}});};
+await assert.rejects(bybitRequest('fixture-owner','/v5/account/wallet-balance'),error=>error.code===10003 && error.message==='Invalid API key');
+globalThis.fetch=async(_url,init)=>{assert(init.signal);return Response.json({retCode:0,retMsg:'OK',result:{list:[{totalEquity:'0'}]}});};
+assert.equal((await bybitRequest('fixture-owner','/v5/account/wallet-balance')).list[0].totalEquity,'0');
+await bybitPublicRequest('mainnet','/v5/market/tickers');
+calls=[];globalThis.fetch=async()=>{calls.push(1);throw new DOMException('timed out','TimeoutError');};
+await assert.rejects(bybitRequest('fixture-owner','/v5/account/wallet-balance'),{name:'TimeoutError'});assert.equal(calls.length,1);
+console.log('PASS: Bybit forbidden responses, provider errors, verified zero, bounded public/private reads, no automatic retries or exposed credentials. No network or trades.');

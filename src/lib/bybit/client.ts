@@ -64,7 +64,9 @@ function queryString(query: Record<string, QueryValue> = {}): string {
 
 async function parseEnvelope<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null) as BybitEnvelope<T> | null;
-  if (!payload) throw new BybitApiError(`Bybit returned an unreadable response (${response.status}).`, -1, response.status);
+  if (!payload) throw new BybitApiError(response.status === 403
+    ? "Bybit denied this server request (HTTP 403). Check the server region and account/API access restrictions."
+    : `Bybit returned an unreadable response (${response.status}).`, -1, response.status);
   if (!response.ok || payload.retCode !== 0) {
     throw new BybitApiError(payload.retMsg || `Bybit request failed (${response.status}).`, payload.retCode, response.status);
   }
@@ -91,6 +93,7 @@ export async function bybitRequest<T>(
   const signature = createHmac("sha256", config.apiSecret).update(payloadToSign).digest("hex");
   const response = await fetch(`${config.baseUrl}${path}${query ? `?${query}` : ""}`, {
     method,
+    signal: AbortSignal.timeout(15000),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
@@ -112,6 +115,7 @@ export async function bybitPublicRequest<T>(
 ): Promise<T> {
   const encoded = queryString(query);
   const response = await fetch(`${REST_BASES[environment]}${path}${encoded ? `?${encoded}` : ""}`, {
+    signal: AbortSignal.timeout(15000),
     headers: { Accept: "application/json" },
     cache: "no-store",
   });

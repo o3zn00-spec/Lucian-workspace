@@ -56,7 +56,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
     const timer = window.setTimeout(() => setRiskDraft(Object.fromEntries(Object.entries(data.risk).filter(([, item]) => typeof item === "number").map(([key, item]) => [key, String(item)]))), 0);
     return () => window.clearTimeout(timer);
   }, [data?.risk]);
-  const floating = Number(data?.portfolio.totalPerpUPL ?? 0);
+  const floating = error ? undefined : data?.portfolio.totalPerpUPL;
   const tabs: Array<[Tab, string, number?]> = [["positions", "Positions", data?.positions.filter((row) => Number(row.size) > 0).length], ["orders", "Orders", data?.openOrders.length], ["pnl", "P/L"], ["portfolio", "Portfolio"], ["history", "Transactions"], ["orderbook", "Order Book"], ["risk", "Risk"], ["approvals", "Approvals", data?.approvals.length], ["audit", "Audit"]];
 
   async function post(url: string, body: Record<string, unknown>, method = "POST") {
@@ -70,7 +70,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
     <div className="flex h-9 items-center gap-1 overflow-x-auto px-3">
       {tabs.map(([id, label, count]) => <button key={id} onClick={() => { setTab(id); if (!expanded) onToggleExpand(); }} className={`shrink-0 border-b-2 px-2 py-2 text-[10px] ${expanded && tab === id ? "border-[#2962ff] text-white" : "border-transparent text-[#787b86] hover:text-white"}`}>{label}{count !== undefined ? ` ${count}` : ""}</button>)}
       <div className="flex-1" />
-      <span className="shrink-0 text-[10px] text-[#787b86]">Floating P/L <strong className={floating < 0 ? "text-red-400" : "text-emerald-400"}>{value(floating, 2)} USDT</strong></span>
+      <span className="shrink-0 text-[10px] text-[#787b86]">Floating P/L <strong className={Number(floating) < 0 ? "text-red-400" : "text-emerald-400"}>{value(floating, 2)} USDT</strong></span>
       <button title="Refresh" onClick={() => void refresh()} className="p-1 text-[#787b86] hover:text-white"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /></button>
       <button type="button" aria-label={expanded ? "Collapse Bybit trading panel" : "Expand Bybit trading panel"} aria-expanded={expanded} onClick={onToggleExpand} className="p-1 text-[#787b86]">{expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}</button>
       <button title={isMaximized ? "Restore chart" : "Maximize chart"} onClick={onMaximize} className="p-1 text-[#787b86]"><Maximize2 className="h-3.5 w-3.5" /></button>
@@ -78,7 +78,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
     {expanded && <div className="h-[260px] overflow-auto border-t border-[#2a2e39] p-3">
       <div className="mb-2 flex items-center gap-2 text-[10px]"><span className={`rounded px-2 py-1 font-bold ${mode === "bybit_live" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}`}>{mode === "bybit_live" ? "BYBIT LIVE · REAL FUNDS" : "BYBIT TESTNET"}</span><span className="text-[#787b86]">{symbol} · {data?.environment ?? "not connected"}</span>{data?.risk.emergencyStop && <span className="rounded bg-red-500 px-2 py-1 font-bold text-white">EMERGENCY STOP ACTIVE</span>}</div>
       {(error || actionError) && <div className="mb-2 rounded border border-red-500/40 bg-red-500/10 p-2 text-[10px] text-red-300">{error || actionError}</div>}
-      {loading && !data ? <div className="flex h-32 items-center justify-center gap-2 text-[11px] text-[#787b86]"><Loader2 className="h-4 w-4 animate-spin" />Synchronizing directly with Bybit…</div> : <>
+      {loading && !data ? <div className="flex h-32 items-center justify-center gap-2 text-[11px] text-[#787b86]"><Loader2 className="h-4 w-4 animate-spin" />Synchronizing directly with Bybit…</div> : error && !data && tab !== "orderbook" ? <div className="py-12 text-center text-[11px] text-[#787b86]">Account data unavailable. Resolve the connection error and retry.</div> : <>
         {tab === "positions" && <SimpleTable columns={["symbol", "side", "size", "avgPrice", "markPrice", "leverage", "unrealisedPnl", "liqPrice"]} rows={(data?.positions ?? []).filter((row) => Number(row.size) > 0)} />}
         {tab === "orders" && <SimpleTable columns={["symbol", "category", "side", "orderType", "qty", "price", "orderStatus", "createdTime"]} rows={data?.openOrders ?? []} action={(row) => <button className="text-red-400 hover:text-red-300" onClick={() => void post("/api/bybit/orders", { mode, category: row.category, symbol: row.symbol, orderId: row.orderId }, "DELETE")}>Cancel</button>} />}
         {tab === "pnl" && <><SummaryCards values={[["Unrealized P/L", data?.portfolio.totalPerpUPL], ["Wallet balance", data?.portfolio.totalWalletBalance], ["Equity", data?.portfolio.totalEquity]]} /><SimpleTable columns={["symbol", "side", "qty", "avgEntryPrice", "avgExitPrice", "closedPnl", "createdTime"]} rows={data?.closedPnl ?? []} /></>}

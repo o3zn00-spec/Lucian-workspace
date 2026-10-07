@@ -215,8 +215,9 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
 
     async test() {
       try {
-        // Use a minimal models list request to test the key.
-        const res = await fetch(`${baseUrl}/models`, {
+        // OpenRouter's model catalog is public and cannot authenticate a key.
+        const res = await fetch(`${baseUrl}/${providerId === "openrouter" ? "key" : "models"}`, {
+          signal: AbortSignal.timeout(10000),
           headers: { Authorization: `Bearer ${apiKey}` },
         });
         if (!res.ok) {
@@ -225,6 +226,12 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
             message: "API key rejected",
             reason: `HTTP ${res.status}`,
           };
+        }
+        if (providerId === "openrouter") {
+          const payload = await res.json() as { data?: unknown };
+          if (!payload.data || typeof payload.data !== "object" || Array.isArray(payload.data)) {
+            return { success: false, message: "Provider returned an invalid authentication response" };
+          }
         }
         return { success: true, message: "API key is valid" };
       } catch (e) {

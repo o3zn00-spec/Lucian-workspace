@@ -7,7 +7,7 @@ const bundled=await build({entryPoints:['src/lib/agent/providers.ts'],bundle:tru
 const {getProvider}=await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
 const image={url:`data:image/png;base64,${(await readFile('public/branding/icon-32.png')).toString('base64')}`};
 let calls=[];
-globalThis.fetch=async(url,init={})=>{calls.push({url:String(url),...init,body:init.body?JSON.parse(init.body):undefined});return Response.json({candidates:[{content:{parts:[{text:'First'},{text:'Second'}]}}],content:[{type:'text',text:'First'},{type:'text',text:'Second'}],choices:[{message:{content:'First'}}],data:[{id:'fixture'}]});};
+globalThis.fetch=async(url,init={})=>{calls.push({url:String(url),...init,body:init.body?JSON.parse(init.body):undefined});return Response.json({candidates:[{content:{parts:[{text:'First'},{text:'Second'}]}}],content:[{type:'text',text:'First'},{type:'text',text:'Second'}],choices:[{message:{content:'First'}}],data:String(url).endsWith('/key')?{label:'fixture'}:[{id:'fixture'}]});};
 for(const [provider,key] of [['gemini','GEMINI_API_KEY'],['openai','OPENAI_API_KEY'],['anthropic','ANTHROPIC_API_KEY'],['openrouter','OPENROUTER_API_KEY'],['deepseek','DEEPSEEK_API_KEY'],['custom','CUSTOM_AI_API_KEY']]){
  process.env[key]='disposable-fixture';process.env.CUSTOM_AI_BASE_URL='http://127.0.0.1/mock';
  const adapter=await getProvider(provider);assert(adapter);
@@ -16,8 +16,15 @@ for(const [provider,key] of [['gemini','GEMINI_API_KEY'],['openai','OPENAI_API_K
  if(provider==='gemini'){assert.equal(request.body.contents[0].parts[1].inlineData.mimeType,'image/png');assert.equal(reply.content,'First\nSecond');assert.equal(request.headers['x-goog-api-key'],'disposable-fixture');}
  else if(provider==='anthropic'){assert.equal(request.body.messages[0].content[1].source.media_type,'image/png');assert.equal(reply.content,'First\nSecond');}
  else {assert.equal(request.body.messages[0].content[1].image_url.url,image.url);if(provider==='openai'){assert.equal(request.body.reasoning_effort,'high');assert(!('temperature' in request.body));}}
- calls=[];assert.equal((await adapter.test()).success,true);assert.equal(calls.length,1);assert.equal(calls[0].method??'GET','GET');assert(calls[0].url.endsWith('/models'));assert(!calls[0].body);
+ calls=[];assert.equal((await adapter.test()).success,true);assert.equal(calls.length,1);assert.equal(calls[0].method??'GET','GET');assert(calls[0].url.endsWith(provider==='openrouter'?'/key':'/models'));assert(calls[0].signal || provider==='gemini' || provider==='anthropic');assert(!calls[0].body);
 }
+const router=await getProvider('openrouter');
+for(const [status,payload,expected] of [[401,{error:{message:'Unauthorized'}},false],[200,{data:{label:'fixture'}},true],[200,{data:[]},false]]) {
+ calls=[];globalThis.fetch=async(url,init)=>{calls.push({url:String(url),...init});return Response.json(payload,{status});};
+ assert.equal((await router.test()).success,expected);assert.equal(calls.length,1);assert(calls[0].url.endsWith('/key'));assert.equal(calls[0].method??'GET','GET');assert(!calls[0].body);assert(calls[0].signal);
+}
+globalThis.fetch=async()=>{throw new DOMException('timed out','TimeoutError');};assert.equal((await router.test()).success,false);
+console.log('PASS: OpenRouter authentication rejects invalid keys and malformed responses, handles timeouts, and never uses the public catalog or paid inference.');
 console.log('PASS: six provider payloads, image content, reasoning, combined text, secret-free URLs and read-only connection checks. No network or paid inference.');
 const storeBundle=await build({entryPoints:['src/store/economic-agent.ts'],bundle:true,write:false,platform:'node',format:'esm',logLevel:'silent'});
 const {conversationWindow}=await import(`data:text/javascript;base64,${Buffer.from(storeBundle.outputFiles[0].text).toString('base64')}`);

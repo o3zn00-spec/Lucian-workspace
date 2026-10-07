@@ -91,15 +91,19 @@ export function MarketsFrame() {
   const terminal = useBybitTerminal(bybitMode, terminalSymbol, "linear");
 
   // Account values from the paper engine or the authenticated Bybit account.
-  // For Real mode these are null because no broker is connected —
-  // the strip shows honest "Not connected" values in that case.
+  // Missing or failed broker reads must not appear as a verified zero balance.
   const isVirtual = accountMode === "paper";
   const balance = isVirtual ? (account?.balance ?? 0) : null;
-  const equity = isVirtual ? (account?.equity ?? 0) : Number(terminal.data?.portfolio.totalEquity ?? 0);
-  const margin = isVirtual ? (account?.margin ?? 0) : Number(terminal.data?.portfolio.totalInitialMargin ?? 0);
-  const freeMargin = isVirtual ? (account?.freeMargin ?? 0) : Number(terminal.data?.portfolio.totalAvailableBalance ?? 0);
-  const marginLevel = isVirtual ? (account?.marginLevel ?? 0) : margin && equity ? (equity / margin) * 100 : 0;
-  const floatingPnl = isVirtual ? (account?.floatingPnl ?? 0) : Number(terminal.data?.portfolio.totalPerpUPL ?? 0);
+  const brokerValue = (value: string | undefined) => {
+    if (terminal.error || value === undefined || value.trim() === "") return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const equity = isVirtual ? (account?.equity ?? 0) : brokerValue(terminal.data?.portfolio.totalEquity);
+  const margin = isVirtual ? (account?.margin ?? 0) : brokerValue(terminal.data?.portfolio.totalInitialMargin);
+  const freeMargin = isVirtual ? (account?.freeMargin ?? 0) : brokerValue(terminal.data?.portfolio.totalAvailableBalance);
+  const marginLevel = isVirtual ? (account?.marginLevel ?? 0) : equity === null || margin === null ? null : margin > 0 ? (equity / margin) * 100 : 0;
+  const floatingPnl = isVirtual ? (account?.floatingPnl ?? 0) : brokerValue(terminal.data?.portfolio.totalPerpUPL);
 
   // ── Dialog state ──
   const [accountAction, setAccountAction] = useState<AccountActionKind | null>(null);
