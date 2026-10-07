@@ -35,7 +35,14 @@ and C15 recovery remain open. These two tests do not establish autonomous tradin
   or create a fixed outgoing IP. Authentication and balance read must still pass.
 - Validation passed: typecheck, full lint, production build, model/image adapter
   regression tests, Bybit connection/error/timeout regression tests, and trading/
-  performance/Vault architecture checks. GitHub-first release pending.
+  performance/Vault architecture checks. First GitHub-first release verified: `6ca660b`, Vercel
+  `dpl_4ezt7Dju9rntmm5tDsoxFQvjKwoG` READY (43 seconds), functions CPT1.
+  Production mainnet account read now succeeds; Unified account screen shows
+  zero totals and no coin rows. Funding balances have not been verified.
+- Follow-up provider-documentation correction: USD-denominated Unified totals
+  must not be labelled USDT; omit deprecated availableToWithdraw column. Missing
+  wallet/account-wide values must remain unavailable, including isolated margin
+  accounts where Bybit documents account-wide fields as inapplicable.
 - C04/C07 executable tools, paper-session runtime,
   unattended/live readiness, voice, canvas and recovery remain outstanding.
 
@@ -565,3 +572,29 @@ paper trading only against their documented acceptance criteria.
 - Next gate: agree a real-inference testing budget before testing actual replies
   and screenshot interpretation. Continue C04/C07 tools and C08–C11 paper trading
   under their separate acceptance rules. Model selection does not enable them.
+
+
+### Connection integrity follow-up — 2026-10-07
+
+- Production runtime logs identified the historical sync/configuration symptom:
+  `too many connections for role "prisma_migration"` during concurrent owner probes.
+  Runtime used Prisma Postgres direct connections. Runtime now selects the documented
+  pooled hostname, one connection per instance, a 20-second pool queue timeout, and
+  reuses a process singleton in production. Prisma CLI/migration URL stays direct.
+- Eight concurrent read-only `SELECT 1` queries through the production pool passed.
+  No production data was changed by this database check. Full production browser
+  burst verification is still required after publication.
+- Settings distinguishes “Unable to check” from “Not configured”; a failed database,
+  authorization or network probe cannot prove the user's key is missing.
+- The actual Settings connection-test route authenticates the provider before
+  reading its public model catalog. No paid completion runs for that test.
+- Bybit account-wide totals use USD, identify the Unified trading wallet, and
+  keep missing/inapplicable totals unavailable. No returned Unified account fails
+  explicitly; an authenticated numeric zero remains zero. Funding balances are
+  separate and unverified. Removed the deprecated Unified withdrawal-availability
+  column. These changes do not enable trading, withdrawals or capital transfers.
+- Regression fixtures cover pool configuration, non-Prisma hosts, explicit pool
+  overrides, absent/wrong wallet type, real zeros versus unknown totals, server
+  locks, invalid authentication before catalog discovery, and valid connections.
+  Publication/production verification must be recorded before marking this batch
+  complete. Universal executable tools and unattended trading remain incomplete.

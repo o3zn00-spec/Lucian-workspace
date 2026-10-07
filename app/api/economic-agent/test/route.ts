@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { discoverModels, isProviderConfigured } from "@/lib/agent/providers";
+import { discoverModels, getProvider, isProviderConfigured } from "@/lib/agent/providers";
 import type { ProviderId } from "@/store/economic-agent-connection";
 import { requireOwnerId } from "@/lib/auth/owner";
 
@@ -46,6 +46,13 @@ export async function POST(req: Request) {
   }
 
   try {
+    const adapter = await getProvider(provider, ownerUserId);
+    const authentication = await adapter?.test();
+    if (!authentication?.success) return NextResponse.json({
+      success: false, message: authentication?.message ?? "Provider is unavailable",
+      reason: authentication?.reason ?? "Authentication was not verified.",
+      provider, model, keyPresent: true, testedAt: new Date().toISOString(),
+    });
     const catalog = await discoverModels(provider, ownerUserId);
     const modelListed = catalog.models.includes(model);
     return NextResponse.json({

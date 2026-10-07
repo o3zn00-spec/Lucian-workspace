@@ -357,13 +357,13 @@ export function MarketsFrame() {
               <button type="button" aria-label="Use Bybit Testnet mode" aria-pressed={accountMode === "bybit_testnet"} onClick={() => setAccountMode("bybit_testnet")}>
               <AccountPill
                 label="Bybit Testnet"
-                value={accountMode === "bybit_testnet" ? terminal.data ? `${Number(terminal.data.portfolio.totalEquity).toFixed(2)} USDT` : terminal.loading ? "Connecting…" : "Setup required" : "—"}
+                value={accountMode === "bybit_testnet" ? terminal.data ? equity !== null ? `${equity.toFixed(2)} USD` : "Unavailable" : terminal.loading ? "Connecting…" : "Setup required" : "—"}
                 accent="blue"
                 active={accountMode === "bybit_testnet"}
               />
               </button>
               <button type="button" aria-label="Use Bybit Live mode with real funds" aria-pressed={accountMode === "bybit_live"} onClick={() => setAccountMode("bybit_live")}>
-                <AccountPill label="Bybit Live" value={accountMode === "bybit_live" ? terminal.data ? `${Number(terminal.data.portfolio.totalEquity).toFixed(2)} USDT` : terminal.loading ? "Connecting…" : "Locked / setup" : "—"} accent="red" active={accountMode === "bybit_live"} />
+                <AccountPill label="Bybit Live" value={accountMode === "bybit_live" ? terminal.data ? equity !== null ? `${equity.toFixed(2)} USD` : "Unavailable" : terminal.loading ? "Connecting…" : "Locked / setup" : "—"} accent="red" active={accountMode === "bybit_live"} />
               </button>
             </div>
 

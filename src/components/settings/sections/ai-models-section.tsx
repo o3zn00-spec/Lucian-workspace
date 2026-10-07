@@ -330,21 +330,11 @@ export function AiModelsSection() {
  * user runs Test Connection — so we don't claim "Ready" here.
  */
 function ProviderStatusPill({ provider }: { provider: ProviderId }) {
-  // We can't read process.env from the browser. Instead we treat
-  // "Configured" as "the user has explicitly selected this provider as
-  // their global default" and "Not configured" otherwise. The actual
-  // server-side config check happens via Test Connection.
-  //
-  // For the status list in Provider Status, we show a fetch to
-  // /api/economic-agent/test to do a real keyPresent check. We use a
-  // small lazy component so we don't block the page.
-  const [status, setStatus] = useState<"checking" | "configured" | "not_configured">("checking");
+  // Check encrypted owner credentials and server environment fallbacks without
+  // generating a paid reply. Network/auth/database failures are unavailable,
+  // never evidence that the saved key is missing.
+  const [status, setStatus] = useState<"checking" | "configured" | "not_configured" | "unavailable">("checking");
 
-  // Lazy-load status via a HEAD-style probe. We don't want to send a
-  // real chat test on every render — that would burn API quota. The
-  // /api/health/ai-probe endpoint reports whether the provider's
-  // environment variable is present (server-side). It never reveals
-  // the key value.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -352,16 +342,17 @@ function ProviderStatusPill({ provider }: { provider: ProviderId }) {
         const res = await fetch(`/api/health/ai-probe?provider=${encodeURIComponent(provider)}`, {
           method: "GET",
           cache: "no-store",
+          signal: AbortSignal.timeout(10_000),
         });
         if (cancelled) return;
         if (res.ok) {
           const data = (await res.json()) as { configured: boolean };
           setStatus(data.configured ? "configured" : "not_configured");
         } else {
-          setStatus("not_configured");
+          setStatus("unavailable");
         }
       } catch {
-        if (!cancelled) setStatus("not_configured");
+        if (!cancelled) setStatus("unavailable");
       }
     })();
     return () => { cancelled = true; };
@@ -373,5 +364,6 @@ function ProviderStatusPill({ provider }: { provider: ProviderId }) {
   if (status === "configured") {
     return <StatusPill status="configured" label="Configured" />;
   }
+  if (status === "unavailable") return <StatusPill status="unavailable" label="Unable to check" />;
   return <StatusPill status="not_configured" label="Not configured" />;
 }

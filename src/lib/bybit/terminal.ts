@@ -90,7 +90,8 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
     db.liveTradeIntent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
   ]);
 
-  const wallet = walletResult.list?.[0] ?? {};
+  const wallet = walletResult.list?.find(item => item.accountType === "UNIFIED");
+  if (!wallet) throw new Error("Bybit authenticated the request but returned no Unified account. Balance is unavailable.");
   return {
     mode,
     environment: config.environment,
@@ -102,12 +103,12 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
       testnetEnabled: process.env.BYBIT_TESTNET_TRADING_ENABLED !== "false",
     },
     portfolio: {
-      totalEquity: String(wallet.totalEquity ?? "0"),
-      totalWalletBalance: String(wallet.totalWalletBalance ?? "0"),
-      totalAvailableBalance: String(wallet.totalAvailableBalance ?? "0"),
-      totalPerpUPL: String(wallet.totalPerpUPL ?? "0"),
-      totalInitialMargin: String(wallet.totalInitialMargin ?? "0"),
-      totalMaintenanceMargin: String(wallet.totalMaintenanceMargin ?? "0"),
+      totalEquity: String(wallet.totalEquity ?? ""),
+      totalWalletBalance: String(wallet.totalWalletBalance ?? ""),
+      totalAvailableBalance: String(wallet.totalAvailableBalance ?? ""),
+      totalPerpUPL: String(wallet.totalPerpUPL ?? ""),
+      totalInitialMargin: String(wallet.totalInitialMargin ?? ""),
+      totalMaintenanceMargin: String(wallet.totalMaintenanceMargin ?? ""),
       coins: Array.isArray(wallet.coin) ? wallet.coin : [],
     },
     ticker: ticker.list?.[0] ?? null,
