@@ -1,0 +1,778 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* Background themes — applied via data-theme on <html>                */
+/* ------------------------------------------------------------------ */
+
+:root,
+[data-theme="midnight-gray"] {
+  color-scheme: dark;
+  --canvas: #0e1013;
+  --surface: #151a1e;
+  --surface-2: #1a2025;
+  --overlay: #1c2228;
+  --inset: #0a0c0e;
+  --line: #2b333b;
+  --line-muted: #21272e;
+  --fg: #e6e9ec;
+  --fg-muted: #99a3ad;
+  --fg-faint: #6b7681;
+  --hover-bg: #1c2228;
+  --active-bg: #232a31;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="deep-black"] {
+  color-scheme: dark;
+  --canvas: #000000;
+  --surface: #0c0c0c;
+  --surface-2: #111111;
+  --overlay: #161616;
+  --inset: #060606;
+  --line: #2a2a2a;
+  --line-muted: #1d1d1d;
+  --fg: #f0f0f0;
+  --fg-muted: #969696;
+  --fg-faint: #676767;
+  --hover-bg: #161616;
+  --active-bg: #1f1f1f;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="charcoal"] {
+  color-scheme: dark;
+  --canvas: #1b1d1e;
+  --surface: #232526;
+  --surface-2: #282b2c;
+  --overlay: #2b2e2f;
+  --inset: #151717;
+  --line: #3b3e40;
+  --line-muted: #303334;
+  --fg: #e9e9e7;
+  --fg-muted: #a4a7a8;
+  --fg-faint: #77797b;
+  --hover-bg: #2b2e2f;
+  --active-bg: #333637;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="midnight-blue"] {
+  color-scheme: dark;
+  --canvas: #0c1322;
+  --surface: #121c31;
+  --surface-2: #16223a;
+  --overlay: #18253f;
+  --inset: #080d18;
+  --line: #2b3a58;
+  --line-muted: #202d47;
+  --fg: #e4e9f3;
+  --fg-muted: #94a1bd;
+  --fg-faint: #66748f;
+  --hover-bg: #18253f;
+  --active-bg: #1e2e4c;
+  --shadow: 0 8px 24px rgba(2, 6, 16, 0.6);
+}
+
+[data-theme="deep-teal"] {
+  color-scheme: dark;
+  --canvas: #081a1d;
+  --surface: #0e2529;
+  --surface-2: #122c31;
+  --overlay: #143036;
+  --inset: #051114;
+  --line: #234850;
+  --line-muted: #1a373d;
+  --fg: #e0ecec;
+  --fg-muted: #8fb0b3;
+  --fg-faint: #618185;
+  --hover-bg: #143036;
+  --active-bg: #193c42;
+  --shadow: 0 8px 24px rgba(0, 10, 12, 0.6);
+}
+
+[data-theme="forest-night"] {
+  color-scheme: dark;
+  --canvas: #0e1611;
+  --surface: #142018;
+  --surface-2: #18261d;
+  --overlay: #1a2a20;
+  --inset: #090f0b;
+  --line: #2c4133;
+  --line-muted: #213127;
+  --fg: #e2ebe4;
+  --fg-muted: #94aa9b;
+  --fg-faint: #687e6f;
+  --hover-bg: #1a2a20;
+  --active-bg: #213529;
+  --shadow: 0 8px 24px rgba(1, 8, 3, 0.6);
+}
+
+[data-theme="espresso"] {
+  color-scheme: dark;
+  --canvas: #19110c;
+  --surface: #231913;
+  --surface-2: #2a1e16;
+  --overlay: #2d2119;
+  --inset: #100a06;
+  --line: #453325;
+  --line-muted: #35271c;
+  --fg: #f0e6dc;
+  --fg-muted: #b39c88;
+  --fg-faint: #85705d;
+  --hover-bg: #2d2119;
+  --active-bg: #37281e;
+  --shadow: 0 8px 24px rgba(8, 3, 0, 0.6);
+}
+
+[data-theme="deep-purple"] {
+  color-scheme: dark;
+  --canvas: #130f1e;
+  --surface: #1b152c;
+  --surface-2: #201a34;
+  --overlay: #231c39;
+  --inset: #0c0914;
+  --line: #382e55;
+  --line-muted: #2a2242;
+  --fg: #e9e4f2;
+  --fg-muted: #a498c2;
+  --fg-faint: #776b96;
+  --hover-bg: #231c39;
+  --active-bg: #2b2346;
+  --shadow: 0 8px 24px rgba(6, 2, 16, 0.6);
+}
+
+[data-theme="natural-white"] {
+  color-scheme: light;
+  --canvas: #f6f8fa;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --overlay: #ffffff;
+  --inset: #ffffff;
+  --line: #d1d9e0;
+  --line-muted: #e3e8ee;
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --fg-faint: #818b95;
+  --hover-bg: #eef1f4;
+  --active-bg: #e6eaef;
+  --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  /* Phase 17: status tokens adapted for light backgrounds (need stronger
+     saturation to maintain contrast on white). */
+  --danger: #d1242f;
+  --danger-fg: #ffffff;
+  --warning: #9a6700;
+  --warning-fg: #ffffff;
+  --success: #1a7f37;
+  --success-fg: #ffffff;
+}
+
+[data-theme="creamy-light"] {
+  color-scheme: light;
+  --canvas: #f7f2e7;
+  --surface: #fffcf4;
+  --surface-2: #f6efe1;
+  --overlay: #fffdf7;
+  --inset: #fffdf7;
+  --line: #ddd1ba;
+  --line-muted: #eae0cd;
+  --fg: #2b2418;
+  --fg-muted: #6f6250;
+  --fg-faint: #968872;
+  --hover-bg: #f0e8d7;
+  --active-bg: #e9dfc9;
+  --shadow: 0 8px 24px rgba(60, 45, 20, 0.12);
+  /* Phase 17: status tokens adapted for warm-light background. */
+  --danger: #b91e29;
+  --danger-fg: #ffffff;
+  --warning: #8a5a00;
+  --warning-fg: #ffffff;
+  --success: #1a6b35;
+  --success-fg: #ffffff;
+}
+
+/* ------------------------------------------------------------------ */
+/* Accent colors — applied via data-accent on <html>                   */
+/* ------------------------------------------------------------------ */
+
+:root,
+[data-accent="lucian-gold"] {
+  --accent: #d4a72c;
+  --accent-hover: #bd9222;
+  --accent-active: #a67f1c;
+  --accent-fg: #201700;
+}
+
+[data-accent="orange"] {
+  --accent: #ec7211;
+  --accent-hover: #d5650d;
+  --accent-active: #bd580a;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="emerald"] {
+  --accent: #23a55f;
+  --accent-hover: #1e9052;
+  --accent-active: #197c46;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="ocean-blue"] {
+  --accent: #2f81f7;
+  --accent-hover: #1f6feb;
+  --accent-active: #1a60cc;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="royal-purple"] {
+  --accent: #8957e5;
+  --accent-hover: #7847d1;
+  --accent-active: #683cba;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="crimson"] {
+  --accent: #d1242f;
+  --accent-hover: #b91e29;
+  --accent-active: #a01a23;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="rose"] {
+  --accent: #e0559f;
+  --accent-hover: #cc4790;
+  --accent-active: #b53a7e;
+  --accent-fg: #ffffff;
+}
+
+[data-accent="ink"] {
+  --accent: #64707d;
+  --accent-hover: #57626e;
+  --accent-active: #4a545f;
+  --accent-fg: #ffffff;
+}
+
+/* ------------------------------------------------------------------ */
+/* Status tokens (danger / warning / success) — Phase 17 addition.      */
+/* These are THEME-AGNOSTIC defaults; the light theme blocks above     */
+/* override them with stronger colors that maintain contrast on light   */
+/* backgrounds. Prior to Phase 17, components used ad-hoc Tailwind      */
+/* colors (bg-red-500, text-amber-500, etc.) which did NOT adapt to    */
+/* the active theme — e.g., text-green-400 has poor contrast on white. */
+/* ------------------------------------------------------------------ */
+
+:root {
+  /* Dark-mode defaults — bright colors that pop on dark canvases. */
+  --danger: #ff5b5b;
+  --danger-fg: #ffffff;
+  --warning: #d4a72c;
+  --warning-fg: #201700;
+  --success: #4bfa8f;
+  --success-fg: #051a0e;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tailwind token mapping                                              */
+/* ------------------------------------------------------------------ */
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-overlay: var(--overlay);
+  --color-inset: var(--inset);
+  --color-line: var(--line);
+  --color-line-muted: var(--line-muted);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-hover: var(--hover-bg);
+  --color-active: var(--active-bg);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-fg: var(--accent-fg);
+  /* Phase 17: status tokens — bg-danger, text-success, etc. work and
+     adapt to the active theme (dark defaults vs. light overrides). */
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --shadow-pop: var(--shadow);
+
+  /* ---------------------------------------------------------------- */
+  /* shadcn-compat aliases — map shadcn-style CSS variables to my      */
+  /* LUCIAN tokens so ported shadcn UI primitives render with the      */
+  /* current theme + accent automatically.                             */
+  /*                                                                  */
+  /* NOTE on the `accent` collision:                                   */
+  /*   - shadcn's `--accent` is a SUBTLE GRAY HOVER background         */
+  /*     (used by ghost/outline buttons, dropdown hovers, etc.)        */
+  /*   - LUCIAN's `--accent` is the COLOR ACCENT (gold/emerald/etc.)   */
+  /*     used for primary actions, focus rings, active nav.            */
+  /*   - These are different concepts that happen to share a name.     */
+  /*   - Resolution: shadcn's `--accent` aliases to my `--hover-bg`   */
+  /*     (which IS the subtle gray hover shadcn intended).             */
+  /*   - My own `--accent` (the color accent) stays as the source.    */
+  /* ---------------------------------------------------------------- */
+
+  /* shadcn `bg-background`, `text-foreground` → LUCIAN canvas + fg */
+  --color-background: var(--canvas);
+  --color-foreground: var(--fg);
+
+  /* shadcn `bg-card`, `text-card-foreground` → LUCIAN surface + fg */
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg);
+
+  /* shadcn `bg-popover`, `text-popover-foreground` → LUCIAN overlay + fg */
+  --color-popover: var(--overlay);
+  --color-popover-foreground: var(--fg);
+
+  /* shadcn `bg-primary`, `text-primary-foreground` → LUCIAN color accent */
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-fg);
+
+  /* shadcn `bg-secondary`, `text-secondary-foreground` → LUCIAN surface-2 + muted */
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg-muted);
+
+  /* shadcn `bg-muted`, `text-muted-foreground` → LUCIAN surface-2 + muted */
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--fg-muted);
+
+  /* shadcn `bg-accent`, `text-accent-foreground` (subtle hover) → LUCIAN hover-bg + fg */
+  --color-accent: var(--hover-bg);
+  --color-accent-foreground: var(--fg);
+
+  /* shadcn `bg-destructive` → LUCIAN color accent (we don't have a destructive color) */
+  --color-destructive: var(--accent);
+  --color-destructive-foreground: var(--accent-fg);
+
+  /* shadcn `border-input`, `border-border` → LUCIAN line */
+  --color-border: var(--line);
+  --color-input: var(--line);
+
+  /* shadcn `ring-ring` (focus ring color) → LUCIAN color accent */
+  --color-ring: var(--accent);
+
+  /* Radius + chart tokens (chart-* are used by recharts but we don't use them) */
+  --radius: 0.5rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* shadcn-compat: raw CSS variable aliases                             */
+/* ------------------------------------------------------------------ */
+/* The @theme inline block above exposes Tailwind utility classes       */
+/* (bg-background, text-primary, etc.). Some shadcn primitives also    */
+/* reference the underlying CSS variables directly via var(--accent), */
+/* var(--primary), etc. — those need plain CSS aliases too.            */
+/* ------------------------------------------------------------------ */
+
+:root,
+[data-theme] {
+  --background: var(--canvas);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--overlay);
+  --popover-foreground: var(--fg);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--fg-muted);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--fg-muted);
+  /* IMPORTANT: shadcn's --accent (subtle hover) — different concept from
+     my LUCIAN --accent (color accent). Keep them distinct. */
+  --shadcn-accent: var(--hover-bg);
+  --shadcn-accent-foreground: var(--fg);
+  --destructive: var(--accent);
+  --destructive-foreground: var(--accent-fg);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font-feature-settings: "cv02", "cv03";
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Slim, theme-aware scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--fg-faint) 55%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--fg-faint) 55%, transparent);
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Accessible focus rings driven by the accent color */
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Subtle color transitions on themed elements */
+.themed {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Phase 12 — every interactive control provides immediate physical feedback. */
+button:not(:disabled):not([aria-disabled="true"]),
+[role="button"]:not([aria-disabled="true"]),
+a[href] {
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+button:not(:disabled):not([aria-disabled="true"]):active,
+[role="button"]:not([aria-disabled="true"]):active,
+a[href]:active {
+  filter: brightness(0.86);
+  opacity: 0.88;
+}
+
+button[aria-pressed="true"],
+button[aria-selected="true"],
+[role="tab"][aria-selected="true"],
+[data-state="active"],
+[data-state="checked"],
+[data-state="open"] {
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -1px;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+[data-navigation-pending="true"] {
+  cursor: progress !important;
+  opacity: 0.72;
+}
+
+.nav-pending-indicator {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.nav-pending-indicator.is-pending,
+[data-navigation-pending="true"] .nav-pending-indicator {
+  visibility: visible;
+  opacity: 1;
+  animation: lucian-control-spin 0.7s linear infinite;
+}
+
+@keyframes lucian-control-spin {
+  to { transform: rotate(360deg); }
+}
+
+.lucian-navigation-progress {
+  width: 42%;
+  animation: lucian-navigation-slide 1s ease-in-out infinite;
+}
+
+@keyframes lucian-navigation-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(340%); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* Settings — appearance + accessibility hooks                              */
+/* Applied via <html> dataset attributes by AppearanceApplier.             */
+/* Each hook is opt-in: the default (no attribute / "default" / "full")   */
+/* preserves the existing look. Compact density, large font, reduced     */
+/* motion, reduced rounding, and high-contrast are the only overrides.    */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+/* Density: comfortable (default) vs compact */
+[data-density="compact"] {
+  --row-pad-y: 0.375rem;  /* 6px instead of 8px */
+  --row-pad-x: 0.625rem;
+  --section-gap: 1rem;
+}
+[data-density="comfortable"] {
+  --row-pad-y: 0.5rem;
+  --row-pad-x: 0.75rem;
+  --section-gap: 1.5rem;
+}
+
+/* Font scale: small / default / large */
+[data-font-scale="small"] { font-size: 14px; }
+[data-font-scale="default"] { font-size: 15px; }
+[data-font-scale="large"] { font-size: 17px; }
+
+/* Reduced motion */
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Rounded interface: default vs reduced */
+[data-rounded="reduced"] {
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+}
+
+/* High contrast */
+[data-high-contrast="true"] {
+  --line: var(--fg-muted);
+  --line-muted: var(--fg-faint);
+}
+
+/* Larger text (accessibility) */
+[data-larger-text="true"] { font-size: 18px; }
+
+/* Keyboard focus indicators: when disabled, hide focus rings on mouse
+   but keep them for keyboard users (focus-visible is already used by
+   the ui-devspace primitives; this is a fallback). */
+[data-keyboard-focus="false"] *:focus { outline: none; }
+
+/* Settings layout — left nav + scrollable content */
+.settings-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+}
+.settings-nav {
+  border-right: 1px solid var(--line-muted);
+  padding: 1rem 0.5rem;
+  overflow-y: auto;
+  background: var(--surface-2);
+}
+.settings-content {
+  overflow-y: auto;
+  padding: 2rem 2.5rem;
+  max-width: 880px;
+}
+@media (max-width: 1023px) {
+  .settings-shell {
+    grid-template-columns: 1fr;
+  }
+  .settings-nav { display: none; }
+  .settings-content { padding: 1.25rem 1rem; }
+}
+
+/* Settings row layout: title + description + control */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: var(--row-pad-y, 0.5rem) var(--row-pad-x, 0.75rem);
+  min-height: 40px;
+}
+.settings-row-text {
+  min-width: 0;
+  flex: 1;
+}
+.settings-row-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.3;
+}
+.settings-row-desc {
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  margin-top: 0.125rem;
+  line-height: 1.4;
+}
+.settings-row-control {
+  flex-shrink: 0;
+}
+
+/* Settings section header */
+.settings-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+.settings-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+  margin-top: 0.25rem;
+}
+
+/* Settings group card (only used for major groups) */
+.settings-group {
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-lg, 8px);
+  padding: 0.25rem 0.75rem;
+  margin-top: 1.5rem;
+  background: var(--surface);
+}
+.settings-group-heading {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  padding: 0.75rem 0 0.25rem;
+}
+
+/* Settings nav button */
+.settings-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.4375rem 0.625rem;
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.settings-nav-btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.settings-nav-btn[aria-current="page"] {
+  background: var(--active);
+  color: var(--fg);
+  font-weight: 500;
+}
+.settings-nav-btn[aria-current="page"] svg {
+  color: var(--accent);
+}
+
+/* Settings search results */
+.settings-search-results {
+  margin-top: 0.75rem;
+  border: 1px solid var(--line-muted);
+  border-radius: var(--radius-md, 6px);
+  background: var(--surface);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.settings-search-result {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--line-muted);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.settings-search-result:hover,
+.settings-search-result[aria-selected="true"] {
+  background: var(--hover);
+}
+.settings-search-result:last-child { border-bottom: none; }
+.settings-search-result-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+.settings-search-result-section {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  margin-top: 0.125rem;
+}
+
+/* Status pill */
+.settings-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--line-muted);
+}
+.settings-status-pill .dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+}
+.settings-status-pill[data-status="ready"]      { color: #1f9d55; }
+.settings-status-pill[data-status="ready"] .dot { background: #1f9d55; }
+.settings-status-pill[data-status="configured"]      { color: #d4a72c; }
+.settings-status-pill[data-status="configured"] .dot  { background: #d4a72c; }
+.settings-status-pill[data-status="setup_required"]      { color: var(--fg-muted); }
+.settings-status-pill[data-status="setup_required"] .dot { background: var(--fg-muted); }
+.settings-status-pill[data-status="not_configured"]      { color: var(--fg-muted); }
+.settings-status-pill[data-status="not_configured"] .dot { background: var(--fg-faint); }
+.settings-status-pill[data-status="error"]      { color: #d1242f; }
+.settings-status-pill[data-status="error"] .dot { background: #d1242f; }
+.settings-status-pill[data-status="unavailable"]      { color: var(--fg-muted); }
+.settings-status-pill[data-status="unavailable"] .dot { background: var(--fg-faint); }
+
+/* ── Phase 16 — Cinematic auth animations ─────────────────────────────────── */
+
+/* Gateway transition — a single sweeping ring that expands from the
+ * center on auth success. Used by the (auth) layout. */
+@keyframes lucian-gateway-sweep {
+  0%   { opacity: 0; transform: scale(0.5); }
+  40%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+.animate-lucian-gateway {
+  animation: lucian-gateway-sweep 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Soft fade-in for the auth card on mount. */
+@keyframes lucian-auth-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-lucian-auth-card-in {
+  animation: lucian-auth-card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Respect prefers-reduced-motion — disable the sweep, keep a plain
+ * fade. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-lucian-gateway {
+    animation: lucian-auth-card-in 0.6s ease-out forwards;
+  }
+}

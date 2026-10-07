@@ -1,0 +1,19 @@
+.stage { position: relative; min-height: 100dvh; overflow: hidden; background: #020509; color: #e9f5ff; --accent: #43c9ff; --accent-foreground: #03101c; --canvas: #020509; --surface: #07111d; --fg: #e9f5ff; --fg-muted: #a5bacb; --fg-faint: #819caf; --line: #285066; --line-muted: #193346; }
+.backdrop { position: absolute; inset: 0; pointer-events: none; }
+.hold, .video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.hold { background: #020509 url('/auth/guardian-hold.webp') center / cover no-repeat; }
+.video { opacity: 0; }
+.stage[data-phase='playing'] .video { opacity: 1; }
+.formRegion { position: relative; z-index: 1; min-height: 100dvh; display: flex; align-items: center; justify-content: flex-end; padding: 64px max(7vw, 24px) 48px; }
+.materialization { width: min(100%, 384px); visibility: hidden; opacity: 0; transform: translateY(32px); clip-path: inset(100% 0 0); filter: blur(4px); transition: clip-path 850ms cubic-bezier(.16,1,.3,1), transform 850ms cubic-bezier(.16,1,.3,1), opacity 350ms ease, filter 650ms ease; }
+.stage[data-phase='ready'] .materialization { visibility: visible; opacity: 1; transform: none; clip-path: inset(0); filter: none; }
+.materialization > div { filter: drop-shadow(0 0 28px #1b8dd326); }
+.controls { position: absolute; z-index: 3; top: 20px; right: 24px; }
+.controls button { display: flex; align-items: center; gap: 8px; border: 1px solid #285066; border-radius: 8px; padding: 9px 12px; color: #c8e3f5; background: #06101dd9; font-size: 12px; cursor: pointer; }
+.controls button:hover { background: #122739; }
+.controls button:focus-visible { outline: 2px solid #43c9ff; outline-offset: 4px; }
+.success { pointer-events: none; position: absolute; inset: 0; z-index: 5; background: #061421; opacity: 0; transition: opacity 400ms ease; }
+.stage[data-success='true'] .success { opacity: .8; }
+.stage[data-reduced-motion='true'] .materialization { transition: none; }
+@media (max-width: 760px) { .formRegion { justify-content: center; padding: 80px 20px 36px; background: linear-gradient(180deg, #02050966, #020509c9 35%, #020509e8); } .hold, .video { object-position: 35% center; } }
+@media (prefers-reduced-motion: reduce) { .materialization, .success { transition: none; } }

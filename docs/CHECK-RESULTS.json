@@ -1,0 +1,78 @@
+{
+  "web-build-final": {
+    "command": [
+      "node",
+      "node_modules\\next\\dist\\bin\\next",
+      "build"
+    ],
+    "exit_code": 0
+  },
+  "lint-final": {
+    "command": [
+      "node",
+      "node_modules\\eslint\\bin\\eslint.js",
+      "."
+    ],
+    "exit_code": 0
+  },
+  "typecheck-final": {
+    "command": [
+      "node",
+      "node_modules\\typescript\\bin\\tsc",
+      "--noEmit"
+    ],
+    "exit_code": 0
+  },
+  "desktop-smoke": {
+    "command": [
+      "node",
+      "--test",
+      "desktop/host.test.mjs"
+    ],
+    "exit_code": 0
+  },
+  "stage-smoke": {
+    "command": [
+      "node",
+      "C:\\Users\\HP\\LUCIAN-PRIVATE-CONSOLIDATION\\audit\\stage-smoke.mjs"
+    ],
+    "exit_code": 0
+  },
+  "schema-diff": {
+    "command": [
+      "node",
+      "node_modules\\prisma\\build\\index.js",
+      "migrate",
+      "diff",
+      "--from-schema-datamodel",
+      "C:\\Users\\HP\\OneDrive\\Documents\\GitHub\\Lucian-workspace-v2\\prisma\\schema.prisma",
+      "--to-schema-datamodel",
+      "prisma\\schema.prisma",
+      "--script"
+    ],
+    "exit_code": 0
+  },
+  "architecture-final": {
+    "command": [
+      "node",
+      "node_modules\\tsx\\dist\\cli.mjs",
+      "scripts/phase10-architecture-tests.ts"
+    ],
+    "exit_code": 0
+  },
+  "vault-final": {
+    "command": [
+      "node",
+      "node_modules\\tsx\\dist\\cli.mjs",
+      "scripts/vault-architecture-tests.ts"
+    ],
+    "exit_code": 0
+  },
+  "runtime-stage-final": {
+    "command": [
+      "node",
+      "desktop/package-runtime.mjs"
+    ],
+    "exit_code": 0
+  }
+}
