@@ -28,7 +28,11 @@ export async function GET(req: Request) {
   }
   const url = new URL(req.url);
   const provider = url.searchParams.get("provider") as ProviderId | null;
-  if (!provider || !KNOWN.includes(provider)) {
+  if (!provider) {
+    const entries = await Promise.all(KNOWN.map(async (id) => [id, await isProviderConfigured(id, ownerUserId)] as const));
+    return NextResponse.json({ providers: Object.fromEntries(entries) });
+  }
+  if (!KNOWN.includes(provider)) {
     return NextResponse.json(
       { error: "Unknown provider id.", configured: false },
       { status: 400 },

@@ -598,3 +598,13 @@ paper trading only against their documented acceptance criteria.
   locks, invalid authentication before catalog discovery, and valid connections.
   Publication/production verification must be recorded before marking this batch
   complete. Universal executable tools and unattended trading remain incomplete.
+
+- Follow-up release `35f2554`, Vercel `dpl_FJNpXGaZ18t5AbXWGXeckuY2GRHp`,
+  READY production in 51 seconds. New runtime logs showed successful 200 responses
+  for assistant sync and all provider probes without the prior database errors.
+  Browser checks exposed overly short 10-second badge timeouts and duplicated
+  owner probes; a single combined provider-status request and bounded 45-second
+  UI wait now replaces seven badge requests. Connection-test feedback stays
+  visible inline. Terminal snapshots reuse credentials within one request rather
+  than opening thirty redundant credential reads. Production UI acceptance of
+  these final latency corrections is required before closing this subtask.

@@ -75,16 +75,20 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
   const config = await assertMode(userId, mode);
   const profile = await getTradingProfile(userId);
 
+  // Reuse this request's authenticated credentials across its read-only snapshot.
+  // Never keep decrypted credentials in a process-global cache.
+  const request = <T>(path: string, options: Parameters<typeof bybitRequest>[2]) => bybitRequest<T>(userId, path, options, config);
+
   const [walletResult, positions, spotOrders, linearOrders, spotHistory, linearHistory, executions, closedPnl, transactions, ticker, audits, approvals] = await Promise.all([
-    bybitRequest<{ list?: Array<Record<string, unknown>> }>(userId, "/v5/account/wallet-balance", { query: { accountType: "UNIFIED" } }),
-    safeList(bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/order/realtime", { query: { category: "spot", openOnly: 0, limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/order/realtime", { query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/order/history", { query: { category: "spot", limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/order/history", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/execution/list", { query: { category, symbol, limit: 100 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", symbol, limit: 50 } })),
-    safeList(bybitRequest<BybitList>(userId, "/v5/account/transaction-log", { query: { accountType: "UNIFIED", limit: 50 } })),
+    request<{ list?: Array<Record<string, unknown>> }>( "/v5/account/wallet-balance", { query: { accountType: "UNIFIED" } }),
+    safeList(request<BybitList>( "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
+    safeList(request<BybitList>( "/v5/order/realtime", { query: { category: "spot", openOnly: 0, limit: 50 } })),
+    safeList(request<BybitList>( "/v5/order/realtime", { query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 } })),
+    safeList(request<BybitList>( "/v5/order/history", { query: { category: "spot", limit: 50 } })),
+    safeList(request<BybitList>( "/v5/order/history", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
+    safeList(request<BybitList>( "/v5/execution/list", { query: { category, symbol, limit: 100 } })),
+    safeList(request<BybitList>( "/v5/position/closed-pnl", { query: { category: "linear", symbol, limit: 50 } })),
+    safeList(request<BybitList>( "/v5/account/transaction-log", { query: { accountType: "UNIFIED", limit: 50 } })),
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     db.tradingAuditEvent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
     db.liveTradeIntent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),

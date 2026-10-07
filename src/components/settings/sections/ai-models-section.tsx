@@ -47,6 +47,7 @@ export function AiModelsSection() {
   const setAIBehavior = useSettingsStore((s) => s.setAIBehavior);
 
   const [testing, setTesting] = useState(false);
+  const [connectionResult, setConnectionResult] = useState("");
   const [memoryEntries, setMemoryEntries] = useState<{ id: string; scope: string; key: string; value: string }[]>([]);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [memoryKey, setMemoryKey] = useState("");
@@ -104,13 +105,16 @@ export function AiModelsSection() {
 
   async function handleTestConnection() {
     setTesting(true);
+    setConnectionResult("");
     try {
       const res = await fetch("/api/economic-agent/test", {
         method: "POST",
+        signal: AbortSignal.timeout(45_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: shared.globalProvider, model: shared.globalModel }),
       });
       const data = await res.json() as { success: boolean; message: string; reason?: string };
+      setConnectionResult(`${data.message ?? "Connection test finished"}${data.reason ? ": " + data.reason : ""}`);
       if (data.success) {
         toast({ title: "Connection OK", description: `${shared.globalProvider} / ${shared.globalModel} responded successfully.` });
       } else {
@@ -121,6 +125,7 @@ export function AiModelsSection() {
         });
       }
     } catch {
+      setConnectionResult("Connection check unavailable. Please retry when the service responds.");
       toast({ title: "Network error", description: "Could not reach the test endpoint.", variant: "destructive" });
     } finally {
       setTesting(false);
@@ -131,7 +136,7 @@ export function AiModelsSection() {
     <div>
       <SettingsSectionHeader
         title="AI & Models"
-        subtitle="Configure LUCIAN's intelligence providers. API keys live in environment variables and are never shown here."
+        subtitle="Configure LUCIAN's intelligence providers. API keys are encrypted on the server and are never shown here."
       />
 
       <SettingsGroup title="Global AI Default">
@@ -167,6 +172,7 @@ export function AiModelsSection() {
         </SettingsRow>
       </SettingsGroup>
 
+      {connectionResult && <p role="status" className="px-4 py-2 text-sm text-fg-muted">{connectionResult}</p>}
       <SettingsGroup title="Interface Overrides">
         {INTERFACES.map((iface) => {
           const override = shared.overrides[iface.id];
@@ -306,7 +312,7 @@ export function AiModelsSection() {
 
       <SettingsGroup title="Provider Status">
         <div className="py-2 text-[12px] text-fg-muted">
-          Configured state of each AI provider. API keys are read from server environment variables and never displayed here.
+          Configured state of each AI provider. Encrypted owner keys and server environment fallbacks are checked without displaying credentials.
         </div>
         {PROVIDERS.map((p) => (
           <SettingsRow key={p.id} title={p.name} description={`Environment variable: ${p.envKey} (server-side only).`}>
@@ -337,24 +343,9 @@ function ProviderStatusPill({ provider }: { provider: ProviderId }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/health/ai-probe?provider=${encodeURIComponent(provider)}`, {
-          method: "GET",
-          cache: "no-store",
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (cancelled) return;
-        if (res.ok) {
-          const data = (await res.json()) as { configured: boolean };
-          setStatus(data.configured ? "configured" : "not_configured");
-        } else {
-          setStatus("unavailable");
-        }
-      } catch {
-        if (!cancelled) setStatus("unavailable");
-      }
-    })();
+    probeProviders().then((data) => {
+      if (!cancelled) setStatus(data.providers[provider] === true ? "configured" : data.providers[provider] === false ? "not_configured" : "unavailable");
+    }).catch(() => { if (!cancelled) setStatus("unavailable"); });
     return () => { cancelled = true; };
   }, [provider]);
 
@@ -366,4 +357,20 @@ function ProviderStatusPill({ provider }: { provider: ProviderId }) {
   }
   if (status === "unavailable") return <StatusPill status="unavailable" label="Unable to check" />;
   return <StatusPill status="not_configured" label="Not configured" />;
+}
+
+
+// All mounted badges share one owner-authorized request; do not cache results
+// beyond that request, so reopening Settings sees newly saved credentials.
+let providerProbe: Promise<{ providers: Partial<Record<ProviderId, boolean>> }> | null = null;
+function probeProviders() {
+  if (!providerProbe) providerProbe = fetch("/api/health/ai-probe", {
+    cache: "no-store", signal: AbortSignal.timeout(45_000),
+  }).then(async (response) => {
+    if (!response.ok) throw new Error("Provider status unavailable");
+    const data = await response.json() as { providers: Partial<Record<ProviderId, boolean>> };
+    if (!data.providers) throw new Error("Invalid provider status");
+    return data;
+  }).finally(() => { providerProbe = null; });
+  return providerProbe;
 }

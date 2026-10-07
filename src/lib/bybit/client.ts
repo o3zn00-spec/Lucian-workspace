@@ -77,9 +77,10 @@ export async function bybitRequest<T>(
   ownerUserId: string,
   path: string,
   options: { method?: "GET" | "POST"; query?: Record<string, QueryValue>; body?: Record<string, unknown> } = {},
+  requestConfig?: Awaited<ReturnType<typeof getBybitConfig>>,
 ): Promise<T> {
   if (!path.startsWith("/v5/")) throw new Error("Bybit request paths must begin with /v5/.");
-  const config = await getBybitConfig(ownerUserId);
+  const config = requestConfig ?? await getBybitConfig(ownerUserId);
   if (!config.apiKey || !config.apiSecret) {
     throw new BybitApiError("Bybit is not configured. Save the API key and secret in Settings → Connections.", 10003, 503);
   }

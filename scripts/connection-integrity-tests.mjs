@@ -13,7 +13,7 @@ assert.equal(local.hostname,'localhost');assert.equal(local.searchParams.get('co
 const mocks={
  '@/lib/db':'export const db={tradingAuditEvent:{findMany:async()=>[]},liveTradeIntent:{findMany:async()=>[]}};',
  '@/lib/auth/password':'export const verifyPassword=async()=>false;',
- '@/lib/bybit/client':`export const getBybitConfig=async()=>({environment:'mainnet',configured:true});export const bybitPublicRequest=async()=>({list:[]});export const bybitRequest=async(_u,path)=>path.includes('wallet-balance')?globalThis.walletFixture:{list:[]};`,
+ '@/lib/bybit/client':`export const getBybitConfig=async()=>({environment:'mainnet',configured:true});export const bybitPublicRequest=async()=>({list:[]});export const bybitRequest=async(_u,path,_options,config)=>{if(!config?.configured)throw new Error('Missing request-scoped config');return path.includes('wallet-balance')?globalThis.walletFixture:{list:[]};};`,
  '@/lib/bybit/trading':'export const getTradingProfile=async()=>({maxOrderUsd:10,maxPositionUsd:20,maxDailyLossUsd:5,maxOpenPositions:1,maxLeverage:1,requireApproval:true,emergencyStop:false});',
 };
 const {terminalSnapshot}=await bundle('src/lib/bybit/terminal.ts',mocks);
@@ -31,3 +31,14 @@ const request=()=>new Request('https://fixture.test/api/economic-agent/test',{me
 assert.equal((await (await POST(request())).json()).success,false);assert.equal(globalThis.catalogCalls,0);
 globalThis.authFixture={success:true};assert.equal((await (await POST(request())).json()).success,true);assert.equal(globalThis.catalogCalls,1);
 console.log('PASS: runtime database pooling, explicit pool overrides, missing wallets unavailable, genuine zero retained, unknown totals blank, live execution locked, provider authentication precedes public catalog. No network or transactions.');
+
+const probe=await bundle('app/api/health/ai-probe/route.ts',{
+ 'next/server':'export const NextResponse={json:(body,init)=>Response.json(body,init)};',
+ '@/lib/auth/owner':'export const requireOwnerId=async()=>{globalThis.ownerChecks++;return "fixture";};',
+ '@/lib/agent/providers':'export const isProviderConfigured=async(id)=>id==="openrouter";',
+});
+globalThis.ownerChecks=0;
+const statuses=await (await probe.GET(new Request('https://fixture.test/api/health/ai-probe'))).json();
+assert.equal(globalThis.ownerChecks,1);assert.equal(Object.keys(statuses.providers).length,6);assert.equal(statuses.providers.openrouter,true);assert.equal(statuses.providers.openai,false);
+assert.equal((await probe.GET(new Request('https://fixture.test/api/health/ai-probe?provider=invalid'))).status,400);
+console.log('PASS: one owner authorization for the combined six-provider status probe; unknown provider rejected; terminal credentials scoped to one snapshot.');
