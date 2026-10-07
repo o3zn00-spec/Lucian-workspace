@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProvider, isProviderConfigured } from "@/lib/agent/providers";
+import { discoverModels, isProviderConfigured } from "@/lib/agent/providers";
 import type { ProviderId } from "@/store/economic-agent-connection";
 import { requireOwnerId } from "@/lib/auth/owner";
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: false,
       message: "API key not configured",
-      reason: `The environment variable for ${provider} is not set. Add it in your Vercel project settings.`,
+      reason: "Save your provider key in Settings → Connections.",
       provider,
       model,
       keyPresent: false,
@@ -45,29 +45,13 @@ export async function POST(req: Request) {
     });
   }
 
-  // Get the provider adapter and run the test.
-  const adapter = await getProvider(provider, ownerUserId);
-  if (!adapter) {
-    return NextResponse.json({
-      success: false,
-      message: "Provider not supported",
-      reason: `Provider "${provider}" is not implemented.`,
-      provider,
-      model,
-      keyPresent: true,
-      testedAt: new Date().toISOString(),
-    });
-  }
-
   try {
-    const result = await adapter.test();
+    const catalog = await discoverModels(provider, ownerUserId);
+    const modelListed = catalog.models.includes(model);
     return NextResponse.json({
-      success: result.success,
-      message: result.success ? "Connection successful" : "Connection failed",
-      reason: result.reason,
-      provider,
-      model,
-      keyPresent: true,
+      success: true, message: "Provider connection verified",
+      reason: modelListed ? "Selected model is listed. No paid reply was generated; inference is not yet verified." : "Selected model was not returned in the catalog. Check its exact ID and account access before chatting.",
+      modelListed, inferenceVerified: false, provider, model, keyPresent: true,
       testedAt: new Date().toISOString(),
     });
   } catch (err) {

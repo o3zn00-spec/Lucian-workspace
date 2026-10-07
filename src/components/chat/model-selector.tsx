@@ -4,7 +4,7 @@ import { Check, ChevronDown, ChevronRight, Cpu } from "lucide-react";
 import { ComposerPopover } from "./composer-popover";
 import { PROVIDERS } from "@/store/economic-agent-connection";
 import { useSharedAIConfig, getProviderInfo, type InterfaceId, type ProviderId } from "@/store/shared-ai-config";
-import { supportsReasoning, type ReasoningEffort } from "@/lib/agent/model-capabilities";
+import { imageSupport, supportsReasoning, type ReasoningEffort } from "@/lib/agent/model-capabilities";
 
 export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:InterfaceId}) {
   const shared=useSharedAIConfig();
@@ -33,7 +33,7 @@ export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:Inter
       const result = await response.json();
       if (!response.ok) throw Error(result.error || "Unable to load models. You can enter an exact model ID.");
       setModels(result.models);
-      setStatus(result.configured ? "Available models from your provider" : "Connect this provider in Settings → Connections to discover your models.");
+      setStatus(result.configured ? (result.complete === false ? "Partial provider catalog. You can also enter an exact model ID." : "Available models from your provider") : "Connect this provider in Settings → Connections to discover your models.");
     }).catch(error => { if (!controller.signal.aborted) setStatus(error.message); });
     return () => controller.abort();
   }, [open, provider]);
@@ -41,6 +41,7 @@ export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:Inter
     <button type="button" aria-label={`Choose model and reasoning, current model ${model}`} aria-expanded={open} className="focus-ring flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs text-fg-muted hover:bg-hover" onClick={() => { setOpen(!open); setChoosing(false); }}><Cpu className="h-3.5 w-3.5"/><span className="max-w-48 truncate">{model || "Select model"}</span>{reasoning && <span className="capitalize">{effort}</span>}<ChevronDown className="h-3 w-3"/></button>
     {open && <ComposerPopover className="w-80 p-3" onClose={() => setOpen(false)}>
       <button type="button" onClick={() => setChoosing(!choosing)} className="focus-ring flex w-full items-center justify-between rounded-xl p-2 text-sm hover:bg-hover"><span className="truncate">{model || "Select model"}</span><ChevronRight className="h-4 w-4"/></button>
+      <p className="mt-2 px-2 text-xs text-fg-muted">{imageSupport(provider,model) === "supported" ? "Accepts image attachments" : imageSupport(provider,model) === "unsupported" ? "Text only — choose another model for screenshots" : "Image support needs verification with this provider"}</p>
       {choosing ? <div className="mt-3 space-y-3">
         <label className="block text-xs text-fg-muted">Provider<select aria-label="AI provider" value={provider} onChange={e => { setProvider(e.target.value as typeof provider); setQuery(""); setModels([]); }} className="mt-1 w-full rounded-lg bg-surface p-2 text-sm">{PROVIDERS.map(p => <option value={p.id} key={p.id}>{p.name}</option>)}</select></label>
         <input aria-label="Search or enter model ID" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search models or enter an ID" className="focus-ring w-full rounded-lg bg-surface p-2 text-sm"/>

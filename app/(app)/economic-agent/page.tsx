@@ -737,6 +737,12 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
     const text = draftText.trim();
     if ((!text && attachments.length === 0) || busy) return;
 
+    setBusy(true);
+    let previews: Awaited<ReturnType<typeof attachmentPreviews>>;
+    let attachmentContext: Awaited<ReturnType<typeof attachmentsToContext>>;
+    try { previews = await attachmentPreviews(attachments); attachmentContext = await attachmentsToContext(attachments); }
+    catch (error) { setBusy(false); setError({type:"attachment-failed",message:error instanceof Error ? error.message : "Unable to prepare attachments. Please reattach them."}); return false; }
+
     // Ensure we have a conversation.
     let convId = activeId;
     if (!convId) {
@@ -750,8 +756,7 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
 
     // Add user message.
     const visibleUserText = `${text || "Please review the attached files."}${attachmentLabel(attachments)}`;
-    addMessage(convId, { role: "user", content: visibleUserText, fromModel: false, status: "complete", capability: "economic", attachments: await attachmentPreviews(attachments) });
-    const attachmentContext = await attachmentsToContext(attachments);
+    addMessage(convId, { role: "user", content: visibleUserText, fromModel: false, status: "complete", capability: "economic", attachments: previews });
     const streamingId = addMessage(convId, {
       role: "assistant",
       content: "",
@@ -940,7 +945,7 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
 
   return (
     <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
-      {error && <LilithErrorBanner message={error.message} onRetry={() => void handleRetry()} onDismiss={() => setError(null)} />}
+      {error && <LilithErrorBanner message={error.message} onRetry={error.type === "attachment-failed" ? undefined : () => void handleRetry()} onDismiss={() => setError(null)} />}
       <LilithComposer
         value={draftText}
         onChange={setDraftText}

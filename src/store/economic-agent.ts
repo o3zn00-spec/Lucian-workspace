@@ -78,7 +78,7 @@ export interface Conversation {
 
 /** Phase 6: error state for failed provider requests. Transient — NOT persisted. */
 export interface AgentError {
-  type: "provider-not-configured" | "authentication-failed" | "rate-limit" | "provider-unavailable" | "timeout" | "invalid-model" | "invalid-response" | "network-error" | "unknown";
+  type: "attachment-failed" | "provider-not-configured" | "authentication-failed" | "rate-limit" | "provider-unavailable" | "timeout" | "invalid-model" | "invalid-response" | "network-error" | "unknown";
   message: string;
   /** ID of the user message that triggered the failed request. Used for retry. */
   triggerMessageId?: string;
@@ -157,17 +157,22 @@ function addCapability(conversation: Conversation, capability?: LilithCapability
   return Array.from(new Set([...(conversation.capabilities ?? []), capability]));
 }
 
+import { isInlineImage, type ImageInput } from "@/lib/agent/image-input";
+
 /** Build a bounded model window while preserving a summary of older turns. */
 export function conversationWindow(conversation: Conversation | undefined, maxRecent = 24): {
-  messages: { role: "user" | "assistant" | "system"; content: string }[];
+  messages: { role: "user" | "assistant" | "system"; content: string; images?: ImageInput[] }[];
   summaryContext?: string;
 } {
   if (!conversation) return { messages: [] };
+  // Forward the most recent image-bearing turn only: at most eight bounded
+  // previews. Older images remain in history but must be reattached to compare.
+  const latestImageTurn = [...conversation.messages].reverse().find(m => m.role === "user" && m.attachments?.some(a => isInlineImage(a)));
   return {
     messages: conversation.messages
       .filter((message) => message.role !== "tool" && message.status !== "streaming")
       .slice(-maxRecent)
-      .map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
+      .map((message) => ({ role: message.role as "user" | "assistant", content: message.content, ...(message.id === latestImageTurn?.id ? {images: message.attachments?.filter(isInlineImage).slice(0,8).map(a => ({url: a.url!}))} : {}) })),
     summaryContext: conversation.summary,
   };
 }

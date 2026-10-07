@@ -214,8 +214,12 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
     if ((!text && attachments.length === 0) || busy) return;
 
     setBusy(true);
+    let previews: Awaited<ReturnType<typeof attachmentPreviews>>;
+    let attachmentContext: Awaited<ReturnType<typeof attachmentsToContext>>;
+    try { previews = await attachmentPreviews(attachments); attachmentContext = await attachmentsToContext(attachments); }
+    catch (error) { setBusy(false); setError({type:"attachment-failed",message:error instanceof Error ? error.message : "Unable to prepare attachments. Please reattach them."}); return false; }
+    setBusy(true);
     setError(null);
-    const previews = await attachmentPreviews(attachments);
     const visibleUserText = `${text || "Please review the attached files."}${attachmentLabel(attachments)}`;
     const capability = capabilityForPath(pathname);
     addMessage({ role: "user", content: visibleUserText,
@@ -233,7 +237,6 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       // Phase 8: resolve handoff context at send time (dynamic refs → fresh data).
       const resolvedCtx = resolveHandoffContext();
       const pageContext = resolvePageContext(pathname);
-      const attachmentContext = await attachmentsToContext(attachments);
       const controller = new AbortController();
       abortRef.current = controller;
       const result = await streamChatResponse({
@@ -435,7 +438,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
         </div>
       )}
 
-      {error && <LilithErrorBanner message={error.message} onRetry={() => void handleRetry()} onDismiss={() => setError(null)} />}
+      {error && <LilithErrorBanner message={error.message} onRetry={error.type === "attachment-failed" ? undefined : () => void handleRetry()} onDismiss={() => setError(null)} />}
 
       {currentPageContext.length > 0 && (
         <div className="border-b border-line-muted bg-[var(--accent)]/5 px-3 py-1 text-[9px] text-fg-muted">

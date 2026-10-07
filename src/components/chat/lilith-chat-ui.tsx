@@ -254,7 +254,7 @@ export function LilithProviderStatus({
 interface ComposerProps {
   value: string;
   onChange: (value: string) => void;
-  onSend: (attachments: LilithChatAttachment[]) => void | Promise<void>;
+  onSend: (attachments: LilithChatAttachment[]) => void | boolean | Promise<void | boolean>;
   busy?: boolean;
   disabled?: boolean;
   onStop?: () => void;
@@ -317,8 +317,8 @@ export function LilithComposer({
   const send = async () => {
     if (disabled || busy || (!value.trim() && attachments.length === 0)) return;
     const outgoing = attachments;
-    await onSend(outgoing);
-    setAttachments([]);
+    const accepted = await onSend(outgoing);
+    if (accepted !== false) setAttachments([]);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {

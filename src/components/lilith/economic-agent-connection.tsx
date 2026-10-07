@@ -55,8 +55,8 @@ export function EconomicAgentConnection() {
       setLastTest(data);
       if (data.success) {
         toast({
-          title: "Connection successful",
-          description: `${getProviderInfo(provider).name} · ${model}`,
+          title: "Provider connection verified",
+          description: data.reason || data.message,
         });
       } else {
         toast({
@@ -184,8 +184,8 @@ export function EconomicAgentConnection() {
       </div>
 
       {/* Last test details */}
-      {lastTest && !lastTest.success && lastTest.reason && (
-        <div className="rounded-md border border-[#f23645]/30 bg-[#f23645]/5 px-3 py-2 text-[11px] text-[#f23645]">
+      {lastTest && lastTest.reason && (
+        <div className="rounded-md border border-line bg-surface-2 px-3 py-2 text-[11px] text-fg-muted">
           {lastTest.reason}
         </div>
       )}
@@ -216,7 +216,7 @@ export function EconomicAgentConnection() {
           ) : (
             <Plug className="h-3.5 w-3.5" />
           )}
-          Test Saved Connection
+          Check Saved Connection
         </button>
       </div>
     </div>

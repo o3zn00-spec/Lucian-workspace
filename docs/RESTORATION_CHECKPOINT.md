@@ -2,7 +2,11 @@
 
 Updated: 2026-10-07 (America/Los_Angeles)
 Owner: o3zn00
-State: C02 stability work in progress; C03 complete locally. C04 core foundation locally verified; original Economic Agent/chat/orb source restored locally into Lilthe; broader C05/C06/C07/C13 verification in progress. Restoration batch published to GitHub and verified live on Vercel production on 2026-10-07. Broader unfinished items remain in progress/agreed below.
+State: Restored Lilthe layout, chat controls and conversation sync are deployed.
+Current batch: C05 connection checks and C06 image delivery implemented and
+verified locally with mock providers; production verification pending publication.
+C04 app tool integration, C07 coding tools, C08–C12 trading, C13 voice, C14 canvas
+and C15 recovery remain open. No claim of real-model image understanding yet.
 
 ## Purpose and working rule
 
@@ -44,7 +48,9 @@ unrealized changes and paper results.
 - Restoration reference: https://github.com/L-Builds/Lucian-workspace-v2
   at commit `74e089e8509360db1b3befbcb4fc47cd279eaa59`.
 - Current product: https://github.com/o3zn00-spec/Lucian-workspace
-  at deployed commit `d049fa54abd9d98e8c5370d684bb5134001db997`.
+  at last functional deployed commit `3454cb9a45a49122ca0b137a42741517b4b52810`.
+  Documentation head before this batch: `724d50adac41954e27b1c613260011058740d696`.
+  Deployment: `dpl_tHPH6NnYfKvyAb67294noNDWiUA3` (READY).
 - Production URL: https://lucian-workspace.vercel.app.
 - Source comparison: 303 byte-identical files, 54 changed files and 58
   original-only files, including historical reports. These are file counts,
@@ -53,7 +59,7 @@ unrealized changes and paper results.
   conversation/memory paths, module handoffs, voice and coding-agent tools.
 - Original migration files remain unchanged. Archived conversation/memory models
   are historical data mappings, not evidence of a working assistant runtime.
-- Free hosted Prisma PostgreSQL, all nine migrations and owner bootstrap were
+- Free hosted Prisma PostgreSQL, all eleven migrations and owner bootstrap were
   completed. Deployed login, session reload, protected-page access and rejection
   of unauthenticated requests were verified in the preceding deployment work.
 - Recovery email is unconfigured. Financial providers and AI providers are
@@ -211,10 +217,10 @@ specific dependency. Record evidence before changing Verified to Complete.
 | --- | --- | --- | --- |
 | C01 | Checkpoint and read-only source comparison | Complete | Original/current commits, comparison and agreed scope recorded here |
 | C02 | Theme crash, navigation/loading and broader stability audit | In progress | Reproduction, cause, before/after behavior and regression checks |
-| C03 | Gold logo and Settings navigation cleanup | Complete locally | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
+| C03 | Gold logo and Settings navigation cleanup | Complete — production verified | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
 | C04 | Shared assistant foundation and app tool registry | In progress — core locally verified | Owner-scoped persistent state, module map, audited utility/denial checks and model preference changes verified; integrated record tools and complete permission behavior remain |
-| C05 | Provider connections and model discovery | In progress — original adapters restored | Real credential validation/catalog behavior; failures; capability reporting |
-| C06 | Chat UI, history, memory and attachments | In progress — preliminary UI | Shared Home/module history and saved messages verified; final reference design, attachments, streaming and permission controls remain |
+| C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Real account/model inference and custom compatibility remain unverified |
+| C06 | Chat UI, history, memory and attachments | In progress — controls/sync production verified; images locally verified | Portal menus, screenshot viewer and saved shared history deployed. Image payloads and retries pass mock/local checks. Real visual reading quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | Agreed | Account/market discovery, paper/live separation and supported capabilities |
 | C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
@@ -404,3 +410,59 @@ Production post-release observations: Vercel runtime logs for this deployment sh
 | 2026-10-07 | C02/C05/C06 chat controls and Settings | Fixed portal menus; added model discovery, model/effort selection and enlarged screenshot galleries; grouped Settings navigation/search; hardened batch/delta sync, retries and cached recovery. Build/lint, architecture/security/control audit, five consolidation and ten desktop tests, owner-scoped API tests and targeted browser checks pass. See CHAT_CONTROLS_VERIFICATION_2026-10-07.md. | GitHub-first publication/live sync recovery in progress. Real providers/vision/voice, all nested workflows, universal tools, autonomous trading, Investing canvas and recovery email remain unverified or pending. These components are not marked wholly complete. |
 
 | 2026-10-07 | Chat controls production verification | GitHub source `3454cb9` (tree `ca43f3e`) published first; Vercel `dpl_tHPH6NnYfKvyAb67294noNDWiUA3` READY in 1m23s. Live Context/model overlays verified; no sync warning after reload; a new conversation persisted in PostgreSQL and survived reload. Existing owner/message retained. No paid inference or trades. Full evidence in CHAT_CONTROLS_VERIFICATION_2026-10-07.md. | Historical sync exception not conclusively identified; ongoing service monitoring, real-provider/vision/voice validation, nested workflow acceptance and C07-C15 outstanding work remain. |
+
+
+## Current batch: model connections and image delivery (2026-10-07)
+
+### Evidence gates — keep these separate
+
+| Slice | Implemented | Local evidence | Production evidence | Real provider evidence |
+| --- | --- | --- | --- | --- |
+| Existing chat menus, thumbnail viewer, Settings layout, conversation sync | Yes | See CHAT_CONTROLS_VERIFICATION_2026-10-07.md | Prior release verified; release IDs above | UI/sync checks do not prove model inference |
+| Screenshot pixels in main/panel/retry requests | Yes | Six intercepted adapter formats; authenticated mock API; browser send/regenerate/reload | Pending this batch | Not run; no paid inference used |
+| Provider key/model catalog check | Yes | GET-only adapter checks; API reports modelListed separately from inferenceVerified; pagination/dedup fixtures | Pending this batch | Real credential/account access still needs verification |
+| Image/reasoning capability labels | Yes | Known families checked; custom/unknown labeled unverified; known text-only image requests rejected | Pending this batch | Listed model access is not guaranteed |
+| Universal tools and unattended trading | Partial foundation only | No new trading execution in this batch | Disabled | Not verified |
+
+### Lessons turned into working rules
+
+1. Follow an attachment through preparation, storage, history, retry, server
+   validation and the actual provider payload. A visible thumbnail proves only UI.
+2. A model catalog/key check is not inference validation. Connection checks must
+   not generate paid replies; record credentials, model listing and inference as
+   separate outcomes. Never silently change to another model after failure.
+3. Preserve draft/attachments and unlock Send after preparation failures. Report
+   unreadable/oversized images rather than silently omitting their pixels. Do not
+   offer history regeneration as Retry for an unsent attachment preparation error.
+4. Enforce request bounds and owner/origin checks on the server. Never fetch
+   arbitrary image URLs. Keys stay in headers/server storage, not image URLs.
+5. Reconcile the current tracker with deployed evidence before starting the next
+   slice. Historical completion entries below/above describe their date, not
+   automatic proof that the entire app now works.
+6. Use local mock providers and the named disposable database for regression work.
+   No paid model call, real trade or paid service is a regression-test dependency.
+7. Publish a deliberate verified batch GitHub first, then its automatic Vercel
+   deployment. Store post-release evidence separately to avoid repeatedly
+   deploying documentation-only updates in a loop.
+
+### Image limits and remaining acceptance
+
+- PNG/JPEG/WebP/GIF previews are resized to at most 1280 pixels on the longest
+  edge and compressed to JPEG, at most 100,000 characters per preview. GIFs
+  provide one frame; unsupported binary formats provide metadata only.
+- At most eight images from the most recent image-bearing turn are forwarded
+  within the recent history window. Older previews remain visible; reattach them
+  when comparing different batches. Fine text may require a crop.
+- Inline base64 only, bounded total request, user-image role checks and image
+  signature checks. Invalid/remote image data is rejected before a provider call.
+- Unknown/custom image capability is explicitly unverified. A real model must
+  demonstrate reading a known screenshot correctly before semantic understanding
+  can be marked Verified. No paid call was made to establish this gate.
+- Native provider streaming, full app permissions/tools, background financial
+  execution, exchange adapters, paper reconciliation, real voice and Investing
+  canvas remain separate unfinished items; preserve the restored orb/animation.
+
+Next: production-check this batch without inference, then validate the owner's
+chosen actual provider/model with an explicitly agreed inference budget before
+marking real screenshot understanding verified. Continue C04/C07 tools and C08–C11
+paper trading only against their documented acceptance criteria.

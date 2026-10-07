@@ -16,6 +16,7 @@
 // passes the providerId + modelId; this module looks up the right
 // adapter and API key from the environment.
 
+import { imageParts, type ImageInput } from "./image-input";
 import { supportsReasoning, type ReasoningEffort } from "./model-capabilities";
 import type { ProviderId } from "@/store/economic-agent-connection";
 import { readOwnerCredential } from "@/lib/security/owner-credentials";
@@ -23,6 +24,7 @@ import { readOwnerCredential } from "@/lib/security/owner-credentials";
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  images?: ImageInput[];
 }
 
 export interface AIProvider {
@@ -34,7 +36,7 @@ export interface AIProvider {
     reasoningEffort?: ReasoningEffort;
   }): Promise<{ content: string; fromModel: boolean }>;
 
-  /** Send a minimal test request to verify the connection works. */
+  /** Read-only credential check; does not verify inference or spend tokens. */
   test(): Promise<{ success: boolean; message: string; reason?: string }>;
 }
 
@@ -114,7 +116,7 @@ function createGeminiProvider(apiKey: string): AIProvider {
         .filter((m) => m.role !== "system")
         .map((m) => ({
           role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }],
+          parts: [{ text: m.content }, ...(m.images ?? []).map(image => ({ inlineData: imageParts(image) }))],
         }));
 
       const systemInstruction = systemPrompt
@@ -122,10 +124,11 @@ function createGeminiProvider(apiKey: string): AIProvider {
         : undefined;
 
       const res = await fetch(
-        `${baseUrl}/models/${model}:generateContent?key=${apiKey}`,
+        `${baseUrl}/models/${encodeURIComponent(model)}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          signal: AbortSignal.timeout(45000),
           body: JSON.stringify({
             contents,
             ...(systemInstruction ? { systemInstruction } : {}),
@@ -145,20 +148,20 @@ function createGeminiProvider(apiKey: string): AIProvider {
       const data = (await res.json()) as {
         candidates?: { content?: { parts?: { text?: string }[] } }[];
       };
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const content = data.candidates?.[0]?.content?.parts?.map(p => p.text ?? "").join("\n") ?? "";
       return { content: content.trim(), fromModel: true };
     },
 
     async test() {
       try {
         const res = await fetch(
-          `${baseUrl}/models?key=${apiKey}`,
+          `${baseUrl}/models`, {headers: {"x-goog-api-key": apiKey}, signal: AbortSignal.timeout(10000)},
         );
         if (!res.ok) {
           return {
             success: false,
             message: "Gemini API key rejected",
-            reason: `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`,
+            reason: `HTTP ${res.status}`,
           };
         }
         return { success: true, message: "Gemini API key is valid" };
@@ -186,13 +189,14 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
 
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
+        signal: AbortSignal.timeout(45000),
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model,
-          messages: allMessages,
+          messages: allMessages.map(m => ({role:m.role, content:m.images?.length ? [{type:"text",text:m.content}, ...m.images.map(image => ({type:"image_url",image_url:{url:image.url}}))] : m.content})),
           ...(supportsReasoning(providerId,model) ? {reasoning_effort:reasoningEffort??"medium",max_completion_tokens:8192} : {temperature:0.7,max_tokens:2048}),
         }),
       });
@@ -219,7 +223,7 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
           return {
             success: false,
             message: "API key rejected",
-            reason: `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`,
+            reason: `HTTP ${res.status}`,
           };
         }
         return { success: true, message: "API key is valid" };
@@ -245,6 +249,7 @@ function createAnthropicProvider(apiKey: string): AIProvider {
 
       const res = await fetch(`${baseUrl}/messages`, {
         method: "POST",
+        signal: AbortSignal.timeout(45000),
         headers: {
           "Content-Type": "application/json",
           "x-api-key": apiKey,
@@ -256,7 +261,7 @@ function createAnthropicProvider(apiKey: string): AIProvider {
           system: systemPrompt,
           messages: filtered.map((m) => ({
             role: m.role === "assistant" ? "assistant" : "user",
-            content: m.content,
+            content: m.images?.length ? [{type:"text",text:m.content}, ...m.images.map(image => {const parts=imageParts(image); return {type:"image",source:{type:"base64",media_type:parts.mimeType,data:parts.data}};})] : m.content,
           })),
         }),
       });
@@ -269,32 +274,22 @@ function createAnthropicProvider(apiKey: string): AIProvider {
       const data = (await res.json()) as {
         content?: { text?: string }[];
       };
-      const content = data.content?.[0]?.text ?? "";
+      const content = data.content?.map(p => p.text ?? "").join("\n") ?? "";
       return { content: content.trim(), fromModel: true };
     },
 
     async test() {
       try {
-        // Anthropic doesn't have a /models endpoint, so we send a minimal
-        // messages request to verify the key.
-        const res = await fetch(`${baseUrl}/messages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-          },
-          body: JSON.stringify({
-            model: "claude-3-5-haiku-20241022",
-            max_tokens: 1,
-            messages: [{ role: "user", content: "test" }],
-          }),
+        // Read-only credential check; never spends completion tokens.
+        const res = await fetch(`${baseUrl}/models`, {
+          headers: {"x-api-key": apiKey, "anthropic-version": "2023-06-01"},
+          signal: AbortSignal.timeout(10000),
         });
         if (!res.ok) {
           return {
             success: false,
             message: "Anthropic API key rejected",
-            reason: `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`,
+            reason: `HTTP ${res.status}`,
           };
         }
         return { success: true, message: "Anthropic API key is valid" };
@@ -312,14 +307,30 @@ function createAnthropicProvider(apiKey: string): AIProvider {
 /** Discovery requests list models; they never generate paid completions. */
 export async function discoverModels(provider: ProviderId, owner: string) {
   const apiKey = await getApiKey(provider, owner);
-  if (!apiKey) return { configured: false, models: [] as string[] };
+  if (!apiKey) return { configured: false, models: [] as string[], complete: true };
   const endpoints = {gemini:"https://generativelanguage.googleapis.com/v1beta",openai:"https://api.openai.com/v1",anthropic:"https://api.anthropic.com/v1",openrouter:"https://openrouter.ai/api/v1",deepseek:"https://api.deepseek.com/v1",custom:process.env.CUSTOM_AI_BASE_URL || ""};
   const base = endpoints[provider].replace(/\/$/, "");
   if (!base) throw Error("Provider URL is not configured.");
   const headers: Record<string,string> = provider === "gemini" ? {"x-goog-api-key":apiKey} : provider === "anthropic" ? {"x-api-key":apiKey,"anthropic-version":"2023-06-01"} : {Authorization:`Bearer ${apiKey}`};
-  const response=await fetch(`${base}/models`,{headers,cache:"no-store",signal:AbortSignal.timeout(10000)});
-  if (!response.ok) throw Error("Unable to list models. Check the connection in Settings.");
-  const result=await response.json();
-  const entries=provider === "gemini" ? result.models : result.data;
-  return {configured:true,models:(Array.isArray(entries)?entries:[]).filter((item:{supportedGenerationMethods?:string[]})=>provider!=="gemini" || item.supportedGenerationMethods?.includes("generateContent")).map((item:{id?:string;name?:string})=>(item.id || item.name || "").replace(/^models\//,"")).filter(Boolean).slice(0,500)};
+  const models = new Set<string>();
+  const next = new URL(`${base}/models`);
+  let complete = false;
+  // Bounded pagination for Gemini and Anthropic catalogs. Never follow a
+  // provider-supplied URL (which could leak authentication to another host).
+  for (let page=0;page<5;page++) {
+    const response=await fetch(next,{headers,cache:"no-store",signal:AbortSignal.timeout(10000)});
+    if (!response.ok) throw Error("Unable to list models. Check the connection in Settings.");
+    const result=await response.json();
+    const entries=provider === "gemini" ? result.models : result.data;
+    for (const item of Array.isArray(entries) ? entries : []) {
+      if (provider === "gemini" && !item.supportedGenerationMethods?.includes("generateContent")) continue;
+      const id=typeof item.id === "string" ? item.id : typeof item.name === "string" ? item.name : "";
+      if (id) models.add(id.replace(/^models\//,""));
+    }
+    if (provider === "gemini" && typeof result.nextPageToken === "string" && result.nextPageToken) next.searchParams.set("pageToken",result.nextPageToken);
+    else if (provider === "anthropic" && result.has_more === true && typeof result.last_id === "string") next.searchParams.set("after_id",result.last_id);
+    else {complete=true;break;}
+    if (models.size>=500)break;
+  }
+  return {configured:true,models:[...models].slice(0,500),complete:complete && models.size<=500};
 }

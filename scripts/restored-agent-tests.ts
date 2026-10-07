@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {randomUUID} from "node:crypto";
 import {PrismaClient} from "@prisma/client";
 async function main(){
@@ -27,6 +28,15 @@ async function main(){
  assert.equal((await call(paths[1])).data.configured,true);
  const response=await call("/api/ai/chat",{provider:"custom",model:"local-fixture-model",messages:[{role:"user",content:"Local transport check"}],systemPrompt:"Test fixture",stream:false});assert.equal(response.status,200);assert.match(response.data.content,/Local mock reply/);
  assert.equal((await call("/api/ai/chat",{provider:"custom",model:"local-fixture-model",messages:[{role:"system",content:"Forbidden client role"}]})).status,400);
+ const image={url:`data:image/png;base64,${(await readFile("public/branding/icon-32.png")).toString("base64")}`};
+ const imageRequest={provider:"custom",model:"local-fixture-model",messages:[{role:"user",content:"Review screenshot",images:[image]}],behavior:{rememberConversations:false}};
+ const vision=await call("/api/ai/chat",imageRequest);assert.equal(vision.status,200);assert.match(vision.data.content,/Image payload received: 1/);
+ for(const invalid of [{url:"https://example.test/image.png"},{url:"data:image/png;base64,aGVsbG8="},{url:"data:image/svg+xml;base64,PHN2Zz4="}])assert.equal((await call("/api/ai/chat",{...imageRequest,messages:[{role:"user",content:"Test",images:[invalid]}]})).status,400);
+ assert.equal((await call("/api/ai/chat",{...imageRequest,messages:[{role:"assistant",content:"Invalid",images:[image]}]})).status,400);
+ assert.equal((await call("/api/ai/chat",{...imageRequest,messages:[{role:"user",content:"Too many",images:Array(9).fill(image)}]})).status,400);
+ assert.equal((await call("/api/ai/chat",{...imageRequest,provider:"deepseek",model:"deepseek-chat"})).status,400);
+ const checked=await call("/api/economic-agent/test",{provider:"custom",model:"local-fixture-model"});assert.equal(checked.status,200);assert.equal(checked.data.modelListed,true);assert.equal(checked.data.inferenceVerified,false);
+ const missing=await call("/api/economic-agent/test",{provider:"custom",model:"not-listed"});assert.equal(missing.data.modelListed,false);assert.equal(missing.data.inferenceVerified,false);
  assert.equal((await call("/api/ai/models?provider=custom")).status,200);
  assert.equal((await call("/api/ai/models?provider=invalid")).status,400);
  assert.equal((await call("/api/ai/chat",{provider:"custom",model:"local-fixture-model",reasoningEffort:"invalid",messages:[{role:"user",content:"Test"}]})).status,400);

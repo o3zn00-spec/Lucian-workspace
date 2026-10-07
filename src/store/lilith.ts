@@ -166,7 +166,7 @@ interface LilithState {
 
 /** Phase 7: Lilith error state — transient, NOT persisted. */
 export interface LilithError {
-  type: "provider-not-configured" | "authentication-failed" | "rate-limit" | "timeout" | "invalid-model" | "network-error" | "provider-error" | "unknown";
+  type: "attachment-failed" | "provider-not-configured" | "authentication-failed" | "rate-limit" | "timeout" | "invalid-model" | "network-error" | "provider-error" | "unknown";
   message: string;
 }
 
