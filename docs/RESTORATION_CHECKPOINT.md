@@ -283,7 +283,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C01 | Checkpoint and read-only source comparison | Complete | Original/current commits, comparison and agreed scope recorded here |
 | C02 | Theme crash, navigation/loading and broader stability audit | In progress | Reproduction, cause, before/after behavior and regression checks |
 | C03 | Gold logo and Settings navigation cleanup | Complete — production verified | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
-| C04 | Shared assistant foundation and app tool registry | In progress — model chat utility integration locally verified | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; integrated record tools and complete permission behavior remain |
+| C04 | Shared assistant foundation and app tool registry | In progress — app utilities verified in production | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; integrated record tools and complete permission behavior remain |
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
@@ -664,9 +664,19 @@ paper trading only against their documented acceptance criteria.
   chat route, ordinary replies, streaming tool-result delivery, owner/origin
   enforcement, rejected financial/file tools, owner spoofing, URL injection and
   audit failure. No network or paid inference in these tests.
-- Production model navigation and conversation-continuity acceptance is pending
-  publication. C04/C07 stay In progress: real module-record adapters, explicit
-  permissions, reviewed coding changes and app-wide tool execution remain open.
+- Production verification: GitHub `40fd4b5c57fb0c0cc6e79ed8a2de8abb1f4eb678`
+  deployed Ready as `dpl_BRALycnBaR76xAXHmdaSVAdnQHMZ`, attached to the production
+  alias. Deployment resources confirm `/api/ai/chat` runs in CPT1. Two paid
+  OpenRouter `openai/gpt-6.1-sol` Medium requests returned the server-produced
+  Markets link and app map. Clicking Markets opened `/markets` in Paper mode;
+  returning to Lilthe preserved the conversation and navigation reply. A
+  read-only production query confirmed the owner-scoped `app.navigate` event
+  was completed for Markets. Proof: `outputs/lilthe-app-navigation-verification.png`
+  outside the repository. Typecheck, lint, production build, architecture and
+  consolidation checks passed. Other providers share the tested route but have
+  not had real inference verification for these tools.
+- C04/C07 stay In progress: real module-record adapters, explicit permissions,
+  reviewed coding changes and app-wide tool execution remain open.
 - Next: owner-authorized read adapters and visible tool activity; then bounded
   paper-session setup/runtime/reconciliation. Do not mark unattended or live
   trading ready based on utility navigation or successful balance reads.
