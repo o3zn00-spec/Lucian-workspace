@@ -48,7 +48,7 @@ const missingMigrationSql = migrationDirs.filter((name) => !existsSync(resolve(m
 result(missingMigrationSql.length === 0 ? "PASS" : "FAIL", "Migration chain", missingMigrationSql.length ? `missing migration.sql: ${missingMigrationSql.join(", ")}` : `${migrationDirs.length} migration directories are complete`);
 
 const gitignore = readFileSync(resolve(root, ".gitignore"), "utf8");
-result(gitignore.includes(".env") && gitignore.includes("/backups") ? "PASS" : "FAIL", "Secret/backup ignores", ".env files and database backups must remain outside source control");
+result(gitignore.includes(".env") && /^\/?backups\/?\s*$/m.test(gitignore) ? "PASS" : "FAIL", "Secret/backup ignores", ".env files and database backups must remain outside source control");
 const forbiddenPublic = Object.keys(process.env).filter((name) => name.startsWith("NEXT_PUBLIC_") && /(SECRET|PASSWORD|TOKEN|PRIVATE|CREDENTIAL)/i.test(name));
 result(forbiddenPublic.length === 0 ? "PASS" : "FAIL", "Public environment", forbiddenPublic.length ? `secret-like public variables: ${forbiddenPublic.join(", ")}` : "no secret-like NEXT_PUBLIC variables detected");
 
