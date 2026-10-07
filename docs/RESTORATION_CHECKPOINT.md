@@ -283,9 +283,9 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C01 | Checkpoint and read-only source comparison | Complete | Original/current commits, comparison and agreed scope recorded here |
 | C02 | Theme crash, navigation/loading and broader stability audit | In progress | Reproduction, cause, before/after behavior and regression checks |
 | C03 | Gold logo and Settings navigation cleanup | Complete — production verified | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
-| C04 | Shared assistant foundation and app tool registry | In progress — core locally verified | Owner-scoped persistent state, module map, audited utility/denial checks and model preference changes verified; integrated record tools and complete permission behavior remain |
+| C04 | Shared assistant foundation and app tool registry | In progress — model chat utility integration locally verified | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; integrated record tools and complete permission behavior remain |
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
-| C06 | Chat UI, history, memory and attachments | In progress — controls/sync production verified; images locally verified | Portal menus, screenshot viewer and saved shared history deployed. Image payloads and retries pass mock/local checks. Real visual reading quality, full permissions and native provider streaming remain open |
+| C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | Agreed | Account/market discovery, paper/live separation and supported capabilities |
 | C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
@@ -640,3 +640,33 @@ paper trading only against their documented acceptance criteria.
 - Latest full typecheck, lint, build, three connection/model fixture suites and
   trading/performance/Vault architecture checks passed. Live money lifecycle
   behavior remains unverified; no transactions were executed.
+
+
+### C04 / C07 — first model-callable app utilities, 2026-10-07
+
+- Shared `/api/ai/chat` now accepts a strictly validated model tool proposal for
+  `app.capabilities` and `app.navigate`. The common text envelope runs through
+  every existing provider adapter; native function-calling compatibility is not
+  assumed. Normal chat still uses one model request; these utility calls return
+  a deterministic server result without an additional inference request.
+- Model output is untrusted. Owner identity comes from server authorization;
+  model-supplied owners, arbitrary URLs, unknown modules, extra arguments and
+  unavailable tools are rejected. Financial execution, record access, coding,
+  research execution and voice are not enabled by this step.
+- Each proposed tool call is recorded in owner-scoped AssistantActivity before
+  its result is returned; audit-storage failure fails closed. No schema migration
+  or production data import is required.
+- Navigation returns a clickable validated internal link. The owner follows it;
+  Lilthe does not claim the browser moved automatically. Shared chat Markdown
+  uses Next navigation for exact maintained app destinations only, retaining
+  existing external links and refusing arbitrary relative links.
+- Regression evidence: `scripts/assistant-chat-tool-tests.mjs` verifies the actual
+  chat route, ordinary replies, streaming tool-result delivery, owner/origin
+  enforcement, rejected financial/file tools, owner spoofing, URL injection and
+  audit failure. No network or paid inference in these tests.
+- Production model navigation and conversation-continuity acceptance is pending
+  publication. C04/C07 stay In progress: real module-record adapters, explicit
+  permissions, reviewed coding changes and app-wide tool execution remain open.
+- Next: owner-authorized read adapters and visible tool activity; then bounded
+  paper-session setup/runtime/reconciliation. Do not mark unattended or live
+  trading ready based on utility navigation or successful balance reads.

@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { ASSISTANT_MODULES } from "@/lib/assistant/contracts";
+
 import {
   Bot,
   Check,
@@ -525,7 +528,8 @@ function renderInline(text: string): ReactNode[] {
     else if (token.startsWith("`")) nodes.push(<code key={match.index} className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[11px]">{token.slice(1, -1)}</code>);
     else {
       const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
-      if (link && /^(https?:\/\/|mailto:)/i.test(link[2])) nodes.push(<a key={match.index} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline underline-offset-2">{link[1]}</a>);
+      if (link && ASSISTANT_MODULES.some(module => module.path === link[2])) nodes.push(<Link key={match.index} href={link[2]} className="text-[var(--accent)] underline underline-offset-2">{link[1]}</Link>);
+      else if (link && /^(https?:\/\/|mailto:)/i.test(link[2])) nodes.push(<a key={match.index} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] underline underline-offset-2">{link[1]}</a>);
       else nodes.push(token);
     }
     cursor = match.index + token.length;

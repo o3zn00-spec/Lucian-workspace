@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getProvider, isProviderConfigured, type ChatMessage } from "@/lib/agent/providers";
 import { db } from "@/lib/db";
 import { requireOwnerId } from "@/lib/auth/owner";
+import { CHAT_TOOL_INSTRUCTIONS, resolveChatTool } from "@/lib/assistant/chat-tools";
 import type { ProviderId } from "@/store/shared-ai-config";
 import {
   DEFAULT_AI_BEHAVIOR,
@@ -210,11 +211,12 @@ export async function POST(req: Request) {
     const result = await adapter.chat({
       messages: chatMessages,
       model: model || "gpt-4o-mini",
-      systemPrompt: fullSystemPrompt,
+      systemPrompt: fullSystemPrompt + "\n" + CHAT_TOOL_INSTRUCTIONS,
       reasoningEffort: body.reasoningEffort,
     });
     if (!result.content.trim()) throw Error("Provider returned an empty response.");
-    return successResponse(body.stream, result.content, provider, model || "gpt-4o-mini");
+    const content = await resolveChatTool(authenticatedOwner, result.content);
+    return successResponse(body.stream, content, provider, model || "gpt-4o-mini");
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     let errorType: string;
@@ -264,4 +266,3 @@ function successResponse(stream: boolean | undefined, content: string, provider:
     },
   });
 }
-
