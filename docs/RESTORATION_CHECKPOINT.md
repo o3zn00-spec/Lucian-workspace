@@ -626,3 +626,17 @@ paper trading only against their documented acceptance criteria.
   C08–C12 bounded unattended paper trading and live-readiness validation. Voice,
   Investing canvas, recovery email and wider regression checks remain open.
   No live order, withdrawal, transfer or paid hosting upgrade was performed.
+
+- Vault polling follow-up `c62a4c2`, Vercel
+  `dpl_5eNM4tMUZ9i68zw7XRnmMtDhBxW1`, READY production in 48 seconds,
+  current alias and CPT1 resources verified. A third real paid model reply passed
+  (29×31=899; model change cannot authorize financial execution).
+- Vault Money completed its authenticated load; wallet, deposit history,
+  withdrawal history, orders, positions and trades GETs returned 200. Supported
+  Funding asset rows displayed zero, with no recent activity. This verifies the
+  read path, not transaction execution. Initial loading still took roughly a
+  minute: further latency reduction remains open. Corrected its old four-second
+  refresh caption to match the actual bounded 30-second refresh.
+- Latest full typecheck, lint, build, three connection/model fixture suites and
+  trading/performance/Vault architecture checks passed. Live money lifecycle
+  behavior remains unverified; no transactions were executed.
