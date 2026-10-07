@@ -283,7 +283,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C01 | Checkpoint and read-only source comparison | Complete | Original/current commits, comparison and agreed scope recorded here |
 | C02 | Theme crash, navigation/loading and broader stability audit | In progress | Reproduction, cause, before/after behavior and regression checks |
 | C03 | Gold logo and Settings navigation cleanup | Complete — production verified | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
-| C04 | Shared assistant foundation and app tool registry | In progress — app utilities verified in production | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; integrated record tools and complete permission behavior remain |
+| C04 | Shared assistant foundation and app tool registry | In progress — app utilities verified in production | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; first cloud saved-item metadata read and activity/permission UI locally verified; full module record adapters remain |
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
@@ -680,3 +680,33 @@ paper trading only against their documented acceptance criteria.
 - Next: owner-authorized read adapters and visible tool activity; then bounded
   paper-session setup/runtime/reconciliation. Do not mark unattended or live
   trading ready based on utility navigation or successful balance reads.
+
+### C04 / C06 — cloud saved-item access and owner-visible activity, 2026-10-07
+
+- Added `saved.read` to the shared model-tool protocol: at most 12 newest
+  owner-scoped cloud bookmark/favorite titles, source/category and saved date.
+  This is not access to browser-local notes, investment holdings, project files,
+  live balances or the full portfolio. No record bodies, URLs or credentials
+  are selected. Results are generated on the server without a second model call.
+- Access defaults off. The owner can enable/revoke it in the shared composer's
+  Tool activity and permissions panel. Every invocation checks server-stored
+  permission; neither model text, attached content nor memory endpoints can
+  grant it. The UI explains that returned titles enter chat and may be sent to
+  the selected model on later turns. Existing permission storage is owner-scoped,
+  excluded from ordinary memory reads/prompts/deletion, and requires no migration.
+- The panel uses a portal dialog, shows the last 30 owner-scoped events, supports
+  refresh, reports errors, and confirms changes from the server rather than
+  optimistically showing access. Record tools log started/completed/failed or
+  denied states without logging record contents. Audit failures return no data.
+- Fixed the older foundation utility endpoint to allow only its two implemented
+  utilities, so newly registered tools cannot accidentally bypass their policy.
+- Expanded `scripts/assistant-chat-tool-tests.mjs`: grant/revoke/default denial,
+  owner isolation, metadata selection/limit, invalid arguments, read failures,
+  owner/origin checks and reserved memory protection passed without network or
+  paid inference. Typecheck, lint, production build, consolidation and architecture
+  checks passed. Production permission-off/model-denial/activity UI verification
+  is pending publication; production permission enabling has not been performed.
+- C04/C06 remain In progress. Next: verified module read adapters (particularly
+  trading account state), then bounded paper session policies/runtime. Full
+  coding tools, live/autonomous trades, voice, canvas and broad stability/recovery
+  verification remain open. Do not equate saved bookmarks with financial holdings.

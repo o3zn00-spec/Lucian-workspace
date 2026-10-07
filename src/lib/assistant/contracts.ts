@@ -26,6 +26,7 @@ export function moduleForPath(path: string): AssistantModule {
 export const ASSISTANT_CAPABILITIES = [
   { id: "app.capabilities", available: true, description: "Read the maintained module and capability map." },
   { id: "app.navigate", available: true, description: "Return a validated app destination for explicit navigation." },
+  { id: "saved.read", available: true, description: "Read at most 12 cloud-saved bookmark titles after explicit owner permission." },
   { id: "records.read", available: false, description: "Module record access awaits verified adapters and permissions." },
   { id: "research.run", available: false, description: "Sourced research awaits provider and research adapters." },
   { id: "workspace.edit", available: false, description: "Controlled project changes await coding tool integration." },

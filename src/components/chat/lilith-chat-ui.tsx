@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ToolActivity } from "@/components/assistant/tool-activity";
 import { ASSISTANT_MODULES } from "@/lib/assistant/contracts";
 
 import {
@@ -364,6 +365,7 @@ export function LilithComposer({
           )}
           {onModelClick && <ModelSelector interfaceId="lilith" />}
           <div className="flex-1" />
+          <ToolActivity />
           {footer}
           {busy && onStop ? (
             <button
