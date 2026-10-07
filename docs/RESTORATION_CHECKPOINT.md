@@ -3,8 +3,9 @@
 Updated: 2026-10-07 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C05 connection checks and C06 image delivery implemented and
-verified locally with mock providers; production verification pending publication.
+Current batch: C05 connection checks and C06 image delivery deployed; local mock
+provider payloads, browser retry/reload and production interface checks pass.
+Real provider inference and screenshot reading quality remain unverified.
 C04 app tool integration, C07 coding tools, C08–C12 trading, C13 voice, C14 canvas
 and C15 recovery remain open. No claim of real-model image understanding yet.
 
@@ -48,9 +49,9 @@ unrealized changes and paper results.
 - Restoration reference: https://github.com/L-Builds/Lucian-workspace-v2
   at commit `74e089e8509360db1b3befbcb4fc47cd279eaa59`.
 - Current product: https://github.com/o3zn00-spec/Lucian-workspace
-  at last functional deployed commit `3454cb9a45a49122ca0b137a42741517b4b52810`.
+  at image-delivery deployed commit `76b914899179939185eb8494f694f7797d6c6a9f`.
   Documentation head before this batch: `724d50adac41954e27b1c613260011058740d696`.
-  Deployment: `dpl_tHPH6NnYfKvyAb67294noNDWiUA3` (READY).
+  Image-delivery deployment: `dpl_Hh1VhWPomE81Q39gPWPuDzZGhWbn` (READY).
 - Production URL: https://lucian-workspace.vercel.app.
 - Source comparison: 303 byte-identical files, 54 changed files and 58
   original-only files, including historical reports. These are file counts,
@@ -419,9 +420,9 @@ Production post-release observations: Vercel runtime logs for this deployment sh
 | Slice | Implemented | Local evidence | Production evidence | Real provider evidence |
 | --- | --- | --- | --- | --- |
 | Existing chat menus, thumbnail viewer, Settings layout, conversation sync | Yes | See CHAT_CONTROLS_VERIFICATION_2026-10-07.md | Prior release verified; release IDs above | UI/sync checks do not prove model inference |
-| Screenshot pixels in main/panel/retry requests | Yes | Six intercepted adapter formats; authenticated mock API; browser send/regenerate/reload | Pending this batch | Not run; no paid inference used |
-| Provider key/model catalog check | Yes | GET-only adapter checks; API reports modelListed separately from inferenceVerified; pagination/dedup fixtures | Pending this batch | Real credential/account access still needs verification |
-| Image/reasoning capability labels | Yes | Known families checked; custom/unknown labeled unverified; known text-only image requests rejected | Pending this batch | Listed model access is not guaranteed |
+| Screenshot pixels in main/panel/retry requests | Yes | Six intercepted adapter formats; authenticated mock API; browser send/regenerate/reload | Source deployed; UI/sync checked; no real image call | Not run; no paid inference used |
+| Provider key/model catalog check | Yes | GET-only adapter checks; API reports modelListed separately from inferenceVerified; pagination/dedup fixtures | No-key discovery state verified; real saved key check not exercised | Real credential/account access still needs verification |
+| Image/reasoning capability labels | Yes | Known families checked; custom/unknown labeled unverified; known text-only image requests rejected | Gemini label and disabled unsupported reasoning controls checked | Listed model access is not guaranteed |
 | Universal tools and unattended trading | Partial foundation only | No new trading execution in this batch | Disabled | Not verified |
 
 ### Lessons turned into working rules
@@ -462,7 +463,21 @@ Production post-release observations: Vercel runtime logs for this deployment sh
   execution, exchange adapters, paper reconciliation, real voice and Investing
   canvas remain separate unfinished items; preserve the restored orb/animation.
 
-Next: production-check this batch without inference, then validate the owner's
+Next: validate the owner's
 chosen actual provider/model with an explicitly agreed inference budget before
 marking real screenshot understanding verified. Continue C04/C07 tools and C08–C11
 paper trading only against their documented acceptance criteria.
+
+### Release evidence and capability exceptions
+
+- GitHub source `76b914899179939185eb8494f694f7797d6c6a9f`, tree
+  `da7e5f895e2e30b507f2b1a2c816f4e5b28293ea`: local/remote trees identical.
+- Vercel `dpl_Hh1VhWPomE81Q39gPWPuDzZGhWbn` READY; production alias assigned.
+- Authenticated production Lilthe history loaded without a sync warning; model
+  menu displayed image/reasoning support and the honest no-key discovery state.
+  Browser console showed no errors during these checks. No message was submitted.
+- Final capability review: o3-mini is text-only; embedding models do not accept
+  chat images; audio/realtime/transcription variants remain unverified rather
+  than inheriting image support from a name prefix. Added regression cases and
+  rebuilt successfully. Follow-up deployment evidence is recorded in the local
+  release record, without another documentation-only deployment loop.

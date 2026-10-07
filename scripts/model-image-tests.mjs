@@ -27,3 +27,8 @@ const {discoverModels}=await import(`data:text/javascript;base64,${Buffer.from(b
 calls=[];globalThis.fetch=async(url,init)=>{calls.push({url:String(url),...init});return Response.json(calls.length===1?{models:[{name:'models/gemini-fixture',supportedGenerationMethods:['generateContent']}],nextPageToken:'page-two'}:{models:[{name:'models/gemini-fixture',supportedGenerationMethods:['generateContent']},{name:'models/embedding',supportedGenerationMethods:['embedContent']},{name:'models/gemini-second',supportedGenerationMethods:['generateContent']}]});};
 const catalog=await discoverModels('gemini','disposable-owner');assert.deepEqual(catalog.models,['gemini-fixture','gemini-second']);assert.equal(catalog.complete,true);assert.equal(calls.length,2);assert(calls[1].url.includes('pageToken=page-two'));assert(calls.every(c=>!c.url.includes('disposable-fixture')));
 console.log('PASS: latest image batch survives history/retry window; catalog pagination deduplicates and excludes embedding models.');
+
+const capabilityBundle=await build({entryPoints:['src/lib/agent/model-capabilities.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+const {imageSupport}=await import(`data:text/javascript;base64,${Buffer.from(capabilityBundle.outputFiles[0].text).toString('base64')}`);
+assert.equal(imageSupport('openai','o3-mini'),'unsupported');assert.equal(imageSupport('openrouter','openai/o3-mini'),'unsupported');assert.equal(imageSupport('openai','gpt-4o-audio-preview'),'unverified');assert.equal(imageSupport('gemini','gemini-embedding-001'),'unsupported');assert.equal(imageSupport('openai','gpt-4o-mini'),'supported');
+console.log('PASS: text-only reasoning and audio/embedding variants do not inherit image support.');

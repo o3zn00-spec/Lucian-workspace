@@ -1,6 +1,8 @@
 /** Known families only; unknown/custom models require provider verification. */
 export function imageSupport(provider: string, model: string): "supported" | "unsupported" | "unverified" {
   const id = model.replace(/^openai\//, "");
+  if (/embedding|o3-mini/.test(id)) return "unsupported";
+  if (/audio|realtime|transcribe|tts/.test(id)) return "unverified";
   if (provider === "deepseek") return "unsupported";
   if (provider === "gemini" && /^gemini-/.test(model)) return "supported";
   if (provider === "anthropic" && /^claude-(?:3|sonnet-4|opus-4|haiku-4)/.test(model)) return "supported";

@@ -44,7 +44,11 @@ recent image-bearing turn. Reattach older batches and crop small text. GIFs use
 one frame. Other binaries are metadata only. Image signatures are checked;
 provider decoding still determines whether the full format can be consumed.
 
-Production publication/checks recorded separately after release. Actual model
+Image-delivery release `76b9148` / `dpl_Hh1VhWPomE81Q39gPWPuDzZGhWbn`
+reported READY. Production UI/sync, capability label and no-key discovery state
+checked with no console errors or model inference. Final capability regression
+includes text-only o3-mini and unverified audio/transcription variants.
+Follow-up deployment checks recorded separately after release. Actual model
 screenshot accuracy, account access and custom endpoint compatibility remain
 unverified until the selected real provider is exercised within an agreed budget.
 
