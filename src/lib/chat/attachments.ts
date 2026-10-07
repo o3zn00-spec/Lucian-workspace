@@ -44,3 +44,11 @@ function formatBytes(value: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+
+/** Retain bounded image previews in chat history; full source files stay local. */
+export async function attachmentPreviews(attachments: LilithChatAttachment[]) {
+  return Promise.all(attachments.slice(0,8).map(async item => {
+    if(!/^image\/(png|jpeg|webp|gif)$/.test(item.type)) return {id:item.id,name:item.name};
+    try {const image=await createImageBitmap(item.file);const scale=Math.min(1,1280/Math.max(image.width,image.height));const canvas=document.createElement("canvas");canvas.width=Math.round(image.width*scale);canvas.height=Math.round(image.height*scale);canvas.getContext("2d")?.drawImage(image,0,0,canvas.width,canvas.height);image.close();let url=canvas.toDataURL("image/jpeg",0.75);if(url.length>100000)url=canvas.toDataURL("image/jpeg",0.35);return {id:item.id,name:item.name,url:url.length<=100000?url:undefined};}catch{return {id:item.id,name:item.name};}
+  }));
+}

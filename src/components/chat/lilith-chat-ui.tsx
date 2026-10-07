@@ -20,6 +20,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { AttachmentGallery, type AttachmentPreview } from "./attachment-gallery";
+import { ModelSelector } from "./model-selector";
 import { cn } from "@/lib/utils";
 
 export type LilithChatRole = "user" | "assistant" | "tool";
@@ -30,6 +32,7 @@ export interface LilithChatMessage {
   content: string;
   timestamp?: number;
   fromModel?: boolean;
+  attachments?: AttachmentPreview[];
   toolName?: string;
   status?: "complete" | "streaming" | "error";
 }
@@ -40,6 +43,7 @@ export interface LilithChatAttachment {
   name: string;
   type: string;
   size: number;
+  previewUrl?: string;
 }
 
 interface MessageProps {
@@ -128,7 +132,10 @@ export function LilithMessage({
           )}
         >
           {isUser ? (
+            <>
+            {message.attachments?.length ? <AttachmentGallery items={message.attachments} /> : null}
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            </>
           ) : (
             <LilithMarkdown content={message.content} />
           )}
@@ -270,7 +277,6 @@ export function LilithComposer({
   disabled = false,
   onStop,
   placeholder = "Message Lilith…",
-  modelLabel = "Auto",
   onModelClick,
   contextCount = 0,
   onContextClick,
@@ -279,6 +285,8 @@ export function LilithComposer({
   accept = "image/*,.pdf,.txt,.md,.json,.csv,.ts,.tsx,.js,.jsx,.html,.css,.py",
 }: ComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const urls = useRef<string[]>([]);
+  useEffect(() => () => { urls.current.forEach(url => URL.revokeObjectURL(url)); }, []);
   const fileRef = useRef<HTMLInputElement>(null);
   const [attachments, setAttachments] = useState<LilithChatAttachment[]>([]);
 
@@ -300,6 +308,7 @@ export function LilithComposer({
         name: file.name,
         type: file.type || "application/octet-stream",
         size: file.size,
+        previewUrl: file.type.startsWith("image/") ? (() => { const url=URL.createObjectURL(file); urls.current.push(url); return url; })() : undefined,
       })),
     ].slice(0, 8));
     event.target.value = "";
@@ -321,24 +330,7 @@ export function LilithComposer({
 
   return (
     <div className="bg-surface p-2.5">
-      {attachments.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5" aria-label="Attachments">
-          {attachments.map((attachment) => (
-            <span key={attachment.id} className="inline-flex max-w-44 items-center gap-1 rounded-md border border-line-muted bg-surface-2 px-2 py-1 text-[10px] text-fg-muted">
-              <Paperclip className="h-3 w-3 shrink-0" />
-              <span className="truncate">{attachment.name}</span>
-              <button
-                type="button"
-                onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}
-                aria-label={`Remove ${attachment.name}`}
-                className="focus-ring rounded p-0.5 hover:bg-hover"
-              >
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+      {attachments.length > 0 && <AttachmentGallery items={attachments.map(item => ({id:item.id,name:item.name,url:item.previewUrl}))} onRemove={id => setAttachments(current => current.filter(item => item.id !== id))} />}
 
       <div className="rounded-xl bg-inset">
         <textarea
@@ -367,17 +359,7 @@ export function LilithComposer({
               {contextCount > 0 && <span className="text-[9px]">{contextCount}</span>}
             </ComposerButton>
           )}
-          {onModelClick && (
-            <button
-              type="button"
-              onClick={onModelClick}
-              disabled={disabled || busy}
-              title="Choose model"
-              className="focus-ring ml-0.5 max-w-40 truncate rounded-md px-2 py-1 text-[10px] text-fg-muted hover:bg-hover hover:text-fg disabled:opacity-50"
-            >
-              {modelLabel}
-            </button>
-          )}
+          {onModelClick && <ModelSelector interfaceId="lilith" />}
           <div className="flex-1" />
           {footer}
           {busy && onStop ? (

@@ -24,6 +24,7 @@ export interface AgentMessage {
   content: string;
   timestamp: number;
   fromModel: boolean;
+  attachments?: { id: string; name: string; url?: string }[];
   toolName?: string;
   status?: "complete" | "streaming" | "error";
   capability?: LilithCapability;

@@ -27,6 +27,9 @@ export interface SettingsSearchEntry {
 }
 
 export const SETTINGS_SEARCH_INDEX: SettingsSearchEntry[] = [
+  {section:"ai-models",subsection:"Models",label:"AI provider, model and reasoning",description:"Choose the model used by Lilthe.",keywords:["ai","model","provider","reasoning","high","medium","low"]},
+  {section:"ai-models",subsection:"Personalization",label:"Lilthe memory and behavior",description:"Manage saved memories and response preferences.",keywords:["memory","personalization","behavior","lilthe"]},
+  {section:"lilthe",subsection:"Assistant",label:"Voice and floating orb",description:"Control Lilthe’s voice, motion and placement.",keywords:["voice","orb","microphone","floating","lilthe"]},
   /* ── General ── */
   { section: "general", subsection: "Startup", label: "Open Home on launch", description: "Open the Home page when LUCIAN starts.", keywords: ["startup", "launch", "open", "home", "boot"] },
   { section: "general", subsection: "Startup", label: "Reopen last module", description: "Restore the module you last used.", keywords: ["startup", "module", "restore", "reopen", "last"] },

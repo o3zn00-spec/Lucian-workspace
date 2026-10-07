@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Settings as SettingsIcon, Palette, Sparkles, Bell, Code2, ShieldAlert,
+  Settings as SettingsIcon, Palette, Bell, Code2, ShieldAlert,
   Database, Plug, Accessibility, User, Info, ChevronLeft, Search,
 } from "lucide-react";
 import { useSettingsStore, type SettingsSectionId } from "@/store/settings";
@@ -65,6 +65,8 @@ export function SettingsDashboard() {
   const setSearchQuery = useSettingsStore((s) => s.setSettingsSearchQuery);
 
   const [hydrated, setHydrated] = useState(false);
+  const [smallScreen, setSmallScreen] = useState(false);
+  useEffect(() => {const media=window.matchMedia("(max-width: 1023px)");const update=()=>setSmallScreen(media.matches);update();media.addEventListener("change",update);return()=>media.removeEventListener("change",update);}, []);
   // Mobile view state. On initial mobile load, we ALWAYS show the
   // section list — we do NOT auto-jump into the persisted selected
   // section just because desktop selection persisted. The user must
@@ -118,7 +120,7 @@ export function SettingsDashboard() {
   }
 
   // ── Mobile list view ──
-  if (hydrated && mobileView === "list" && typeof window !== "undefined" && window.innerWidth < 1024) {
+  if (hydrated && mobileView === "list" && smallScreen) {
     return (
       <div className="themed flex h-full min-h-0 flex-col bg-canvas text-fg">
         <header className="shrink-0 border-b border-line-muted px-4 py-4 sm:px-6">
@@ -173,7 +175,7 @@ export function SettingsDashboard() {
   }
 
   // ── Mobile section view ──
-  if (hydrated && mobileView === "section" && typeof window !== "undefined" && window.innerWidth < 1024) {
+  if (hydrated && mobileView === "section" && smallScreen) {
     return (
       <div className="themed flex h-full min-h-0 flex-col bg-canvas text-fg">
         <header className="themed sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b border-line-muted bg-surface px-3 py-3">
@@ -195,64 +197,25 @@ export function SettingsDashboard() {
     );
   }
 
-  // ── Desktop view ──
-  return (
-    <div className="themed flex h-full min-h-0 flex-col bg-canvas text-fg">
-      <header className="themed shrink-0 border-b border-line-muted px-5 py-4 sm:px-7">
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-0.5 text-[12px] text-fg-muted">
-          Manage LUCIAN preferences, intelligence, privacy and connected services.
-        </p>
-        <div className="mt-3">
-          <SearchInput
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={setSearchQuery}
-            onEnter={handleSearchEnter}
-            hydrated={hydrated}
-          />
-          {searchResults.length > 0 && (
-            <div className="settings-search-results">
-              {searchResults.map((r) => (
-                <button
-                  key={`${r.section}:${r.label}`}
-                  className="settings-search-result"
-                  onClick={() => handleSearchClick(r.section)}
-                >
-                  <div className="settings-search-result-label">{r.label}</div>
-                  <div className="settings-search-result-section">
-                    {sectionLabel(r.section)} › {r.subsection}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </header>
-      <div className="settings-shell">
-        <nav className="settings-nav themed">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = selected === item.id;
-            return (
-              <button
-                key={item.id}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setSelected(item.id)}
-                className={cn("settings-nav-btn themed", active && "active")}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="settings-content themed">
-          <SectionContent id={selected} onNavigate={setSelected} />
-        </div>
-      </div>
+  // Desktop settings: searchable navigation and a generous, centered content column.
+  const groups = [
+    {label:"Workspace",ids:["general","appearance","notifications","accessibility"]},
+    {label:"Lilthe",ids:["ai-models","lilthe"]},
+    {label:"Account & Data",ids:["account","privacy","data-storage"]},
+    {label:"Integrations & Tools",ids:["connections","dev-workspace","about"]},
+  ];
+  return <div className="themed flex h-full min-h-0 flex-col bg-canvas text-fg">
+    <div className="settings-shell">
+      <nav aria-label="Settings sections" className="settings-nav themed">
+        <button type="button" onClick={() => router.push("/")} className="focus-ring mb-5 flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-hover"><ChevronLeft className="h-4 w-4"/>Back to app</button>
+        <h1 className="px-3 text-lg font-semibold">Settings</h1>
+        <div className="px-2"><SearchInput ref={searchInputRef} value={searchQuery} onChange={setSearchQuery} onEnter={handleSearchEnter} hydrated={hydrated}/></div>
+        {searchResults.length > 0 ? <div className="mt-3 px-2">{searchResults.map(result => <button type="button" key={`${result.section}:${result.label}`} className="settings-search-result w-full rounded-xl text-left" onClick={() => handleSearchClick(result.section)}><div className="settings-search-result-label">{result.label}</div><div className="settings-search-result-section">{sectionLabel(result.section)} · {result.subsection}</div></button>)}</div> : groups.map(group => <div key={group.label} className="mt-6"><p className="mb-2 px-3 text-xs font-medium text-fg-faint">{group.label}</p>{group.ids.map(id => { const item=NAV_ITEMS.find(item=>item.id===id)!;const Icon=item.icon;return <button type="button" key={id} aria-current={selected===id?"page":undefined} onClick={()=>setSelected(item.id)} className={cn("settings-nav-btn themed",selected===id&&"active")}><Icon className="h-4 w-4 shrink-0"/><span>{item.label}</span></button>;})}</div>)}
+      </nav>
+      <div className="settings-content themed"><SectionContent id={selected} onNavigate={setSelected}/></div>
     </div>
-  );
+  </div>;
+
 }
 
 /* ── Helpers ── */

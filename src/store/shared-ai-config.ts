@@ -73,6 +73,8 @@ interface OverrideConfig {
 }
 
 interface SharedAIConfigState {
+  reasoningEffort: "low" | "medium" | "high";
+  setReasoningEffort: (effort: "low" | "medium" | "high") => void;
   /** Global default provider. */
   globalProvider: ProviderId;
   /** Global default model. */
@@ -94,6 +96,8 @@ interface SharedAIConfigState {
 export const useSharedAIConfig = create<SharedAIConfigState>()(
   persist(
     (set, get) => ({
+      reasoningEffort: "medium",
+      setReasoningEffort: (reasoningEffort) => set({ reasoningEffort }),
       globalProvider: "gemini",
       globalModel: "gemini-2.0-flash",
       overrides: {},

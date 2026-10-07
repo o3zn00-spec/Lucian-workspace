@@ -16,6 +16,7 @@
 // passes the providerId + modelId; this module looks up the right
 // adapter and API key from the environment.
 
+import { supportsReasoning, type ReasoningEffort } from "./model-capabilities";
 import type { ProviderId } from "@/store/economic-agent-connection";
 import { readOwnerCredential } from "@/lib/security/owner-credentials";
 
@@ -30,6 +31,7 @@ export interface AIProvider {
     messages: ChatMessage[];
     model: string;
     systemPrompt?: string;
+    reasoningEffort?: ReasoningEffort;
   }): Promise<{ content: string; fromModel: boolean }>;
 
   /** Send a minimal test request to verify the connection works. */
@@ -78,11 +80,11 @@ export async function getProvider(provider: ProviderId, ownerUserId?: string): P
     case "gemini":
       return createGeminiProvider(apiKey);
     case "openai":
-      return createOpenAIProvider(apiKey, "https://api.openai.com/v1");
+      return createOpenAIProvider(apiKey, "https://api.openai.com/v1", "openai");
     case "anthropic":
       return createAnthropicProvider(apiKey);
     case "openrouter":
-      return createOpenAIProvider(apiKey, "https://openrouter.ai/api/v1");
+      return createOpenAIProvider(apiKey, "https://openrouter.ai/api/v1", "openrouter");
     case "deepseek":
       return createOpenAIProvider(apiKey, "https://api.deepseek.com/v1");
     case "custom":
@@ -173,9 +175,9 @@ function createGeminiProvider(apiKey: string): AIProvider {
 
 /* ── OpenAI-compatible (OpenAI, OpenRouter, DeepSeek, Custom) ── */
 
-function createOpenAIProvider(apiKey: string, baseUrl: string): AIProvider {
+function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: string = "custom"): AIProvider {
   return {
-    async chat({ messages, model, systemPrompt }) {
+    async chat({ messages, model, systemPrompt, reasoningEffort }) {
       const allMessages: ChatMessage[] = [];
       if (systemPrompt) {
         allMessages.push({ role: "system", content: systemPrompt });
@@ -191,8 +193,7 @@ function createOpenAIProvider(apiKey: string, baseUrl: string): AIProvider {
         body: JSON.stringify({
           model,
           messages: allMessages,
-          temperature: 0.7,
-          max_tokens: 2048,
+          ...(supportsReasoning(providerId,model) ? {reasoning_effort:reasoningEffort??"medium",max_completion_tokens:8192} : {temperature:0.7,max_tokens:2048}),
         }),
       });
 
@@ -306,4 +307,19 @@ function createAnthropicProvider(apiKey: string): AIProvider {
       }
     },
   };
+}
+
+/** Discovery requests list models; they never generate paid completions. */
+export async function discoverModels(provider: ProviderId, owner: string) {
+  const apiKey = await getApiKey(provider, owner);
+  if (!apiKey) return { configured: false, models: [] as string[] };
+  const endpoints = {gemini:"https://generativelanguage.googleapis.com/v1beta",openai:"https://api.openai.com/v1",anthropic:"https://api.anthropic.com/v1",openrouter:"https://openrouter.ai/api/v1",deepseek:"https://api.deepseek.com/v1",custom:process.env.CUSTOM_AI_BASE_URL || ""};
+  const base = endpoints[provider].replace(/\/$/, "");
+  if (!base) throw Error("Provider URL is not configured.");
+  const headers: Record<string,string> = provider === "gemini" ? {"x-goog-api-key":apiKey} : provider === "anthropic" ? {"x-api-key":apiKey,"anthropic-version":"2023-06-01"} : {Authorization:`Bearer ${apiKey}`};
+  const response=await fetch(`${base}/models`,{headers,cache:"no-store",signal:AbortSignal.timeout(10000)});
+  if (!response.ok) throw Error("Unable to list models. Check the connection in Settings.");
+  const result=await response.json();
+  const entries=provider === "gemini" ? result.models : result.data;
+  return {configured:true,models:(Array.isArray(entries)?entries:[]).filter((item:{supportedGenerationMethods?:string[]})=>provider!=="gemini" || item.supportedGenerationMethods?.includes("generateContent")).map((item:{id?:string;name?:string})=>(item.id || item.name || "").replace(/^models\//,"")).filter(Boolean).slice(0,500)};
 }

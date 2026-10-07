@@ -32,7 +32,7 @@ import {
   LilithMessage,
   type LilithChatAttachment,
 } from "@/components/chat/lilith-chat-ui";
-import { attachmentLabel, attachmentsToContext } from "@/lib/chat/attachments";
+import { attachmentLabel, attachmentsToContext, attachmentPreviews } from "@/lib/chat/attachments";
 import { isAbortError, streamChatResponse } from "@/lib/chat/stream-response";
 import { resolvePageContext } from "@/lib/context-resolver";
 import { useLilithVoice } from "@/hooks/use-lilith-voice";
@@ -213,14 +213,16 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
     const text = inputText.trim();
     if ((!text && attachments.length === 0) || busy) return;
 
+    setBusy(true);
     setError(null);
+    const previews = await attachmentPreviews(attachments);
     const visibleUserText = `${text || "Please review the attached files."}${attachmentLabel(attachments)}`;
     const capability = capabilityForPath(pathname);
-    addMessage({ role: "user", content: visibleUserText, fromModel: false, status: "complete", capability });
+    addMessage({ role: "user", content: visibleUserText,
+      attachments: previews, fromModel: false, status: "complete", capability });
     const streamingId = addMessage({ role: "assistant", content: "", fromModel: true, status: "streaming", capability });
     setInputText("");
     setStatus("thinking");
-    setBusy(true);
 
     const conversationId = useLilithConversationStore.getState().activeId;
     const currentConversation = useLilithConversationStore.getState().conversations.find((conversation) => conversation.id === conversationId);
@@ -241,6 +243,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
           messages: historyWindow,
           provider: resolved.provider,
           model: resolved.model,
+          reasoningEffort: useSharedAIConfig.getState().reasoningEffort,
           systemPrompt: buildSystemPrompt(),
           contextItems: [...(history.summaryContext ? [{ type: "conversation-summary", label: "Earlier conversation", description: "Rolling summary of older turns", data: history.summaryContext }] : []), ...pageContext, ...resolvedCtx.map((c: { type: string; label: string; description: string; data: string }) => ({
             type: c.type, label: c.label, description: c.description, data: c.data,
@@ -300,7 +303,6 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
 
     setError(null);
     setStatus("thinking");
-    setBusy(true);
 
     const streamingId = addMessage({ role: "assistant", content: "", fromModel: true, status: "streaming", capability: lastUserMsg.capability ?? "general" });
     const refreshed = useLilithConversationStore.getState().conversations.find((item) => item.id === state.activeId);
@@ -316,6 +318,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
           messages: windowed.messages,
           provider: resolved.provider,
           model: resolved.model,
+          reasoningEffort: useSharedAIConfig.getState().reasoningEffort,
           systemPrompt: buildSystemPrompt(),
           contextItems: [...(windowed.summaryContext ? [{ type: "conversation-summary", label: "Earlier conversation", description: "Rolling summary of older turns", data: windowed.summaryContext }] : []), ...resolvePageContext(pathname), ...resolveHandoffContext()],
           behavior: readAIBehaviorWire(),

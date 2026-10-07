@@ -1,5 +1,8 @@
 "use client";
 
+import { ComposerPopover } from "@/components/chat/composer-popover";
+import { useSharedAIConfig } from "@/store/shared-ai-config";
+import { ModelSelector } from "@/components/chat/model-selector";
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -36,7 +39,7 @@ import {
   type ContextItem,
   type AgentError,
 } from "@/store/economic-agent";
-import { useEconomicAgentConnection, getProviderInfo, PROVIDERS } from "@/store/economic-agent-connection";
+import { useEconomicAgentConnection } from "@/store/economic-agent-connection";
 import { getAvailableContextSources, attachContext, type ContextSource } from "@/lib/agent/context-providers";
 import { readAIBehaviorWire } from "@/lib/ai-behavior";
 import { useRestoredAssistantReady } from "@/components/assistant/restored-agent-bridge";
@@ -49,7 +52,7 @@ import {
   type LilithChatAttachment,
 } from "@/components/chat/lilith-chat-ui";
 import { isAbortError, streamChatResponse } from "@/lib/chat/stream-response";
-import { attachmentLabel, attachmentsToContext } from "@/lib/chat/attachments";
+import { attachmentLabel, attachmentsToContext, attachmentPreviews } from "@/lib/chat/attachments";
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Main page                                                          */
@@ -747,7 +750,7 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
 
     // Add user message.
     const visibleUserText = `${text || "Please review the attached files."}${attachmentLabel(attachments)}`;
-    addMessage(convId, { role: "user", content: visibleUserText, fromModel: false, status: "complete", capability: "economic" });
+    addMessage(convId, { role: "user", content: visibleUserText, fromModel: false, status: "complete", capability: "economic", attachments: await attachmentPreviews(attachments) });
     const attachmentContext = await attachmentsToContext(attachments);
     const streamingId = addMessage(convId, {
       role: "assistant",
@@ -774,6 +777,7 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
           messages: historyWindow,
           provider: connectionProvider,
           model: connectionModel,
+          reasoningEffort: useSharedAIConfig.getState().reasoningEffort,
           // Phase 7: system prompt is now built client-side and passed to
           // the shared API route. Context items are also passed with
           // real data (rebuilt at send time by the context-provider layer).
@@ -880,6 +884,7 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
           messages: historyWindow,
           provider: connectionProvider,
           model: connectionModel,
+          reasoningEffort: useSharedAIConfig.getState().reasoningEffort,
           systemPrompt: [
             "You are Lilthe, the single continuous AI companion inside LUCIAN. You are currently using your economic and research capabilities.",
             "You can also help with trading, coding, markets, notes, chess, and personal conversation without becoming a different identity.",
@@ -969,7 +974,7 @@ function ComposerDropdown({
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node) && !(e.target as Element).closest?.("[data-composer-popover]")) setOpen(false);
     };
     const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
     return () => {
@@ -992,9 +997,9 @@ function ComposerDropdown({
         <ChevronDown className="h-2.5 w-2.5" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 w-56 overflow-hidden rounded-md border border-line bg-overlay shadow-pop">
+        <ComposerPopover className="w-72" onClose={() => setOpen(false)}>
           {children}
-        </div>
+        </ComposerPopover>
       )}
     </div>
   );
@@ -1009,7 +1014,7 @@ function ContextSelector() {
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node) && !(e.target as Element).closest?.("[data-composer-popover]")) setOpen(false);
     };
     const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
     return () => {
@@ -1036,7 +1041,7 @@ function ContextSelector() {
         <ChevronDown className="h-2.5 w-2.5" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 w-64 overflow-hidden rounded-md border border-line bg-overlay shadow-pop">
+        <ComposerPopover className="w-72" onClose={() => setOpen(false)}>
           <div className="border-b border-line-muted px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
             Context
           </div>
@@ -1072,7 +1077,7 @@ function ContextSelector() {
               ))
             )}
           </div>
-        </div>
+        </ComposerPopover>
       )}
     </div>
   );
@@ -1086,7 +1091,7 @@ function AddContextButton() {
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node) && !(e.target as Element).closest?.("[data-composer-popover]")) setOpen(false);
     };
     const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
     return () => {
@@ -1126,7 +1131,7 @@ function AddContextButton() {
         <Plus className="h-3.5 w-3.5" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 mb-1 w-56 overflow-hidden rounded-md border border-line bg-overlay shadow-pop">
+        <ComposerPopover className="w-72" onClose={() => setOpen(false)}>
           <div className="border-b border-line-muted px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
             Add Real Context
           </div>
@@ -1165,7 +1170,7 @@ function AddContextButton() {
               })
             )}
           </div>
-        </div>
+        </ComposerPopover>
       )}
     </div>
   );
@@ -1176,88 +1181,7 @@ function AddContextButton() {
    Changing the provider auto-fills the default model for that provider.
    The model input is a text field so the user can enter any model id
    supported by their provider. */
-function ProviderModelSelector() {
-  const provider = useEconomicAgentConnection((s) => s.provider);
-  const model = useEconomicAgentConnection((s) => s.model);
-  const setProvider = useEconomicAgentConnection((s) => s.setProvider);
-  const setModel = useEconomicAgentConnection((s) => s.setModel);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
-    return () => {
-      clearTimeout(id);
-      document.removeEventListener("mousedown", handler);
-    };
-  }, [open]);
-
-  const providerInfo = getProviderInfo(provider);
-  const displayLabel = model || providerInfo.defaultModel || "model";
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label={`Choose AI provider and model, current model ${displayLabel}`}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 rounded-md text-[11px] font-medium text-fg-muted transition-colors hover:bg-hover hover:text-fg px-2 py-1"
-      >
-        <Cpu className="h-3 w-3" />
-        <span className="max-w-[80px] truncate">{displayLabel}</span>
-        <ChevronDown className="h-2.5 w-2.5" />
-      </button>
-      {open && (
-        <div className="absolute bottom-full right-0 mb-1 w-64 overflow-hidden rounded-md border border-line bg-overlay shadow-pop">
-          <div className="border-b border-line-muted px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
-            Provider & Model
-          </div>
-          <div className="space-y-2 p-2">
-            {/* Provider dropdown */}
-            <div>
-              <label className="text-[9px] uppercase tracking-wide text-fg-faint">Provider</label>
-              <select
-                value={provider}
-                onChange={(e) => {
-                  const newProvider = e.target.value as typeof provider;
-                  setProvider(newProvider);
-                  // Auto-fill the default model for the new provider.
-                  const info = getProviderInfo(newProvider);
-                  setModel(info.defaultModel);
-                }}
-                className="mt-1 w-full rounded border border-line-muted bg-surface px-2 py-1 text-[11px] text-fg focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              >
-                {PROVIDERS.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
-            {/* Model input */}
-            <div>
-              <label className="text-[9px] uppercase tracking-wide text-fg-faint">Model</label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={providerInfo.modelPlaceholder}
-                className="mt-1 w-full rounded border border-line-muted bg-surface px-2 py-1 text-[11px] text-fg placeholder:text-fg-faint focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              />
-            </div>
-            <div className="text-[9px] text-fg-faint">
-              The selected provider and model are used for every request.
-              Configure API keys in Settings → Lilthe → Lilthe Model Connection.
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+function ProviderModelSelector() { return <ModelSelector />; }
 
 /* ────────────────────────────────────────────────────────────────── */
 /* Helpers                                                           */
