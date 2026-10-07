@@ -45,13 +45,13 @@ import { IsolationBoundary } from "@/components/layout/IsolationBoundary";
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
-      <IsolationBoundary><AppShell>
+      <AppShell>
         <AppearanceApplier />
-        {children}
+        <IsolationBoundary>{children}</IsolationBoundary>
         <PostLoginMigrationPrompt />
         <LiveSyncMount />
         <CloudHydrationMount />
-      </AppShell></IsolationBoundary>
+      </AppShell>
     </SessionProvider>
   );
 }

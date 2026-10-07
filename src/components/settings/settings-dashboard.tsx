@@ -22,6 +22,8 @@ import {
 import { useSettingsStore, type SettingsSectionId } from "@/store/settings";
 import { searchSettings, bestSectionForQuery } from "@/lib/settings-search";
 import { cn } from "@/lib/utils";
+import { AiModelsSection } from "@/components/settings/sections/ai-models-section";
+import { LilithSettings } from "@/components/lilith/lilith-settings";
 import { GeneralSection } from "@/components/settings/sections/general-section";
 import { AppearanceSection } from "@/components/settings/sections/appearance-section";
 
@@ -41,6 +43,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { id: "ai-models", label: "AI & Models", icon: Plug },
+  { id: "lilthe", label: "Lilthe", icon: Plug },
   { id: "general",         label: "General",            icon: SettingsIcon },
   { id: "appearance",      label: "Appearance",        icon: Palette },
   { id: "notifications",   label: "Notifications",     icon: Bell },
@@ -259,6 +263,8 @@ function sectionLabel(id: SettingsSectionId): string {
 
 function SectionContent({ id, onNavigate }: { id: SettingsSectionId; onNavigate: (id: SettingsSectionId) => void }) {
   switch (id) {
+    case "ai-models": return <AiModelsSection />;
+    case "lilthe": return <LilithSettings />;
     case "general":         return <GeneralSection />;
     case "appearance":      return <AppearanceSection />;
     

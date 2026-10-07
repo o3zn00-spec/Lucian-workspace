@@ -21,6 +21,8 @@
     "migrate:dev": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "test:desktop": "node --test desktop/*.test.mjs",
+    "test:agent:integration": "tsx scripts/restored-agent-tests.ts",
+    "test:assistant:integration": "tsx scripts/assistant-foundation-tests.ts",
     "test:architecture": "tsx scripts/phase10-architecture-tests.ts && tsx scripts/phase12-architecture-tests.ts && tsx scripts/vault-architecture-tests.ts",
     "desktop:dev": "node desktop/launch.mjs",
     "desktop:host": "node desktop/host.mjs",

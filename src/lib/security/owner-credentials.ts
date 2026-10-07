@@ -4,6 +4,13 @@ import { db } from "@/lib/db";
 import { decryptOwnerCredential, encryptOwnerCredential } from "@/lib/security/owner-credential-encryption";
 
 export const OWNER_CREDENTIAL_DEFINITIONS = [
+  { service: "gemini", key: "api_key", label: "Gemini API key" },
+  { service: "openai", key: "api_key", label: "Openai API key" },
+  { service: "anthropic", key: "api_key", label: "Anthropic API key" },
+  { service: "openrouter", key: "api_key", label: "Openrouter API key" },
+  { service: "deepseek", key: "api_key", label: "Deepseek API key" },
+  { service: "custom", key: "api_key", label: "Custom API key" },
+
   { service: "bybit", key: "api_key", label: "Bybit API key" },
   { service: "bybit", key: "api_secret", label: "Bybit API secret" },
   { service: "bybit", key: "environment", label: "Bybit environment (testnet or mainnet)" },

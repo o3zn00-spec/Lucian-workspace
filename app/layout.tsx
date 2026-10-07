@@ -133,6 +133,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              if ('serviceWorker' in navigator && '${process.env.NODE_ENV}' !== 'production') {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  registrations.forEach(function(registration) {
+                    var worker = registration.active || registration.waiting || registration.installing;
+                    if (worker && worker.scriptURL === new URL('/sw.js', location.origin).href) registration.unregister();
+                  });
+                }).catch(function() {});
+              }
               if ('serviceWorker' in navigator && '${process.env.NODE_ENV}' === 'production') {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').catch(function() {});

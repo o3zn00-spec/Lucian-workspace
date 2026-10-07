@@ -544,6 +544,10 @@ model User {
   cryptoReceiveAddresses CryptoReceiveAddress[]
   cryptoTransferIntents  CryptoTransferIntent[]
   ownerCredentials       OwnerCredential[]
+  assistantProfile       AssistantProfile?
+  assistantConversations AssistantConversation[]
+  assistantMemories      AssistantMemory[]
+  assistantActivities    AssistantActivity[]
 
   @@index([status])
   @@index([username])
@@ -1017,4 +1021,69 @@ model UserDataMigration {
 
   @@unique([userId, category, version])
   @@index([userId, status])
+}
+
+// Active restoration tables are separate from untouched historical mappings.
+model AssistantProfile {
+  userId               String   @id
+  activeConversationId String?
+  selectedProvider     String?
+  selectedModel        String?
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AssistantConversation {
+  metadata Json?
+  deletedAt DateTime?
+  id        String             @id
+  userId    String
+  title     String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AssistantMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AssistantMessage {
+  metadata Json?
+  id             String                @id @default(cuid())
+  conversationId String
+  requestId      String
+  role           String
+  content        String
+  module         String
+  recordId       String?
+  createdAt      DateTime              @default(now())
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, requestId])
+  @@index([conversationId, createdAt])
+}
+
+model AssistantMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}
+
+model AssistantActivity {
+  id             String   @id @default(cuid())
+  userId         String
+  conversationId String?
+  tool           String
+  module         String
+  status         String
+  reason         String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

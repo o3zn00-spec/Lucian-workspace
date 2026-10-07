@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -20,7 +20,8 @@ import { IntelligencePanel } from "@/components/markets/intelligence-panel";
 import { PriceAlertsDialog } from "@/components/markets/price-alerts-dialog";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import type { ThemeId } from "@/lib/themes";
+import { useEffectiveAppearance } from "@/lib/appearance-mode";
+import { useSettingsStore } from "@/store/settings";
 import { useMarketsStore } from "@/store/markets";
 import {
   AccountActionDialog,
@@ -53,7 +54,9 @@ const TOGGLE_BASE = "text-fg-faint hover:bg-hover hover:text-fg themed";
 
 export function MarketsFrame() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
+  const { mode } = useEffectiveAppearance();
+  const setAppearance = useSettingsStore((s) => s.setAppearance);
   const [panelOpen, setPanelOpen] = useState(true);
   const leftPanelMode = useMarketsStore((s) => s.leftPanelMode);
   const setLeftPanelMode = useMarketsStore((s) => s.setLeftPanelMode);
@@ -104,16 +107,11 @@ export function MarketsFrame() {
   // Phase 10: price alerts dialog state.
   const [alertsOpen, setAlertsOpen] = useState(false);
 
-  const isLight = useMemo(() => {
-    return (
-      theme === "natural-white" ||
-      theme === "creamy-light"
-    );
-  }, [theme]);
+  const isLight = mode === "light";
 
   const toggleTheme = () => {
-    const next: ThemeId = isLight ? "midnight-gray" : "natural-white";
-    setTheme(next);
+    setTheme(isLight ? "midnight-gray" : "natural-white");
+    setAppearance({ mode: isLight ? "dark" : "light" });
   };
 
   // Register the toggleInstruments handler in the store so the chart

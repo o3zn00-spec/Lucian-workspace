@@ -1,4 +1,6 @@
 "use client";
+import type { AIBehaviorWire } from "@/lib/ai-behavior-wire";
+export type { ContextLevel, ResponseStyle } from "@/lib/ai-behavior-wire";
 
 /* LUCIAN — Central Settings / Preferences store.
  *
@@ -186,6 +188,8 @@ export interface SettingsState {
   };
 
   /* ── UI state for the Settings page itself ── */
+  aiBehavior: AIBehaviorWire;
+  setAIBehavior: (patch: Partial<AIBehaviorWire>) => void;
   selectedSettingsSection: SettingsSectionId;
   settingsSearchQuery: string;
 
@@ -217,6 +221,8 @@ export interface SettingsState {
 
 export type SettingsSectionId =
   | "general"
+  | "ai-models"
+  | "lilthe"
   | "appearance"
   | "notifications"
   | "dev-workspace"
@@ -234,6 +240,7 @@ export type SettingsSectionId =
 const DEFAULT_STATE: Omit<
   SettingsState,
   | "setGeneralStartup" | "setGeneralNavigation" | "setGeneralRegional"
+  | "setAIBehavior"
   | "setAppearance"
   | "setNotifications" | "setNotificationCategory"
   | "setDevWorkspaceEditor" | "setDevWorkspaceProjects" | "setDevWorkspacePreview" | "setDevWorkspaceVisualEditor"
@@ -331,6 +338,7 @@ const DEFAULT_STATE: Omit<
     keyboardFocusIndicators: true,
   },
 
+  aiBehavior: { responseStyle: "balanced", contextLevel: "standard", rememberConversations: true, allowProjectContext: true },
   selectedSettingsSection: "general",
   settingsSearchQuery: "",
 };
@@ -344,6 +352,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       ...DEFAULT_STATE,
 
+      setAIBehavior: (patch) => set((s) => ({ aiBehavior: { ...s.aiBehavior, ...patch } })),
       setGeneralStartup: (patch) =>
         set((s) => ({ general: { ...s.general, startup: { ...s.general.startup, ...patch } } })),
       setGeneralNavigation: (patch) =>
@@ -419,6 +428,7 @@ export const useSettingsStore = create<SettingsState>()(
         return {
           ...DEFAULT_STATE,
           ...s,
+          aiBehavior: { ...DEFAULT_STATE.aiBehavior, ...(s.aiBehavior ?? {}) },
           general: { ...DEFAULT_STATE.general, ...(s.general ?? {}) },
           appearance: { ...DEFAULT_STATE.appearance, ...(s.appearance ?? {}) },
           notifications: {

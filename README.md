@@ -104,3 +104,12 @@ intents are rejected by the manual confirmation path.
 
 Do not push, publish, deploy or add a remote until the owner explicitly changes
 the privacy requirement. See `docs/CONSOLIDATION.md` and `docs/VERIFICATION.md`.
+
+## Owner-agreed restoration (2026-10-07)
+
+The legacy-removal section above describes the previous consolidation baseline.
+The owner has authorized selective universal-assistant restoration. The first
+owner-scoped conversation foundation is locally verified, without a connected
+model or autonomous trading. See [the restoration checkpoint](docs/RESTORATION_CHECKPOINT.md)
+and [foundation verification](docs/ASSISTANT_FOUNDATION_VERIFICATION_2026-10-07.md)
+for current scope, evidence and remaining work. Production deployment is pending.

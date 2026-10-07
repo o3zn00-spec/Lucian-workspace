@@ -41,21 +41,15 @@ test('non-AI product modules, migrations, web and desktop source are preserved',
   }
 });
 
-test('legacy assistant source, routes, providers, prompts and desktop services are absent', () => {
-  for (const path of ['src/components/lilith', 'src/lib/agent', 'src/lib/chat',
-    'src/store/lilith.ts', 'src/store/economic-agent.ts', 'app/api/ai',
-    'app/api/lilith', 'app/api/economic-agent', 'app/(app)/economic-agent',
-    'app/api/user/agent-memory', 'app/api/user/chats', 'desktop/lilthe_service.py',
-    'desktop/package-lilthe.mjs', 'desktop/package-python.mjs']) {
-    assert(!existsSync(join(root, path)), `Legacy path remains: ${path}`);
-  }
-  for (const directory of ['app', 'src', 'desktop']) {
-    for (const file of files(join(root, directory)).filter(path => /\.(tsx?|mjs|html|css)$/.test(path))) {
-      assert.doesNotMatch(readFileSync(file, 'utf8'), /lilith|lilthe/i, relative(root, file));
-    }
+test('restoration stays independent of the unfinished model and desktop services', () => {
+  for (const path of ['desktop/lilthe_service.py', 'desktop/package-lilthe.mjs', 'desktop/package-python.mjs']) {
+    assert(!existsSync(join(root, path)), `Excluded custom runtime present: ${path}`);
   }
   assert.doesNotMatch(read('desktop/host.mjs'), /spawn\(|python|backendToken|backendUrl/);
-  assert.doesNotMatch(read('.env.example'), /GEMINI|OPENAI|ANTHROPIC|AI_TRADING|LILTHE|LILITH/);
+  assert.match(read('src/lib/assistant/contracts.ts'), /name: "Lilthe"/);
+  assert.match(read('app/api/assistant/route.ts'), /requireOwnerId/);
+  assert.match(read('src/lib/assistant/service.ts'), /providerStatus: "not_connected"/);
+  assert.match(read('src/lib/assistant/contracts.ts'), /id: "trading.execute", available: false/);
 });
 
 test('every remaining alias import resolves to source', () => {
@@ -106,7 +100,7 @@ test('preserved assets are connected and release packaging stays private/unappro
   assert.match(auth, /CLEAN_ENTRANCE_SECONDS = 3\.33/);
   assert.match(auth, /prefers-reduced-motion/);
   assert.match(auth, /onError=\{finish\}/);
-  assert.match(read('src/components/branding/BrandMark.tsx'), /lucian-guardian\.svg/);
+  assert.match(read('src/components/branding/BrandMark.tsx'), /src="\/icon\.png"/);
   assert.match(read('app/(app)/layout.tsx'), /IsolationBoundary/);
   assert.match(read('proxy.ts'), /auth\/guardian-entrance\.mp4/);
   assert.match(read('proxy.ts'), /auth\/guardian-hold\.webp/);

@@ -25,7 +25,7 @@ export async function GET() {
   }
 
   try {
-    const [user, profile, accounts, sessions, conversations, memory, notifications, savedItems, vaultAccounts] = await Promise.all([
+    const [user, profile, accounts, sessions, conversations, memory, notifications, savedItems, vaultAccounts, assistantProfile, assistantConversations, assistantMemories, assistantActivities] = await Promise.all([
       db.user.findUnique({
         where: { id: userId },
         select: {
@@ -57,6 +57,10 @@ export async function GET() {
         where: { ownerUserId: userId },
         select: { id: true, label: true, type: true, source: true, currency: true, balance: true, createdAt: true, updatedAt: true },
       }),
+      db.assistantProfile.findUnique({ where: { userId } }),
+      db.assistantConversation.findMany({ where: { userId }, include: { messages: { orderBy: { createdAt: "asc" } } } }),
+      db.assistantMemory.findMany({ where: { userId } }),
+      db.assistantActivity.findMany({ where: { userId } }),
     ]);
 
     if (!user) {
@@ -65,13 +69,14 @@ export async function GET() {
 
     const exportData = {
       exportedAt: new Date().toISOString(),
-      schemaVersion: 1,
+      schemaVersion: 2,
       user,
       profile,
       accounts: accounts.map(a => ({ provider: a.provider, type: a.type, linkedAt: a.createdAt })),
       sessions: sessions.map(s => ({ createdAt: s.createdAt, expiresAt: s.expires })),
       archivedConversations: conversations,
       archivedAssistantMemory: memory,
+      assistantProfile, assistantConversations, assistantMemories, assistantActivities,
       notifications,
       savedItems,
       vaultAccounts: vaultAccounts.map(a => ({

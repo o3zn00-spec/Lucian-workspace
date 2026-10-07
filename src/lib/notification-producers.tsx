@@ -311,3 +311,49 @@ export function NotificationProducers() {
   // updatePrice hot path — no bridge needed.
   return null;
 }
+
+export function notifyAiProviderFailure(input: {
+  provider: string;
+  errorType: string;
+  /** Where the failure happened (e.g. "economic-agent", "lilith"). */
+  interface: "economic-agent" | "lilith";
+}): void {
+  // Unconfigured is not a failure worth notifying on — the UI shows it
+  // inline already.
+  if (input.errorType === "provider-not-configured") return;
+
+  const level: NotificationLevel =
+    input.errorType === "authentication-failed" ? "error" :
+    input.errorType === "rate-limit" ? "warning" :
+    input.errorType === "timeout" ? "warning" :
+    input.errorType === "network-error" ? "warning" :
+    input.errorType === "invalid-model" ? "warning" :
+    "error";
+
+  const title =
+    input.errorType === "authentication-failed" ? "AI provider authentication failed" :
+    input.errorType === "rate-limit" ? "AI provider rate limit hit" :
+    input.errorType === "timeout" ? "AI provider request timed out" :
+    input.errorType === "network-error" ? "AI provider unreachable" :
+    input.errorType === "invalid-model" ? "AI model not available" :
+    "AI provider error";
+
+  useNotificationStore.getState().notify({
+    source: "ai-provider",
+    event: "provider-error",
+    title,
+    // PRIVACY: never include the raw error message (may contain URLs,
+    // partial response bodies, or sensitive details). The user can see
+    // the full error inline in the chat panel.
+    message: `Provider: ${input.provider} · ${input.errorType}`,
+    level,
+    actionable: true,
+    deepLink: input.interface === "lilith" ? "/economic-agent" : "/economic-agent",
+    entity: {
+      module: "ai-provider",
+      type: "provider-error",
+      id: `${input.provider}:${input.errorType}`,
+    },
+    cooldownMs: 5 * 60 * 1000, // 5-minute dedupe
+  });
+}

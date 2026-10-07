@@ -9,13 +9,13 @@ interface BrandMarkProps {
 }
 
 /**
- * Compact LUCIAN guardian emblem.
+ * Compact Lucian rising-building and arc gold emblem.
  *
  * Used as the small application icon in the top navigation, in the sidebar
  * header, and anywhere a compact brand mark is needed.
  *
- * The mark is a static asset under /public/branding/lucian-guardian.svg
- * and intentionally does NOT inherit the active accent color — the guardian
+ * The mark is a static asset under app/icon.png (served as /icon.png)
+ * and intentionally does NOT inherit the active accent color — the gold
  * branding is its own visual identity, independent of the chosen accent.
  */
 export function BrandMark({
@@ -25,7 +25,7 @@ export function BrandMark({
 }: BrandMarkProps) {
   return (
     <Image
-      src="/branding/lucian-guardian.svg"
+      src="/icon.png"
       alt={label}
       width={size}
       height={size}

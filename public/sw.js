@@ -12,7 +12,7 @@
  *   - Everything else: network-first with cache fallback
  */
 
-const CACHE_NAME = "lucian-workspace-private-static-v1";
+const CACHE_NAME = "lucian-workspace-private-static-v2";
 const APP_SHELL = [
   "/manifest.json",
   "/icon.png",
@@ -62,7 +62,9 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        if (cached) return cached;
+        // Only immutable, versioned assets are safe to serve cache-first.
+        // Mutable bundles (including next dev) must not outlive their HTML.
+        if (cached && /immutable/i.test(cached.headers.get("cache-control") || "")) return cached;
         return fetch(request).then((res) => {
           if (res.ok && !res.redirected && res.type === "basic" &&
               !/no-store|private/i.test(res.headers.get("cache-control") || "")) {
@@ -70,6 +72,9 @@ self.addEventListener("fetch", (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return res;
+        }).catch(() => {
+          if (cached) return cached;
+          return Response.error();
         });
       })
     );

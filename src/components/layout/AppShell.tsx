@@ -15,6 +15,8 @@ import { NotificationProducers } from "@/lib/notification-producers";
 
 import { primeNotificationSound } from "@/lib/notification-sound";
 import { NavigationFeedback } from "@/components/layout/navigation-feedback";
+import { RestoredAgentBridge } from "@/components/assistant/restored-agent-bridge";
+import { LilithLayer } from "@/components/lilith/lilith-layer";
 
 /**
  * AppShell is the single global chrome of the application:
@@ -86,6 +88,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      <LilithLayer />
 
       {/* Phase 9: canonical Global Search overlay. Mounted ONCE at the
           shell level so it persists across route changes. Home search,
@@ -108,7 +111,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
-      <AppShellInner>{children}</AppShellInner>
+      <RestoredAgentBridge><AppShellInner>{children}</AppShellInner></RestoredAgentBridge>
     </SidebarProvider>
   );
 }

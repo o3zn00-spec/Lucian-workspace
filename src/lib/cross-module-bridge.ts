@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 
 /** Module identifiers. */
 export type ModuleId =
+  | "lilith"
+  | "economic-agent"
   | "dev-workspace"
   | "markets"
   | "investing"
@@ -132,6 +134,8 @@ export function peekHandoff(id: string): CrossModuleHandoff | null {
 
 /** Route paths for modules. */
 const MODULE_ROUTES: Record<ModuleId, string> = {
+  lilith: "/", // Lilith is global — no route needed, just open the panel
+  "economic-agent": "/economic-agent",
   "dev-workspace": "/dev-workspace",
   markets: "/markets",
   investing: "/investing",
@@ -144,6 +148,72 @@ const MODULE_ROUTES: Record<ModuleId, string> = {
   "mindset-library": "/mindset-library",
   research: "/research",
 };
+
+/** Send context to Lilith (opens her panel + attaches context).
+ *  Lilith is a global layer — no navigation needed, just open the panel
+ *  and set the input/prompt. */
+export function sendToLilith(opts: {
+  prompt?: string;
+  staticContext?: StaticContext[];
+  contextRefs?: ContextRef[];
+  autoSend?: boolean;
+}): void {
+  const { useLilithStore } = require("@/store/lilith");
+  const store = useLilithStore.getState();
+
+  // Open the panel.
+  store.setPanelOpen(true);
+
+  // Set the prompt if provided.
+  if (opts.prompt) {
+    store.setInputText(opts.prompt);
+  }
+
+  // Store the context for Lilith to pick up.
+  if (opts.staticContext?.length || opts.contextRefs?.length) {
+    // Lilith reads handoff context from a dedicated field.
+    // We store it in sessionStorage with a well-known key.
+    if (typeof window !== "undefined") {
+      const ctx = {
+        staticContext: opts.staticContext ?? [],
+        contextRefs: opts.contextRefs ?? [],
+        prompt: opts.prompt ?? "",
+        autoSend: opts.autoSend ?? false,
+        createdAt: Date.now(),
+      };
+      sessionStorage.setItem("lilith-handoff-context", JSON.stringify(ctx));
+    }
+  }
+}
+
+/** Send context to the Economic Agent (navigates + attaches context). */
+export function sendToEconomicAgent(opts: {
+  prompt?: string;
+  staticContext?: StaticContext[];
+  contextRefs?: ContextRef[];
+  autoSend?: boolean;
+}): void {
+  const handoffId = createHandoff({
+    sourceModule: opts.contextRefs?.[0]?.module ?? opts.staticContext?.[0]?.module ?? "unknown" as ModuleId,
+    targetModule: "economic-agent",
+    intent: "ask",
+    contextRefs: opts.contextRefs ?? [],
+    staticContext: opts.staticContext ?? [],
+    prompt: opts.prompt ?? "",
+    autoSend: opts.autoSend ?? false,
+    metadata: {},
+  });
+
+  // Navigate to the Economic Agent page with the handoff ID.
+  if (typeof window !== "undefined") {
+    // This framework-agnostic bridge is called outside React components;
+    // a full navigation also guarantees the handoff is read on page mount.
+    const target = `${MODULE_ROUTES["economic-agent"]}?handoff=${handoffId}`;
+    window.dispatchEvent(new CustomEvent("lucian:navigation-start", { detail: target }));
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = target;
+  }
+}
 
 /** Open DevWorkspace with an optional handoff (e.g. prototype brief). */
 export function openInDevWorkspace(opts: {
@@ -164,7 +234,7 @@ export function openInDevWorkspace(opts: {
   });
 
   if (typeof window !== "undefined") {
-    // A full load applies the target document's browser isolation headers.
+    // See sendToEconomicAgent: this bridge intentionally performs a full load.
     const target = `${MODULE_ROUTES["dev-workspace"]}?handoff=${handoffId}`;
     window.dispatchEvent(new CustomEvent("lucian:navigation-start", { detail: target }));
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -187,10 +257,29 @@ export function openModule(target: ModuleId, opts?: {
   }
   if (params.toString()) url += `?${params.toString()}`;
   if (typeof window !== "undefined") {
-    // A full load applies the target document's browser isolation headers.
+    // See sendToEconomicAgent: this bridge intentionally performs a full load.
     window.dispatchEvent(new CustomEvent("lucian:navigation-start", { detail: url }));
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = url;
   }
 }
 
+/* ── Lilith handoff context reader ── */
+
+/** Read and consume Lilith's handoff context (set by sendToLilith). */
+export function consumeLilithHandoff(): {
+  staticContext: StaticContext[];
+  contextRefs: ContextRef[];
+  prompt: string;
+  autoSend: boolean;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem("lilith-handoff-context");
+    if (!raw) return null;
+    sessionStorage.removeItem("lilith-handoff-context");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}

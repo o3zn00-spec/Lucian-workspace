@@ -226,11 +226,47 @@ export function InstrumentsPanel({
                 : "var(--fg)";
               return (
                 <li key={inst.symbol} className="group relative">
+                  {/* Favorite star — invisible by default, appears on hover or when favorited */}
+                  <span className="absolute left-2.5 top-2.5 z-10 flex w-3 items-start">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggle(inst.symbol);
+                      }}
+                      aria-label={
+                        isFav
+                          ? `Remove ${inst.symbol} from favorites`
+                          : `Add ${inst.symbol} to favorites`
+                      }
+                      title={
+                        isFav ? "Remove from favorites" : "Add to favorites"
+                      }
+                      className={cn(
+                        "transition-opacity",
+                        isFav
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100 focus:opacity-100",
+                      )}
+                    >
+                      <Star
+                        className={cn(
+                          "h-3 w-3 transition-colors",
+                          isFav
+                            ? "fill-[var(--accent)] text-[var(--accent)]"
+                            : "text-fg-faint hover:text-fg",
+                        )}
+                      />
+                    </button>
+                  </span>
+
                   <button
                     type="button"
+                    aria-label={`Select ${inst.symbol}`}
+                    aria-pressed={isSel}
                     onClick={() => handleSelect(inst.symbol)}
                     className={cn(
-                      "relative flex w-full items-stretch gap-1.5 border-b border-line-muted/60 px-2.5 py-2 text-left transition-colors themed",
+                      "relative flex w-full items-stretch gap-1.5 border-b border-line-muted/60 pl-7 pr-2.5 py-2 text-left transition-colors themed",
                       isSel ? "bg-active" : "hover:bg-hover",
                     )}
                   >
@@ -241,40 +277,6 @@ export function InstrumentsPanel({
                         className="absolute left-0 top-0 h-full w-[2px] bg-[var(--accent)]"
                       />
                     )}
-
-                    {/* Favorite star — invisible by default, appears on hover or when favorited */}
-                    <span className="flex w-3 shrink-0 items-start pt-0.5">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggle(inst.symbol);
-                        }}
-                        aria-label={
-                          isFav
-                            ? `Remove ${inst.symbol} from favorites`
-                            : `Add ${inst.symbol} to favorites`
-                        }
-                        title={
-                          isFav ? "Remove from favorites" : "Add to favorites"
-                        }
-                        className={cn(
-                          "transition-opacity",
-                          isFav
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                        )}
-                      >
-                        <Star
-                          className={cn(
-                            "h-3 w-3 transition-colors",
-                            isFav
-                              ? "fill-[var(--accent)] text-[var(--accent)]"
-                              : "text-fg-faint hover:text-fg",
-                          )}
-                        />
-                      </button>
-                    </span>
 
                     {/* Instrument identity icon (researched per asset) */}
                     <InstrumentIcon

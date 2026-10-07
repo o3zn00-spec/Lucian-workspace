@@ -58,7 +58,7 @@ check("Every migration directory contains migration.sql", () => {
 
 check("Sensitive API handlers enforce ownership inside the handler layer", () => {
   const publicRoute = /app[\\/]api[\\/]auth[\\/](?:\[\.\.\.nextauth\]|reset-password|email-status|google-status|health|signup)[\\/]|app[\\/]api[\\/]vault[\\/]webhooks[\\/]/;
-  const sensitiveRoute = /app[\\/]api[\\/](?:owner|user|vault|bybit|trading|workspace)[\\/]|app[\\/]api[\\/]auth[\\/](?:me|profile|sessions|change-password|delete-account|export-data)[\\/]/;
+  const sensitiveRoute = /app[\\/]api[\\/](?:assistant|ai|economic-agent|lilith|owner|user|vault|bybit|trading|workspace)[\\/]|app[\\/]api[\\/]auth[\\/](?:me|profile|sessions|change-password|delete-account|export-data)[\\/]/;
   const authPattern = /requireOwner(?:Id)?|requireUser(?:Id)?|requireVaultOwner|withVaultOwner/;
   const failures: string[] = [];
   for (const path of filesUnder("app/api", /^route\.ts$/)) {
