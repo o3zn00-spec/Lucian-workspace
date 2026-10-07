@@ -26,4 +26,10 @@ The production screenshot warning was observed, but the older deployment did not
 
 Real provider accounts, model availability/effort support outside the supported families, provider vision, voice round-trip, executable universal tools, autonomous trading and risk/exchange/session execution, Investing canvas and broad nested-workflow acceptance remain checkpoint work. No paid provider or financial API calls, migration, owner reset, or real trades were performed for these fixes. The existing server hydration limits remain 100 conversations and 500 messages per conversation; pagination is future work.
 
-Publication: pending GitHub-first release and production verification.
+## Production verification
+
+GitHub main source commit `3454cb9a45a49122ca0b137a42741517b4b52810` has tree `ca43f3e5ed9143ed073446e9705df310247243a6`, byte-identical to the tested local tree. Vercel deployment `dpl_tHPH6NnYfKvyAb67294noNDWiUA3` is READY production, built in 1m23s and serves https://lucian-workspace.vercel.app/economic-agent. GitHub publication preceded deployment.
+
+Authenticated live session: previous transcript displayed, warning cleared, Context body portal stayed within the mobile viewport and above the composer, and model/effort menu rendered. A new empty conversation saved and survived reload without calling an AI provider; PostgreSQL counts confirmed two conversations, one existing message and one retained owner. Browser warning/error log was empty in the observed check. This proves current GET/write/reload behavior, not indefinite future service availability or the historical warning's exact root cause.
+
+The final evidence update changes documentation only. No additional app changes or migrations. Vercel connector logs returned 403; the dashboard log query initially had no request records, so zero displayed log counters are not treated as proof of comprehensive monitoring. Monitoring/drains remain unaudited.
