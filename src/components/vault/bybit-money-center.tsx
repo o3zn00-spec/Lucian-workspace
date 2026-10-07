@@ -23,6 +23,18 @@ async function json<T>(response: Response): Promise<T> {
   return data;
 }
 
+// Read requests are bounded; mutation requests retain their existing confirmation flow.
+async function readBybit<T>(url: string): Promise<T> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 45000);
+  try {
+    return await json<T>(await fetch(url, { cache: "no-store", signal: controller.signal }));
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Bybit check timed out. Retry the connection check.");
+    throw error;
+  } finally { window.clearTimeout(timer); }
+}
+
 export function BybitMoneyCenter() {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -49,30 +61,37 @@ export function BybitMoneyCenter() {
   const [working, setWorking] = useState(false);
   const [ticker, setTicker] = useState<{ symbol: string; price: string; connected: boolean }>({ symbol: "BTCUSDT", price: "—", connected: false });
   const socketRef = useRef<WebSocket | null>(null);
+  const tradingRefreshRef = useRef<Promise<void> | null>(null);
 
-  const refreshTrading = useCallback(async () => {
+  const refreshTrading = useCallback(() => {
+    if (tradingRefreshRef.current) return tradingRefreshRef.current;
+    const request = (async () => {
     const [orderResult, positionResult, tradeResult] = await Promise.allSettled([
-      fetch("/api/bybit/orders", { cache: "no-store" }).then((response) => json<{ open: ActivityRow[]; history: ActivityRow[] }>(response)),
-      fetch("/api/bybit/positions", { cache: "no-store" }).then((response) => json<{ positions: ActivityRow[] }>(response)),
-      fetch("/api/bybit/trades", { cache: "no-store" }).then((response) => json<{ trades: ActivityRow[] }>(response)),
+      readBybit<{ open: ActivityRow[]; history: ActivityRow[] }>("/api/bybit/orders"),
+      readBybit<{ positions: ActivityRow[] }>("/api/bybit/positions"),
+      readBybit<{ trades: ActivityRow[] }>("/api/bybit/trades"),
     ]);
     if (orderResult.status === "fulfilled") setOrders([...orderResult.value.open, ...orderResult.value.history].slice(0, 30));
     if (positionResult.status === "fulfilled") setPositions(positionResult.value.positions.filter((row) => Number((row as { size?: string }).size ?? 0) !== 0));
     if (tradeResult.status === "fulfilled") setTrades(tradeResult.value.trades);
     const failures = [orderResult, positionResult, tradeResult].flatMap((result) => result.status === "rejected" ? [result.reason instanceof Error ? result.reason.message : "Private activity unavailable"] : []);
     setActivityError(failures.length ? failures.join(" · ") : null);
+    })();
+    tradingRefreshRef.current = request;
+    void request.finally(() => { tradingRefreshRef.current = null; });
+    return request;
   }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const status = await fetch("/api/integrations/bybit/status", { cache: "no-store" }).then((response) => json<Connection>(response));
+      const status = await readBybit<Connection>("/api/integrations/bybit/status");
       setConnection(status);
       if (status.state !== "connected") throw new Error(status.stateDetail);
       const [walletData, depositData, withdrawalData] = await Promise.all([
-        fetch("/api/bybit/wallets", { cache: "no-store" }).then((response) => json<{ accounts: Wallet[]; settings: Settings }>(response)),
-        fetch("/api/bybit/deposits", { cache: "no-store" }).then((response) => json<{ addresses: Address[]; deposits: ActivityRow[] }>(response)),
-        fetch("/api/bybit/withdrawals", { cache: "no-store" }).then((response) => json<{ remote: ActivityRow[]; local: ActivityRow[] }>(response)),
+        readBybit<{ accounts: Wallet[]; settings: Settings }>("/api/bybit/wallets"),
+        readBybit<{ addresses: Address[]; deposits: ActivityRow[] }>("/api/bybit/deposits"),
+        readBybit<{ remote: ActivityRow[]; local: ActivityRow[] }>("/api/bybit/withdrawals"),
       ]);
       setWallets(walletData.accounts);
       setSettings(walletData.settings);
@@ -96,7 +115,7 @@ export function BybitMoneyCenter() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (connection?.state !== "connected") return;
-    const timer = window.setInterval(() => { void refreshTrading().catch(() => undefined); }, 4000);
+    const timer = window.setInterval(() => { void refreshTrading().catch(() => undefined); }, 30000);
     return () => window.clearInterval(timer);
   }, [connection?.state, refreshTrading]);
 

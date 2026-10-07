@@ -608,3 +608,21 @@ paper trading only against their documented acceptance criteria.
   visible inline. Terminal snapshots reuse credentials within one request rather
   than opening thirty redundant credential reads. Production UI acceptance of
   these final latency corrections is required before closing this subtask.
+
+- Final connection release `ef64463`, Vercel
+  `dpl_BbQxfECpkqyeXqGoHvnQAqXpqgSG`, READY production in 49 seconds;
+  production alias confirmed. Settings now shows OpenRouter Configured and all
+  absent providers Not configured. Authenticated connection test succeeds with
+  persistent inline feedback. Assistant sync and combined provider probe return
+  200. Two actual paid model replies (text arithmetic/identity and screenshot
+  interpretation) passed and persisted before the region/pooling release.
+- A follow-up Vault check exposed three private activity requests every four
+  seconds, overlapping slow responses. Read-only requests are now bounded to
+  45 seconds and activity refresh reuses its current in-flight request with a
+  30-second polling interval. This does not retry financial mutations or alter
+  permissions. Funding-wallet verification remains open; do not infer Funding
+  balance from Unified totals. Verify this follow-up in production after release.
+- Next implementation gate remains C04/C07 executable app tools, followed by
+  C08–C12 bounded unattended paper trading and live-readiness validation. Voice,
+  Investing canvas, recovery email and wider regression checks remain open.
+  No live order, withdrawal, transfer or paid hosting upgrade was performed.
