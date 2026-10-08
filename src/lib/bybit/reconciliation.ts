@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { bybitRequest, getBybitConfig } from "./client";
 
-const eligible = ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open"];
+const eligible = ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open", "cancelled_with_fills"];
 type Row = Record<string, unknown>;
 type Page = { category?: string; list?: Row[]; nextPageCursor?: string };
 const decimal = (value: unknown, positive = false) => {
@@ -75,5 +75,5 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
     if(changed.count!==1) throw Error("Reservation changed during reconciliation. Refresh and review before retrying.");
     await tx.tradingAuditEvent.create({data:{userId,action:"order.reconcile",tradingMode:intent.tradingMode,status:state,symbol,intentId:intent.id,details:report as Prisma.InputJsonValue}});
   });
-  return {intentId,state,resolved:["filled","cancelled_with_fills","cancelled","rejected"].includes(state),report,message:"Exchange records matched. No order submitted/cancelled, no wallet credited, and no protective exits certified."};
+  return {intentId,state,resolved:["filled","cancelled","rejected"].includes(state),report,message:state==="cancelled_with_fills"?"The order was cancelled after partial fills. Its reservation remains blocked for exposure and protection review; you can recheck the exchange records. No order was submitted or cancelled by this check.":"Exchange records matched. No order submitted/cancelled, no wallet credited, and no protective exits certified."};
 }

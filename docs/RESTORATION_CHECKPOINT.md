@@ -11,7 +11,8 @@ Spot cost-basis baseline, initialized and wallet-reconciled in production.
 Saved test limits: 5 USDT/order, 10 USDT exposure, 1 USDT daily realized loss,
 one position, no borrowing/leverage for first Spot trial. Quote/candle retries,
 truthful Delayed status, protected accounting memory and stable risk edits are
-deployed and verified. Actual protection and autonomous live execution remain
+deployed and verified. Partially filled cancelled orders now remain visible and
+recheckable in recovery, retaining their execution block. Actual protection and autonomous live execution remain
 unfinished. The four-hour forward trial ended: 15 HOLD reviews, zero fills,
 1,000 virtual USDT equity, no error; this is not a profitable-strategy validation.
 Earlier C10–C12 wider research, historical strategy validation and paper
@@ -1449,3 +1450,18 @@ Production evidence, 2026-10-08:
   live trading from this release: native protection, autonomous live runner,
   real-fill recovery/reconciliation, DB concurrency proof and accounting rollover
   remain unfinished. Four-hour all-HOLD forward trial finished without error.
+
+
+## Cancelled partial-fill recovery visibility — 2026-10-08
+
+- Found a mismatch: `cancelled_with_fills` blocked later execution but was omitted
+  from reconciliation candidates and marked resolved by the response/UI.
+- Included it in the read-only reconciliation candidates and eligibility. It now
+  remains unresolved, with an explicit exposure/protection-review explanation;
+  the visible candidate state updates after a check. No reservation is released.
+- Regression fixtures verify a cancellation with fills remains unresolved, is
+  listed and can be rechecked. Existing identity, pagination, mismatch, stale data,
+  owner isolation and write-race fixtures also pass. Full lint and production
+  build/typecheck passed (22/22 pages). No exchange mutation or database migration.
+- Actual cancelled-fill exchange evidence and protective-exit certification remain
+  outstanding. This is a recovery-path fix, not live readiness.
