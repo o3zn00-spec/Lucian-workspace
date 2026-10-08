@@ -10,7 +10,17 @@ import { getTradingProfile } from "@/lib/bybit/trading";
 export type TradingMode = "bybit_testnet" | "bybit_live";
 export type TradingCategory = "spot" | "linear";
 
-type BybitList = { list?: Array<Record<string, string>> };
+type BybitList = { list?: Array<Record<string, string>>; nextPageCursor?: string };
+
+function completeRiskRows(result: BybitList, label: string) {
+  if (!Array.isArray(result.list) || result.nextPageCursor) throw new Error(`${label} is unavailable or incomplete. No new order can use partial risk data.`);
+  return result.list;
+}
+
+function riskNumber(value: unknown, label: string) {
+  if (typeof value !== "string" || !/^-?\d+(?:\.\d+)?$/.test(value) || !Number.isFinite(Number(value))) throw new Error(`${label} is malformed. No new order can use unknown risk data.`);
+  return Number(value);
+}
 
 function text(input: unknown, fallback = "") {
   return typeof input === "string" ? input.trim() : fallback;
@@ -159,7 +169,7 @@ export async function updateRiskPolicy(userId: string, input: Record<string, unk
   return profile;
 }
 
-export async function previewTerminalOrder(userId: string, input: Record<string, unknown>) {
+async function validateTerminalOrder(userId: string, input: Record<string, unknown>) {
   const mode = normalizeMode(input.mode);
   const config = await assertMode(userId, mode, true);
   if (mode === "bybit_testnet" && process.env.BYBIT_TESTNET_TRADING_ENABLED === "false") throw new Error("Bybit Testnet order submission is server-locked.");
@@ -168,54 +178,93 @@ export async function previewTerminalOrder(userId: string, input: Record<string,
 
   const symbol = normalizeSymbol(input.symbol);
   const category = normalizeCategory(input.category);
+  if (!["Buy", "BUY", "Sell", "SELL"].includes(String(input.side))) throw new Error("Choose Buy or Sell explicitly.");
+  if (!["Market", "Limit"].includes(String(input.orderType))) throw new Error("Choose Market or Limit explicitly.");
+  if (!["spot", "linear"].includes(String(input.category))) throw new Error("Choose Spot or USDT Linear explicitly.");
   const side = input.side === "Sell" || input.side === "SELL" ? "Sell" : "Buy";
   const orderType = input.orderType === "Limit" ? "Limit" : "Market";
   const quantity = number(input.quantity, "Quantity", 0);
   const limitPrice = orderType === "Limit" ? number(input.price, "Limit price", 0) : null;
   const leverage = category === "linear" ? number(input.leverage ?? 1, "Leverage", 0) : 1;
 
-  const [ticker, instruments, currentPositions, closedPnl] = await Promise.all([
+  const stopLoss = input.stopLoss == null || input.stopLoss === "" ? null : number(input.stopLoss, "Stop loss");
+  const takeProfit = input.takeProfit == null || input.takeProfit === "" ? null : number(input.takeProfit, "Take profit");
+  const reduceOnly = input.reduceOnly === true;
+  if (category === "spot" && reduceOnly) throw new Error("Reduce-only is a derivatives setting. Spot sells must use available inventory.");
+  if (category === "spot" && orderType === "Market" && (stopLoss || takeProfit)) throw new Error("Bybit Spot Market cannot attach these protective exits. Choose a Spot Limit order with protection or remove the fields for an explicitly unprotected manual order.");
+  if (reduceOnly && (stopLoss || takeProfit)) throw new Error("Reduce-only orders cannot also attach take profit or stop loss.");
+
+  const [ticker, instruments, currentPositions, closedPnl, walletResult, feeResult] = await Promise.all([
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     bybitPublicRequest<{ list?: Array<Record<string, unknown>> }>(config.environment, "/v5/market/instruments-info", { category, symbol }),
-    category === "linear" ? bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } }).then(r=>{if(!Array.isArray(r.list))throw Error("Position risk data unavailable.");return r.list;}) : Promise.resolve([]),
-    bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 } }).then(r=>{if(!Array.isArray(r.list))throw Error("Daily risk data unavailable.");return r.list;}),
+    category === "linear" ? bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } }, config).then(r=>completeRiskRows(r,"Position risk data")) : Promise.resolve([]),
+    bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 } }, config).then(r=>completeRiskRows(r,"Daily risk data")),
+    category === "spot" ? bybitRequest<{ list?: Array<{accountType: string; coin?: Array<Record<string,string>>}> }>(userId, "/v5/account/wallet-balance", {query:{accountType:"UNIFIED"}}, config) : Promise.resolve(null),
+    bybitRequest<BybitList>(userId, "/v5/account/fee-rate", {query:{category,symbol}}, config),
   ]);
-  const marketPrice = Number(ticker.list?.[0]?.lastPrice ?? 0);
-  if (!marketPrice) throw new Error("Bybit did not return a current market price.");
+  if (ticker.list?.length !== 1 || ticker.list[0].symbol !== symbol || instruments.list?.length !== 1 || instruments.list[0].symbol !== symbol) throw new Error("Exchange instrument/quote identity is unavailable or mismatched.");
+  if (instruments.list[0].quoteCoin !== "USDT" || (category === "linear" && instruments.list[0].settleCoin !== "USDT")) throw new Error("This terminal risk policy supports USDT-quoted Spot and USDT-settled Linear only.");
+  const marketPrice = riskNumber(ticker.list[0].lastPrice, "Market price");
+  if (marketPrice <= 0) throw new Error("Bybit did not return a current market price.");
   const notional = quantity * (limitPrice ?? marketPrice);
-  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + Number(row.closedPnl ?? 0), 0);
+  const fees = completeRiskRows(feeResult, "Fee rate");
+  if (fees.length !== 1 || fees[0].symbol !== symbol) throw new Error("Exchange fee identity is unavailable or mismatched.");
+  const feeRate = Math.max(riskNumber(fees[0].takerFeeRate,"Taker fee"),riskNumber(fees[0].makerFeeRate,"Maker fee"),0);
+  let spotAvailable: number | null = null;
+  if (category === "spot") {
+    const wallet = walletResult?.list?.find(row=>row.accountType === "UNIFIED");
+    if (!wallet || !Array.isArray(wallet.coin)) throw new Error("Spot inventory is unavailable.");
+    const instrument = instruments.list[0];
+    const spendingCoin = side === "Buy" ? instrument.quoteCoin : instrument.baseCoin;
+    if (typeof spendingCoin !== "string" || !spendingCoin) throw new Error("Instrument spending currency is unavailable.");
+    const coins = wallet.coin.filter(row=>row.coin === spendingCoin);
+    if (coins.length > 1) throw new Error("Spot inventory has conflicting currency records.");
+    // An omitted zero-asset coin is zero, but missing numeric fields are unknown.
+    spotAvailable = coins.length ? Math.max(0,riskNumber(coins[0].walletBalance,"Spot balance") - riskNumber(coins[0].locked,"Locked spot balance") - riskNumber(coins[0].spotBorrow,"Borrowed spot balance")) : 0;
+  }
+  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + riskNumber(row.closedPnl, "Daily closed P/L"), 0);
   const filters = instruments.list?.[0] ?? null;
   const lot = (filters?.lotSizeFilter ?? {}) as Record<string, string>;
   const priceFilter = (filters?.priceFilter ?? {}) as Record<string, string>;
-  const minimumQuantity = Number(lot.minOrderQty ?? 0);
-  const maximumQuantity = Number(lot.maxOrderQty ?? lot.maxMktOrderQty ?? Number.MAX_SAFE_INTEGER);
-  const quantityStep = Number(lot.qtyStep ?? 0);
+  const minimumQuantity = category === "spot" ? 0 : Number(lot.minOrderQty ?? 0);
+  const maximumQuantity = Number(orderType === "Market" ? lot.maxMarketOrderQty ?? lot.maxMktOrderQty : lot.maxLimitOrderQty ?? lot.maxOrderQty);
+  const quantityStep = Number(lot.qtyStep ?? lot.basePrecision ?? 0);
   const tickSize = Number(priceFilter.tickSize ?? 0);
   const quantityAligned = !quantityStep || Math.abs(quantity / quantityStep - Math.round(quantity / quantityStep)) < 1e-8;
   const priceAligned = !limitPrice || !tickSize || Math.abs(limitPrice / tickSize - Math.round(limitPrice / tickSize)) < 1e-8;
-  const existingExposure = currentPositions.reduce((sum, row) => sum + Math.abs(Number(row.positionValue ?? 0)), 0);
+  const existingExposure = currentPositions.reduce((sum, row) => sum + Math.abs(riskNumber(row.positionValue, "Position exposure")), 0);
   const checks = [
+    { id: "spot_inventory", ok: category !== "spot" || (spotAvailable !== null && spotAvailable >= (side === "Buy" ? notional : quantity) * (1 + feeRate)), message: "Unborrowed, unlocked Spot balance must cover the order and exchange fee reserve" },
+    { id: "protection_tick", ok: tickSize > 0 && [stopLoss,takeProfit].every(value=>value === null || Math.abs(value/tickSize - Math.round(value/tickSize)) < 1e-8), message: "Protective prices must follow the exchange tick size" },
+    { id: "protection_direction", ok: (!stopLoss || (side === "Buy" ? stopLoss < (limitPrice ?? marketPrice) : stopLoss > (limitPrice ?? marketPrice))) && (!takeProfit || (side === "Buy" ? takeProfit > (limitPrice ?? marketPrice) : takeProfit < (limitPrice ?? marketPrice))), message: "Protective stop and target must be on the correct sides of the entry price" },
+    { id: "minimum_notional", ok: Number.isFinite(Number(lot.minNotionalValue ?? lot.minOrderAmt)) && notional >= Number(lot.minNotionalValue ?? lot.minOrderAmt), message: "Order must meet a known exchange minimum notional" },
     { id: "order_limit", ok: notional <= Number(profile.maxOrderUsd), message: `Order exposure ${notional.toFixed(2)} USDT / ${Number(profile.maxOrderUsd).toFixed(2)} limit` },
     { id: "position_limit", ok: existingExposure + notional <= Number(profile.maxPositionUsd), message: `Resulting exposure ${(existingExposure + notional).toFixed(2)} USDT / ${Number(profile.maxPositionUsd).toFixed(2)} limit` },
-    { id: "open_positions", ok: currentPositions.filter((row) => Number(row.size ?? 0) > 0).length < profile.maxOpenPositions, message: `Open positions ${currentPositions.length} / ${profile.maxOpenPositions}` },
+    { id: "open_positions", ok: currentPositions.filter((row) => riskNumber(row.size, "Position size") > 0).length < profile.maxOpenPositions, message: `Open positions ${currentPositions.length} / ${profile.maxOpenPositions}` },
     { id: "leverage", ok: leverage <= Number(profile.maxLeverage), message: `Leverage ${leverage}× / ${Number(profile.maxLeverage)}× limit` },
     { id: "daily_loss", ok: dailyClosedPnl > -Number(profile.maxDailyLossUsd), message: `Daily closed P/L ${dailyClosedPnl.toFixed(2)} USDT / -${Number(profile.maxDailyLossUsd).toFixed(2)} stop` },
     { id: "minimum_quantity", ok: !minimumQuantity || quantity >= minimumQuantity, message: `Quantity ${quantity} / minimum ${minimumQuantity || "exchange default"}` },
-    { id: "maximum_quantity", ok: !maximumQuantity || quantity <= maximumQuantity, message: `Quantity ${quantity} / maximum ${maximumQuantity}` },
-    { id: "quantity_step", ok: quantityAligned, message: quantityAligned ? `Quantity follows ${quantityStep || "exchange"} step` : `Quantity must follow the ${quantityStep} step` },
-    { id: "price_tick", ok: priceAligned, message: priceAligned ? `Price follows ${tickSize || "exchange"} tick` : `Limit price must follow the ${tickSize} tick` },
+    { id: "maximum_quantity", ok: Number.isFinite(maximumQuantity) && maximumQuantity > 0 && quantity <= maximumQuantity, message: `Quantity ${quantity} / maximum ${maximumQuantity}` },
+    { id: "quantity_step", ok: quantityStep > 0 && quantityAligned, message: quantityAligned ? `Quantity follows ${quantityStep || "exchange"} step` : `Quantity must follow the ${quantityStep} step` },
+    { id: "price_tick", ok: tickSize > 0 && priceAligned, message: priceAligned ? `Price follows ${tickSize || "exchange"} tick` : `Limit price must follow the ${tickSize} tick` },
   ];
   if (checks.some((check) => !check.ok)) {
     await audit(userId, "order.preview", mode, "rejected", { symbol, category, checks });
     throw new Error(checks.filter((check) => !check.ok).map((check) => check.message).join("; "));
   }
 
+  return { mode, environment: config.environment, symbol, category, side, orderType, quantity, limitPrice, leverage, marketPrice, notional, stopLoss, takeProfit, reduceOnly, checks, filters };
+}
+
+export async function previewTerminalOrder(userId: string, input: Record<string, unknown>) {
+  const preview = await validateTerminalOrder(userId, input);
+  const { mode, symbol, category, side, orderType, quantity, notional, limitPrice, stopLoss, takeProfit, checks } = preview;
+  const profile = await getTradingProfile(userId);
   const clientOrderId = `lucian${randomUUID().replace(/-/g, "").slice(0, 28)}`;
-  const preview = { mode, environment: config.environment, symbol, category, side, orderType, quantity, limitPrice, leverage, marketPrice, notional, stopLoss: input.stopLoss || null, takeProfit: input.takeProfit || null, reduceOnly: input.reduceOnly === true, checks, filters };
   const intent = await db.liveTradeIntent.create({ data: {
     userId, clientOrderId, productId: symbol, side: side.toUpperCase(), tradingMode: mode, category, orderType,
     baseSize: quantity, quoteSize: notional, limitPrice: limitPrice ?? undefined,
-    stopLoss: input.stopLoss ? Number(input.stopLoss) : undefined, takeProfit: input.takeProfit ? Number(input.takeProfit) : undefined,
+    stopLoss: stopLoss ?? undefined, takeProfit: takeProfit ?? undefined,
     previewId: randomUUID(), preview: preview as Prisma.InputJsonValue, expiresAt: new Date(Date.now() + 120_000),
   } });
   await audit(userId, "order.preview", mode, "approved", { symbol, intentId: intent.id, category, notional, checks });
@@ -239,12 +288,33 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
   if (profile.emergencyStop) throw new Error("Emergency stop is active.");
   const preview = intent.preview as Record<string, unknown>;
   // Only one confirmation may reserve this preview, even across server instances.
-  const reserved=await db.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:"previewed",initiatedBy:"user",expiresAt:{gt:new Date()}},data:{state:"executing"}});
+  const reserved = await db.$transaction(async tx => {
+    const unresolved = await tx.liveTradeIntent.findFirst({ where: {
+      userId, id: { not: intent.id },
+      state: { in: ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open", "cancelled_with_fills"] },
+    }, select: { id: true } });
+    if (unresolved) throw new Error("An existing exchange reservation needs reconciliation and protection review before another order can execute.");
+    return tx.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:"previewed",initiatedBy:"user",expiresAt:{gt:new Date()}},data:{state:"executing"}});
+  }, { isolationLevel: "Serializable" });
   if(reserved.count!==1)throw new Error("Order already reserved, changed or expired. Refresh before acting.");
+  let exchangeAttempted = false;
   try {
+    // Revalidate the reserved intent against fresh exchange data and current policy.
+    // Validation failure before any exchange write is not an ambiguous submission.
+    await validateTerminalOrder(userId, {
+      mode, category: intent.category, symbol: intent.productId, side: intent.side,
+      orderType: intent.orderType, quantity: intent.baseSize?.toString(),
+      price: intent.limitPrice?.toString(), leverage: preview.leverage ?? 1,
+      stopLoss: intent.stopLoss?.toString(), takeProfit: intent.takeProfit?.toString(),
+      reduceOnly: preview.reduceOnly === true,
+    });
+    // Emergency stop can change while exchange reads are in flight.
+    if ((await getTradingProfile(userId)).emergencyStop) throw new Error("Emergency stop is active.");
     if (intent.category === "linear" && Number(preview.leverage ?? 1) > 0) {
+      exchangeAttempted = true;
       await bybitRequest(userId, "/v5/position/set-leverage", { method: "POST", body: { category: "linear", symbol: intent.productId, buyLeverage: String(preview.leverage), sellLeverage: String(preview.leverage) } });
     }
+    exchangeAttempted = true;
     const execution = await bybitRequest<{ orderId?: string; orderLinkId?: string }>(userId, "/v5/order/create", { method: "POST", body: {
       category: intent.category,
       symbol: intent.productId,
@@ -253,7 +323,8 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
       qty: intent.baseSize?.toString(),
       ...(intent.orderType === "Limit" ? { price: intent.limitPrice?.toString(), timeInForce: "GTC" } : {}),
       ...(intent.category === "spot" && intent.orderType === "Market" ? { marketUnit: "baseCoin" } : {}),
-      ...(intent.category === "linear" ? { reduceOnly: preview.reduceOnly === true, stopLoss: intent.stopLoss?.toString(), takeProfit: intent.takeProfit?.toString() } : {}),
+      ...(intent.category === "linear" ? { reduceOnly: preview.reduceOnly === true } : { isLeverage: 0 }),
+      ...((intent.category === "linear" || intent.orderType === "Limit") ? { stopLoss: intent.stopLoss?.toString(), takeProfit: intent.takeProfit?.toString() } : {}),
       orderLinkId: intent.clientOrderId,
     } });
     if (!execution.orderId) throw new Error("Bybit accepted no order identifier.");
@@ -262,8 +333,9 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
     return { status: "submitted", orderId: execution.orderId, intentId: intent.id };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Order submission failed.";
-    await db.liveTradeIntent.update({ where: { id: intent.id }, data: { state: "reconciliation_required", execution: { error: message, orderLinkId:intent.clientOrderId } } });
-    await audit(userId, "order.submit", mode, "reconciliation_required", { symbol: intent.productId, intentId: intent.id, error: message });
+    const failureState = exchangeAttempted ? "reconciliation_required" : "rejected";
+    await db.liveTradeIntent.update({ where: { id: intent.id }, data: { state: failureState, execution: { error: message, orderLinkId:intent.clientOrderId } } });
+    await audit(userId, "order.submit", mode, failureState, { symbol: intent.productId, intentId: intent.id, error: message });
     throw error;
   }
 }

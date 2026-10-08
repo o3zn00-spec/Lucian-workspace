@@ -297,7 +297,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
 | C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper round trip verified; multi-timeframe research and bounded independent context production verified; four-hour forward model trial running, strategy fitness unproven |
 | C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; four-hour forward trial running; owner order/fill reconciliation fixture-tested, actual exchange recovery still unproven |
-| C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
+| C12 | Live-readiness review | In progress — fresh confirmation checks fixture verified | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
 | C14 | Investing canvas and existing views | Agreed | Pan/zoom/drill-down; persistent relationships; consistent underlying records |
 | C15 | Recovery email and final regression review | Agreed | Actual recovery flow; targeted UI/API/security checks; deployment evidence |
@@ -1153,3 +1153,55 @@ Production evidence, 2026-10-08:
   separately configured local restoration database/server. It was not pointed
   at production. Targeted mocked reconciliation/read/execution tests and build
   checks passed; do not label the broad integration suite passed.
+
+
+## Trading continuation — 2026-10-08, fresh confirmation and protection
+
+- Owner requested completion of all trading work and broadly authorized testing
+  with deposited funds. No live capital, order-size, session-loss or leverage
+  envelope was supplied; that clarification is pending. No real order was placed
+  and live server flags were not changed. A balance is not a session allocation.
+- Manual order confirmation now validates the reserved intent against fresh
+  prices, instrument specifications, fees and current risk limits before any
+  exchange write, and rechecks emergency stop after those reads. Validation
+  failure is `rejected`; a failure after an exchange write was attempted remains
+  `reconciliation_required`, retaining its stable link ID and original evidence.
+- An owner-scoped Serializable transaction checks for another unresolved exchange
+  reservation before reserving a preview. Executing, submitted, ambiguous, open,
+  partial and cancelled-with-fill reservations require review first. Mock tests
+  cover this denial and competing confirmations of the same preview. Actual
+  separate-intent PostgreSQL concurrency remains to be verified; fixtures do not
+  certify database isolation behavior.
+- Unknown/paginated position or daily-loss data blocks new orders. Instrument,
+  ticker and fee identities must match. Supported terminal currencies are
+  explicitly USDT Spot / USDT Linear. Order size uses current Spot market/limit
+  maximum fields, base precision, minimum notional, and price/protection ticks.
+- Spot balance checks reserve fees and exclude locked and borrowed balances.
+  Zero-asset currency omission means zero balance; malformed fields fail closed.
+  This is a preliminary unborrowed inventory check, not certification of all
+  collateral/margin availability or account-wide exposure and loss accounting.
+- Fixed silent protective-exit omission: Spot Market orders with stop/target
+  fields are rejected. Supported Spot Limit fields are passed to the exchange;
+  derivative reduce-only cannot attach TP/SL. Stops/targets must be positive,
+  tick-aligned and correctly directed. Actual attachment, partial-fill coverage,
+  trigger execution, OCO behavior and restart recovery remain unverified.
+- Verification: mocked execution, reconciliation and terminal-read suites passed;
+  typecheck, lint, consolidation, architecture and completed production build
+  passed. No exchange mutation was used by these tests. No migrations, bootstrap
+  or production financial actions ran during the build.
+- Trial fbe1fcd6-21e9-415a-b0f4-fdf3fac9af21 remains running. At
+  2026-10-08T17:39:27.360Z: four reserved model reviews, HOLD, zero orders/fills,
+  1,000 virtual USDT equity, eight researched markets, nine context sources,
+  80 equity observations, no worker error. Scheduled end is 20:47:55 UTC;
+  completed results/strategy fitness cannot be claimed before final export.
+- Remaining trading order: verify account-wide inventory, pending orders,
+  reservations, fee/margin availability and Spot/derivative loss accounting;
+  implement a bounded owner-approved live session; verify protection for actual
+  fills and partial fills; verify recovery without duplicate execution; export
+  the forward trial; exercise the first explicitly bounded live session.
+  General app tools, voice, Investing canvas and final stability remain tracked
+  independently in C04/C07/C13/C14/C02/C15.
+- Experience rule: confirmation must rerun risk checks, not replay a stale
+  preview. Unsupported protection must reject clearly, never disappear from the
+  exchange payload. Pre-submission rejection and uncertain exchange submission
+  are different states. Tests with no actual fills must not mark recovery done.
