@@ -815,7 +815,25 @@ paper trading only against their documented acceptance criteria.
   audit rollback and unauthenticated rejection. Shared chat/tool tests passed.
   Typecheck, lint, production build and consolidation/architecture checks passed.
   Persistence tests use fixtures; production draft-write/reload proof is pending.
-- GitHub then Vercel release and production setup/model UI verification pending.
-  C09 remains In progress: explicit start authorization, reusable templates, runtime
+- GitHub initial code `0bc2a5be2a820b8e3b44c11156d3fa11360b491e` deployed
+  Ready as `dpl_Dw3LXrE7Qe5ipR4NqBKXdsK4vywh`. Production test found the
+  query-bearing setup URL rendered as plain text. Fixed exact destination allowlist,
+  rejecting altered/extra query parameters; fixtures, lint and build passed again.
+  Fix GitHub `c0547fe0e060169a23993dbfc32a047858af5e09` published before
+  Vercel `dpl_GbF3eJqeYPyzjhtdjatqvfrKuk6T`, verified Ready. Automatic deployment
+  did not appear for that fix; explicitly deployed the verified main branch using
+  Vercel dashboard. Local/remote trees matched.
+- One paid OpenRouter `openai/gpt-6.1-sol` Medium setup request returned the
+  server's setup response. Reload preserved it; the rendered link was clicked and
+  opened the loaded Markets plan form. Close and visible setup control checked.
+  Production read of existing draft state succeeded; no production draft was written,
+  session started, access granted or money moved. Proof outside source:
+  `outputs/lilthe-paper-setup-verification.png`. Draft writes/reload remain
+  fixture-verified, not proven against production storage.
+- Verification lesson: tool envelope success is insufficient. Check the rendered
+  actionable control, follow its link, wait for target data/error state, then record
+  exact commit/deployment and remaining limitations before marking a flow verified.
+  Never assume a GitHub update triggered Vercel; verify the deployment's commit.
+- C09 remains In progress: explicit start authorization, reusable templates, runtime
   checks, loss/fill accounting and active-rule amendments are still needed. C10/C11
   durable background runner and paper execution/reconciliation remain unimplemented.
