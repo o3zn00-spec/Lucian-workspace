@@ -1047,3 +1047,10 @@ time risk rechecks, protection/partial-fill handling and validated exchange reco
 Live flags remain disabled. Longer forward model trials also remain distinct from
 historical replay. Other required scope remains C02 stability, C04/C07 universal
 module tools, C09 templates/amendments, C13 voice, C14 Investing and C15 recovery.
+
+Production verification found daily candle requests incorrectly used numeric 1440.
+Bybit V5 requires D. Corrected request and persisted source validation; fixture now
+asserts exact supported interval values. No paper session started during this failure.
+Lesson: validate external enum values against the provider contract, not only a
+mock that accepts arbitrary numeric intervals. Initial historical check failed
+closed; rerun is required after the correction deploys.

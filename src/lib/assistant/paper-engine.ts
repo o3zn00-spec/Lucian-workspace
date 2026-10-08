@@ -50,7 +50,7 @@ export function validatePaperSession(s: PaperSession): PaperSession {
     const r=review.research;if(r===null)continue;
     if(!r || !Number.isSafeInteger(r.observedAtMs) || r.observedAtMs<s.startedAtMs || r.observedAtMs>review.atMs || !Array.isArray(r.markets) || r.markets.length>s.plan.symbols.length*4 || !Array.isArray(r.announcements) || r.announcements.length>20 || !Array.isArray(r.warnings) || r.warnings.length>14 || r.warnings.some(w=>typeof w!=="string" || w.length>500))throw Error("Invalid research report.");
     for(const m of r.markets) {
-      if(!s.plan.symbols.includes(m.symbol) || ![5,60,240,1440].includes(m.intervalMinutes) || m.source!==`https://api.bybit.com/v5/market/kline?category=spot&symbol=${m.symbol}&interval=${m.intervalMinutes}&limit=61` || !Array.isArray(m.candles) || m.candles.length>60 || [m.changePercent,m.sma20,m.sma50,m.rangePercent].some(n=>!Number.isFinite(n)))throw Error("Invalid research market.");
+      if(!s.plan.symbols.includes(m.symbol) || ![5,60,240,1440].includes(m.intervalMinutes) || m.source!==`https://api.bybit.com/v5/market/kline?category=spot&symbol=${m.symbol}&interval=${m.intervalMinutes===1440?"D":m.intervalMinutes}&limit=61` || !Array.isArray(m.candles) || m.candles.length>60 || [m.changePercent,m.sma20,m.sma50,m.rangePercent].some(n=>!Number.isFinite(n)))throw Error("Invalid research market.");
       let previous=0;for(const c of m.candles){if(!Number.isSafeInteger(c.atMs) || c.atMs<=previous || c.atMs>=r.observedAtMs || !Number.isFinite(c.close) || c.close<=0)throw Error("Invalid research series.");previous=c.atMs;}
     }
     if(r.context!==undefined){

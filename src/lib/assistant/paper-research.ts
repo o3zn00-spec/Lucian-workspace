@@ -21,12 +21,12 @@ export function parseResearchCandles(rows:unknown, symbol:string, intervalMinute
   if(candles.length<50 || candles.some((c,i)=>i>0 && c.atMs-candles[i-1].atMs!==intervalMinutes*60000) || observedAtMs-(candles.at(-1)!.atMs+intervalMinutes*60000)>intervalMinutes*60000)throw Error("Incomplete or stale candle history.");
   const average=(n:number)=>candles.slice(-n).reduce((sum,c)=>sum+c.close,0)/n;
   const first=candles[0].close,last=candles.at(-1)!.close;
-  return {symbol,intervalMinutes,candles:candles.map(({atMs,close})=>({atMs,close})),changePercent:(last/first-1)*100,sma20:average(20),sma50:average(50),rangePercent:(Math.max(...candles.map(c=>c.high))/Math.min(...candles.map(c=>c.low))-1)*100,source:`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${intervalMinutes}&limit=61`};
+  return {symbol,intervalMinutes,candles:candles.map(({atMs,close})=>({atMs,close})),changePercent:(last/first-1)*100,sma20:average(20),sma50:average(50),rangePercent:(Math.max(...candles.map(c=>c.high))/Math.min(...candles.map(c=>c.low))-1)*100,source:`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${intervalMinutes===1440?"D":intervalMinutes}&limit=61`};
 }
 export async function collectPaperResearch(symbols:string[]):Promise<PaperResearch> {
   if(!symbols.length || symbols.length>10 || symbols.some(s=>!/^[A-Z0-9]{2,16}USDT$/.test(s)))throw Error("Invalid research symbols.");
   const markets=await Promise.all(symbols.flatMap(symbol=>[5,60,240,1440].map(async interval=>{
-    const url=new URL("https://api.bybit.com/v5/market/kline");url.search=new URLSearchParams({category:"spot",symbol,interval:String(interval),limit:"61"}).toString();
+    const url=new URL("https://api.bybit.com/v5/market/kline");url.search=new URLSearchParams({category:"spot",symbol,interval:interval===1440?"D":String(interval),limit:"61"}).toString();
     const b=await publicData(url);if(b.result.symbol!==symbol || b.result.category!=="spot")throw Error("Research symbol mismatch.");
     return parseResearchCandles(b.result.list,symbol,interval,b.time);
   })));
