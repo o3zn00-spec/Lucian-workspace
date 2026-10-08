@@ -999,9 +999,10 @@ paper trading only against their documented acceptance criteria.
   small operational round trip does not validate any profitable trading strategy.
 - Symbol/interval switching and chart point inspection verified in production.
   Screenshot `outputs/owner-paper-trial.png`; read-only persisted report saved as
-  `outputs/owner-paper-trial.json`, both outside source. Browser download capture
-  timed out for the JSON export button, so export delivery remains unverified;
-  the independent persisted ledger report is available and reconciles exactly.
+  `outputs/owner-paper-trial.json`, both outside source. JSON export also verified
+  from the actual downloaded file: stopped state, two fills, no open positions and
+  realized -26 cents reconcile. Saved as `outputs/owner-paper-trial-export.json`.
+  Browser event capture timed out, but the downloaded file itself was valid.
 - Remaining before live: longer owner-approved strategy trials, broader sourced
   research, measured dollar budgets, outage/recovery production drills, actual
   exchange order/fill reconciliation and a separate live-readiness/authorization
