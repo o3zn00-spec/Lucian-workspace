@@ -1418,3 +1418,28 @@ Production evidence, 2026-10-08:
   outputs/trading-quote-risk-verified.jpg. It confirms updated quote and retained
   risk values but does not certify candle rendering; new production visual proof
   is required after this recovery fix. Remaining live gates are unchanged.
+
+
+### Verified release evidence — 2026-10-08 23:04 UTC
+
+- Final application source 32936a58edd05e2d92a97d833ee3e85ea941e9ae matches
+  tested local tree 32031277e64f68e79621daff950fad7aaf794ea0. Vercel
+  dpl_7NHMWxmwNnq4h9AZrpGvc73f56GP is Ready/Production, 38-second build,
+  public alias lucian-workspace.vercel.app. It includes private Spot-anchor
+  protection, quote polling and authenticated history retry.
+- Actual fresh production load experienced historical request timeouts at
+  23:01:43, 23:02:08 and 23:02:33 UTC. Retried history subsequently recovered
+  real BTCUSDT candles without another reload, while quote polling recovered
+  around 81,932.70/81,932.80 with Delayed status. This is observed recovery,
+  not a claim that exchange/network requests never fail or are instantaneous.
+- Actual funded Risk screen shows about 40.92 USD and saved limits 5 USDT
+  per order / 10 USDT gross exposure / 1 USDT realized daily loss / 1 position
+  / 1x leverage. Screenshots: outputs/trading-recovered-production.jpg and
+  outputs/spot-accounting-production-proof.jpg, outside source delivery.
+- Verified build, lint, quote/private-state fixtures, architecture and
+  consolidation; live-execution fixtures still pass. No exchange order,
+  transfer, withdrawal or production database migration by the agent.
+- Trade completion status remains IN PROGRESS. Do not enable/claim unattended
+  live trading from this release: native protection, autonomous live runner,
+  real-fill recovery/reconciliation, DB concurrency proof and accounting rollover
+  remain unfinished. Four-hour all-HOLD forward trial finished without error.
