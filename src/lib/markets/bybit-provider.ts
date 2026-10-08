@@ -3,7 +3,7 @@
 import type { AssetClass, Candle, DataStatus, Instrument, PriceUpdate, Ticker, Timeframe } from "./types";
 import type { MarketDataProvider } from "./provider";
 
-const REST_BASE = "https://api.bybit.com";
+const REST_BASE = "/api/markets/bybit";
 const WS_BASE = "wss://stream.bybit.com/v5/public/spot";
 const INTERVAL: Record<Timeframe, string> = { "1m": "1", "5m": "5", "15m": "15", "30m": "30", "1h": "60", "4h": "240", "1d": "D", "1w": "W" };
 
@@ -16,9 +16,9 @@ const POPULAR = [
 type Status = (status: { kind: "connecting" | "open" | "closed" | "error"; message?: string }) => void;
 
 async function envelope<T>(url: string): Promise<T> {
-  const response = await fetch(url, { cache: "no-store" });
-  const payload = await response.json() as { retCode?: number; retMsg?: string; result?: T };
-  if (!response.ok || payload.retCode !== 0 || !payload.result) throw new Error(payload.retMsg || `Bybit market-data request failed (${response.status}).`);
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+  const payload = await response.json() as { retCode?: number; retMsg?: string; error?: string; result?: T };
+  if (!response.ok || payload.retCode !== 0 || !payload.result) throw new Error(payload.error || payload.retMsg || `Bybit market-data request failed (${response.status}).`);
   return payload.result;
 }
 
@@ -35,12 +35,18 @@ export const BybitProvider: MarketDataProvider = {
   },
 
   async getCandles(symbol, timeframe, limit): Promise<Candle[]> {
-    const result = await envelope<{ list?: string[][] }>(`${REST_BASE}/v5/market/kline?category=spot&symbol=${encodeURIComponent(symbol)}&interval=${INTERVAL[timeframe]}&limit=${Math.min(1000, limit)}`);
-    return (result.list ?? []).map((row) => ({ time: Math.floor(Number(row[0]) / 1000), open: Number(row[1]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) })).reverse();
+    const result = await envelope<{ list?: string[][] }>(`${REST_BASE}?kind=kline&symbol=${encodeURIComponent(symbol)}&interval=${INTERVAL[timeframe]}&limit=${Math.min(1000, limit)}`);
+    if (!Array.isArray(result.list) || result.list.length === 0) throw new Error("Bybit returned no chart candles.");
+    return result.list.map((row) => {
+      const values = row.slice(0, 6).map(Number);
+      const [start, open, high, low, close, volume] = values;
+      if (values.length !== 6 || values.some((n) => !Number.isFinite(n)) || start <= 0 || Math.min(open, high, low, close) <= 0 || volume < 0 || high < Math.max(open, close, low) || low > Math.min(open, close, high)) throw new Error("Bybit returned malformed chart candles.");
+      return { time: Math.floor(start / 1000), open, high, low, close, volume };
+    }).reverse();
   },
 
   async getTicker(symbol): Promise<Ticker | null> {
-    const result = await envelope<{ list?: Array<Record<string, string>> }>(`${REST_BASE}/v5/market/tickers?category=spot&symbol=${encodeURIComponent(symbol)}`);
+    const result = await envelope<{ list?: Array<Record<string, string>> }>(`${REST_BASE}?kind=tickers&symbol=${encodeURIComponent(symbol)}`);
     const row = result.list?.[0];
     if (!row) return null;
     const last = Number(row.lastPrice);

@@ -22,7 +22,10 @@ check("Paper, Bybit Testnet and Bybit Live are explicit modes", () => {
 });
 check("Public chart data uses Bybit V5", () => {
   const provider = read("src/lib/markets/bybit-provider.ts");
-  assert.match(provider, /api\.bybit\.com/); assert.match(provider, /stream\.bybit\.com/);
+  assert.match(provider, /\/api\/markets\/bybit/); assert.match(provider, /stream\.bybit\.com/);
+  const route = read("app/api/markets/bybit/route.ts");
+  assert.match(route, /requireOwnerId/); assert.match(route, /bybitPublicRequest/);
+  assert.match(route, /\/v5\/market\/kline/); assert.match(read("src/lib/bybit/client.ts"), /api\.bybit\.com/);
   assert.equal(existsSync(resolve(root, "src/lib/markets/binance-provider.ts")), false);
 });
 check("Requested mode must match saved credential environment", () => assert.match(terminal, /saved Bybit connection/));

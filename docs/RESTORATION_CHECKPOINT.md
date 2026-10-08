@@ -1259,3 +1259,22 @@ Production evidence, 2026-10-08:
 - Experience rule: deposit location, connection state and execution readiness are
   three separate facts. A zero trading balance can coexist with funded Funding.
   Avoid repeated polling which aborts slow valid reads or displays stale mode data.
+
+### Chart data boundary follow-up — 2026-10-08
+
+- Production Portfolio visibly confirms Funding BTC 0.0005089 and Unified USD
+  equity zero. No owner transfer or real financial exchange write occurred.
+- Production chart logged a failed direct browser candle fetch. Historical
+  candles and ticker REST reads now use an owner-authenticated same-origin route
+  to fixed Bybit V5 public Spot endpoints in the configured hosting region.
+  The route accepts bounded symbol/interval/limit inputs, sends no API keys,
+  does not accept external URLs and exposes upstream failures without fake data.
+  Direct public WebSocket subscriptions remain unchanged; this change does not
+  certify uninterrupted streaming or allow restricted users to bypass Bybit rules.
+- Empty/malformed historical candles reject instead of entering chart state.
+  Auth/input/upstream/candle fixture tests, typecheck, lint, architecture checks
+  and completed production build pass. Updated architecture assertions follow
+  the server REST boundary rather than require a direct browser hostname.
+- Live execution/protection/recovery/loss-accounting limitations above remain
+  open. Funding transfer and actual exchange evidence are still required; do not
+  mark trading complete based on a successful chart read or passing fixtures.
