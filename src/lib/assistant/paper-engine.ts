@@ -1,5 +1,6 @@
 import { cents, validatePaperPlan, type PaperPlan } from "./paper-policy";
 import { evaluatePaperEntry, fixedPaperDecimal, type PaperQuote } from "./paper-risk";
+import type { PaperReview } from "./paper-research";
 export type PaperPosition = { symbol: string; quantity: string; stopPrice: string; takeProfit: string; debitCents: number; riskCents: number };
 export type PaperFill = { atMs: number; symbol: string; side: "buy" | "sell"; quantity: string; amountCents: number; reason: string };
 export type PaperSession = {
@@ -11,14 +12,16 @@ export type PaperSession = {
   cashCents: number; equityCents: number; ordersPlaced: number; positions: PaperPosition[];
   fills: PaperFill[]; history: {atMs: number; equityCents: number}[];
   lastMessage: string; error: string | null; runId: string | null;
+  reviewCount?: number; reviews?: PaperReview[];
   lease: { token: string; untilMs: number } | null;
 };
-export type PaperProposal = {action:"hold"} | {action:"sell";symbol:string} | {action:"buy";symbol:string;quantity:string;stopPrice:string;takeProfit:string};
+export type PaperProposal = ({action:"hold"} | {action:"sell";symbol:string} | {action:"buy";symbol:string;quantity:string;stopPrice:string;takeProfit:string}) & {rationale?:string};
 export function parsePaperProposal(raw: string): PaperProposal {
   if (raw.length > 3000) throw Error("Proposal too large.");
   const p = JSON.parse(raw);
   if (!p || Array.isArray(p) || typeof p !== "object") throw Error("Invalid proposal.");
   const keys = p.action === "hold" ? ["action"] : p.action === "sell" ? ["action","symbol"] : p.action === "buy" ? ["action","symbol","quantity","stopPrice","takeProfit"] : [];
+  if ("rationale" in p) {if(typeof p.rationale!=="string" || p.rationale.length>500)throw Error("Invalid rationale.");keys.push("rationale");}
   if (!keys.length || keys.length !== Object.keys(p).length || Object.keys(p).some(k => !keys.includes(k))) throw Error("Invalid proposal fields.");
   if (p.action !== "hold" && (typeof p.symbol !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(p.symbol))) throw Error("Invalid symbol.");
   if (p.action === "buy") for (const field of [p.quantity,p.stopPrice,p.takeProfit]) fixedPaperDecimal(field);
@@ -41,6 +44,17 @@ export function validatePaperSession(s: PaperSession): PaperSession {
     if (fixedPaperDecimal(p.takeProfit)<=fixedPaperDecimal(p.stopPrice)) throw Error("Invalid exits.");
   }
   if (s.ordersPlaced>s.plan.maxOrders || s.positions.length>s.plan.maxPositions || (s.status==="stopped" && s.positions.length) || typeof s.lastMessage!=="string" || s.lastMessage.length>2000 || (s.error!==null && (typeof s.error!=="string" || s.error.length>2000)) || (s.runId!==null && (typeof s.runId!=="string" || s.runId.length>300))) throw Error("Invalid session metadata.");
+  if(s.reviewCount!==undefined && (!Number.isInteger(s.reviewCount) || s.reviewCount<0 || s.reviewCount>30))throw Error("Invalid review budget.");
+  if(s.reviews!==undefined && (!Array.isArray(s.reviews) || s.reviews.length>20 || s.reviews.some(r=>!Number.isSafeInteger(r.atMs) || r.atMs<s.startedAtMs || r.atMs>s.updatedAtMs || !["hold","buy","sell","unavailable"].includes(r.action) || typeof r.rationale!=="string" || r.rationale.length>500 || typeof r.outcome!=="string" || r.outcome.length>2000)))throw Error("Invalid review history.");
+  for(const review of s.reviews??[]) {
+    const r=review.research;if(r===null)continue;
+    if(!r || !Number.isSafeInteger(r.observedAtMs) || r.observedAtMs<s.startedAtMs || r.observedAtMs>review.atMs || !Array.isArray(r.markets) || r.markets.length>s.plan.symbols.length*2 || !Array.isArray(r.announcements) || r.announcements.length>20 || !Array.isArray(r.warnings) || r.warnings.length>3 || r.warnings.some(w=>typeof w!=="string" || w.length>500))throw Error("Invalid research report.");
+    for(const m of r.markets) {
+      if(!s.plan.symbols.includes(m.symbol) || ![5,60].includes(m.intervalMinutes) || m.source!==`https://api.bybit.com/v5/market/kline?category=spot&symbol=${m.symbol}&interval=${m.intervalMinutes}&limit=61` || !Array.isArray(m.candles) || m.candles.length>60 || [m.changePercent,m.sma20,m.sma50,m.rangePercent].some(n=>!Number.isFinite(n)))throw Error("Invalid research market.");
+      let previous=0;for(const c of m.candles){if(!Number.isSafeInteger(c.atMs) || c.atMs<=previous || c.atMs>=r.observedAtMs || !Number.isFinite(c.close) || c.close<=0)throw Error("Invalid research series.");previous=c.atMs;}
+    }
+    for(const a of r.announcements){const url=new URL(a.url);if(url.protocol!=="https:" || !["announcements.bybit.com","www.bybit.com","bybit.com"].includes(url.hostname) || url.username || url.password || typeof a.title!=="string" || a.title.length>180 || !Number.isSafeInteger(a.publishedAtMs) || a.publishedAtMs>r.observedAtMs)throw Error("Invalid research source.");}
+  }
   let balance=BigInt(cents(s.plan.capital)),buys=0,previous=0;
   const quantities=new Map<string,bigint>();
   for (const f of s.fills) {

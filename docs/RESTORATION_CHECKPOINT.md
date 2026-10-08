@@ -291,7 +291,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
-| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; independent research, full charts and spending budgets remain |
+| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper trial pending |
 | C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production financial-session lifecycle remains unverified |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
@@ -952,3 +952,37 @@ paper trading only against their documented acceptance criteria.
   strategy and risk authorization are required before production paper fill proof.
   Broad C09/C10/C11 items remain open for templates/amendments, independent research,
   charts/cost budgets and fuller strategy/exchange reconciliation; C12 live remains locked.
+
+### C10/C11 — independent paper research, charts/results and owner trial, 2026-10-08
+
+- Owner explicitly approved a paper-session trial in this chat. Live execution is
+  not authorized. Use 1,000 virtual USDT, BTC/ETH spot, leverage 1, max order 100,
+  max exposure 200, session loss 20, risk/trade 5, at most four entries/two positions,
+  five-minute reviews, one-hour expiry, 30-second quote age, fee 10 bps/slippage 5 bps.
+  This is an operational trial, not evidence of a profitable strategy. Stop after
+  observing a bounded review/round-trip and persist the result; never use real funds.
+- Worker autonomously collects 60 closed five-minute and hourly candles per allowed
+  symbol; rejects incomplete, noncontiguous, wrong-symbol, invalid or stale data.
+  Derives SMA20/50, window change and range and includes URLs/timestamps. Recent
+  Bybit announcements are source-linked, not comprehensive independent journalism.
+  News outages are explicit; candle failure blocks inference/new entries.
+- Research is untrusted evidence, not instruction. Fixed public GET endpoints,
+  bounded payloads/timeouts and validated HTTPS source links; no arbitrary URL
+  execution, private exchange mutation or credential transmission to research.
+- Durable research/decision reports retain the last 20 reviews. A reserved review
+  counter caps attempts at 30 per session and advances scheduling before inference
+  so recovery/retry cannot immediately repeat a paid review. This is a call cap,
+  not a measured USD budget. Protective exits remain active after exhaustion.
+- Interactive equity/closed-candle charts, symbol/interval selection, inspectable
+  observations, separate realized/unrealized net P/L, closed trades/wins, sampled
+  drawdown, decision history and JSON result export added. Net accounting includes
+  configured simulated fees/slippage. Chart/drawdown retain 200 samples; no claim of
+  queue priority, partial fills, intraminute precision or market impact modeling.
+- Research parsing/endpoint/failure tests and realized/unrealized reconciliation
+  tests passed. Runtime tests cover unavailable research and exhausted budget
+  blocking entries/model calls, alongside prior protection/concurrency/recovery.
+- Typecheck, full lint and optimized build passed. Production visual/worker/model
+  trial evidence and final release proof are still pending; no fills claimed yet.
+- Experience rule: reserve review budget/schedule durably before external inference,
+  and require actual production research plus decision/ledger evidence. A mocked
+  model response or rendered chart alone is not a verified paper trial.

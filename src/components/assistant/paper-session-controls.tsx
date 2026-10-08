@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import type { PaperSession } from "@/lib/assistant/paper-engine";
+import { PaperSessionResults } from "./paper-session-results";
 const amount=(cents:number)=>(cents/100).toFixed(2);
 export function PaperSessionControls({planRevision,ready}:{planRevision:string|null;ready:boolean}) {
   const [s,setSession]=useState<PaperSession|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false),[confirmation,setConfirmation]=useState("");
@@ -51,6 +52,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
       </div>}
       <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left text-fg-muted">Open paper positions</caption><thead><tr><th>Symbol</th><th>Quantity</th><th>Stop</th><th>Take profit</th></tr></thead><tbody>{s.positions.map(p=><tr key={p.symbol}><td>{p.symbol}</td><td>{p.quantity}</td><td>{p.stopPrice}</td><td>{p.takeProfit}</td></tr>)}</tbody></table>{!s.positions.length && <p>No open paper positions.</p>}</div>
       <details><summary className="cursor-pointer">Paper fills ({s.fills.length})</summary>{[...s.fills].reverse().map((f,i)=><p key={i}>{new Date(f.atMs).toLocaleString()} · {f.side} {f.quantity} {f.symbol} · {amount(f.amountCents)} USDT · {f.reason}</p>)}</details>
+      <PaperSessionResults session={s} />
       <details><summary className="cursor-pointer">Equity history</summary>{s.history.slice(-20).map((h,i)=><p key={i}>{new Date(h.atMs).toLocaleString()} · {amount(h.equityCents)} USDT</p>)}</details>
       <p className="text-fg-muted">Active rules are frozen at start. Draft edits apply only to a new session. Pause retains protective exits; recovery keeps the same capital, positions and authorization.</p>
     </>}
