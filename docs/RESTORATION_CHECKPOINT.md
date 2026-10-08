@@ -837,3 +837,30 @@ paper trading only against their documented acceptance criteria.
 - C09 remains In progress: explicit start authorization, reusable templates, runtime
   checks, loss/fill accounting and active-rule amendments are still needed. C10/C11
   durable background runner and paper execution/reconciliation remain unimplemented.
+
+### C09/C11 — paper entry risk foundation, 2026-10-08
+
+- Added a pure paper BUY evaluator before adding a background runner.
+  It accepts future server-owned authorized state and verified market snapshots;
+  no API, model tool, session start, financial permission or exchange order is added.
+- Required checks: running/authorized state, emergency stop, expiry, fresh ledger
+  and quote, listed instrument/quantity step/minimums, symbol allowlist, order and
+  position counts, cash, exposure, equity drawdown and remaining stop-risk budget.
+- Costs use fixed decimal integer arithmetic, round debits up/proceeds down, and
+  include configured fees/slippage in capital/risk limits. Stops are simulation
+  assumptions, not guaranteed fill prices. Arbitrary strategy/rule text is not executed.
+- Integration remains pending: trusted durable ledger, owner start authorization,
+  atomic reservation/idempotency, exits/gaps, reconciliation and background scheduling.
+  Current saved drafts and manual terminal remain unchanged.
+- Verification: actual evaluator fixtures passed 39 rejection scenarios plus exact
+  cash/exposure/risk boundaries, fractional quantity steps, minimum notional,
+  conservative cent rounding and fee/slippage calculations. Existing paper-plan
+  and chat-tool tests, typecheck, lint, production build, five consolidation tests
+  and architecture checks (11 trading, 12 interaction, 52 Vault) passed.
+- Implementation lesson: a nominal order amount fitting a limit is insufficient;
+  include execution costs, unrealized drawdown and existing stop-risk reservations.
+  Reject invalid/future/stale data. Passing this pure evaluator alone cannot make
+  an order safe: the future runner must lock and recheck authoritative state before
+  committing a fill, and must handle gap losses and exits separately.
+- No production state, model request, exchange API, session start or real money was
+  used. This module is not connected to execution; C09/C10/C11 remain In progress.
