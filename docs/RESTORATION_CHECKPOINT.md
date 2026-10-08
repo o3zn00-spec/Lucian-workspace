@@ -1,15 +1,17 @@
 # LUCIAN restoration checkpoint
 
-Updated: 2026-10-07 (America/Los_Angeles)
+Updated: 2026-10-08 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C05 connection checks and C06 image delivery deployed; local mock
-provider payloads, browser retry/reload and production interface checks pass.
-OpenRouter owner key is stored encrypted and authenticated; GPT-6.1 Sol selected
-with Medium reasoning. Real text inference, screenshot reading and saved reply
-reload were verified through the production app with two paid model requests.
-C04 app tool integration, C07 coding tools, C08–C12 trading, C13 voice, C14 canvas
-and C15 recovery remain open. These two tests do not establish autonomous trading.
+Current batch: C09–C11 owner-authorized paper lifecycle is deployed: exact start,
+background worker, simulated entries/exits, pause/stop and generation recovery.
+Production nonfinancial check passed database, public Bybit quotes and durable
+sleep/wake, persisted after page closure/reopen. Ledger and concurrency behaviors
+are fixture-tested; no owner financial-session start or production simulated fill
+is claimed. OpenRouter GPT-6.1 Sol Medium text/vision worked in earlier checks.
+C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
+C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
+readiness are not inferred from a build or nonfinancial worker check.
 
 ## Real model verification and connection hardening — 2026-10-07
 
@@ -289,7 +291,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
-| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production wake-up verification pending; independent research, full charts and spending budgets remain |
+| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; independent research, full charts and spending budgets remain |
 | C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production financial-session lifecycle remains unverified |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
@@ -931,3 +933,22 @@ paper trading only against their documented acceptance criteria.
   No session was started or financial ledger changed. Repeat production probe before
   marking background runtime verified. Lesson: mock transaction success cannot prove
   driver compatibility; verify actual lock SQL and platform workflow wake-up.
+
+- Corrected GitHub source `d2791af123d665ccefaaf1db5faeb9b87c488d34`
+  (tree `a8c57b7a8e5aff424b4e95b71b88216ba466a3b6`) deployed Ready in
+  `dpl_8pmJ12btzG5biy1EFGhZHg8nvyj7`, GitHub before Vercel. Local/remote
+  code trees match. Actual PostgreSQL advisory-lock cast passed without ledger
+  writes; lifecycle tests and build/lint passed again.
+- Production owner clicked Check runtime without trading. The first step verified
+  public BTC spot instrument/quotes and the real lock/state lookup; after durable
+  five-second sleep the second step completed. Closed the page and reopened Markets:
+  persisted status passed. Refresh retained the result. No plan was saved, paper/live
+  session started, financial permission granted, private exchange call or model
+  inference made by this check. Screenshot outside source:
+  `outputs/paper-runtime-production-verification.jpg`.
+- Added explicit regression that a protective stop remains committed despite failed
+  subsequent model review. Recovery does not accelerate the saved model-review cadence.
+  Financial-session lifecycle remains fixture-verified only; owner-chosen capital,
+  strategy and risk authorization are required before production paper fill proof.
+  Broad C09/C10/C11 items remain open for templates/amendments, independent research,
+  charts/cost budgets and fuller strategy/exchange reconciliation; C12 live remains locked.
