@@ -1137,3 +1137,19 @@ Production evidence, 2026-10-08:
   Real exchange recovery, account-wide risk/protection and confirmation-time risk
   checks remain open; live flags remain disabled. C04/C07 app module tools, C13
   voice, C14 Investing canvas and C02/C15 stability/recovery remain tracked.
+
+- Follow-up consistency check corrected stale chat setup guidance: the owner can
+  review and explicitly start the implemented background paper runner. Live
+  sessions stay unavailable. General chat research execution remains separate
+  from the paper runner's bounded research; neither is claimed interchangeable.
+
+- Publication: GitHub 062b58e575ad593d29f8ddd645abba59c5f96c5c deployed READY
+  as dpl_8zmspaVAczFgt7XHXhE8J9YPibYn in 99 seconds, production alias verified.
+  Owner UI reconciliation GET returned no unresolved reservations; no actual
+  exchange order/fill proof can be obtained from an empty candidate list. The
+  running trial continued through deployment, with 25 equity observations and
+  no fills/error at 17:04:19 UTC. Final outcome remains pending.
+- Broad assistant-foundation integration suite was not executed: it requires a
+  separately configured local restoration database/server. It was not pointed
+  at production. Targeted mocked reconciliation/read/execution tests and build
+  checks passed; do not label the broad integration suite passed.

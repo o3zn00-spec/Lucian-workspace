@@ -96,7 +96,7 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
       return "Cloud-saved items could not be read. No result is available; retry later.";
     }
   }
-  if (tool === "trading.setup") return "Set up a [paper session plan](/markets?paperSetup=1). Choose capital, assets, strategy, timing and risk limits. Saving a plan does not start trading. Live sessions and the background paper runner are not available yet.";
+  if (tool === "trading.setup") return "Set up a [paper session plan](/markets?paperSetup=1). Choose capital, assets, strategy, timing and risk limits. Saving a plan does not start trading. After saving, review the frozen plan and explicitly start its background paper session in the runtime controls. Live sessions remain unavailable.";
   if (destination) return `Open [${destination.label}](${destination.path}). Your conversation stays saved with Lilthe.`;
   return `Lilthe is available throughout Lucian. Open a workspace below:\n\n${ASSISTANT_MODULES.map(m => `- [${m.label}](${m.path})`).join("\n")}\n\nCurrently available: app map, validated navigation links, and permission-controlled cloud-saved bookmark titles and Bybit Unified balances and bounded open order/position reads. Still being built: ${ASSISTANT_CAPABILITIES.filter(c => !c.available).map(c => c.description).join(" ")}`;
 }
