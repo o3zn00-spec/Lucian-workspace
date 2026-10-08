@@ -717,3 +717,31 @@ paper trading only against their documented acceptance criteria.
   trading account state), then bounded paper session policies/runtime. Full
   coding tools, live/autonomous trades, voice, canvas and broad stability/recovery
   verification remain open. Do not equate saved bookmarks with financial holdings.
+
+### C04 / C08 — permission-controlled Bybit balance tool, 2026-10-08
+
+- Added `trading.read` to the shared model protocol and a separate owner-controlled
+  Bybit Unified balance permission in Tool activity and permissions. Defaults off;
+  model text/memories cannot grant access. PUT accepts exactly one known boolean
+  permission; existing bookmark permission remains separate. No schema migration.
+- Fixed GET `/v5/account/wallet-balance?accountType=UNIFIED` uses existing encrypted
+  owner credentials and configured environment. Returns timestamp, mainnet/testnet,
+  three USD totals and at most 12 asset wallet/equity/USD rows. No raw provider
+  payload, credentials or arbitrary model-selected endpoint/environment is returned.
+- Missing/invalid totals display Unavailable, never invented zero. Missing account,
+  missing credentials or provider failure confirms no balance. Funding wallets,
+  orders, positions and withdrawal limits are explicitly excluded. Current Bybit
+  documentation reviewed: https://bybit-exchange.github.io/docs/v5/account/wallet-balance
+- Started/completed/failed/denied events contain no financial values. Audit failure
+  blocks execution/results. Revocation during an in-flight read suppresses delivery.
+  Permission UI explains that financial results enter chat and may reach the
+  selected model in later turns. No trades, transfers or withdrawals are enabled.
+- Extended actual route/tool fixtures passed: separate permissions, owner isolation,
+  strict arguments, fixed GET/owner scope, bounded/redacted output, zero versus
+  unavailable, missing account, provider/config failure, audit failure and in-flight
+  revocation. Typecheck, lint, full production build, consolidation and architecture
+  checks passed. These fixtures use mocks; production allowed-read model verification
+  remains unperformed. Production panel/default-denial verification pending release.
+- C04/C08 remain In progress: Funding/order/position read adapters, paper session
+  policy/setup, durable scheduling, strategy execution and reconciliation remain.
+  This step is not evidence of readiness for unattended or real-money trading.

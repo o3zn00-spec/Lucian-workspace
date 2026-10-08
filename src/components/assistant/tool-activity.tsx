@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Activity, X } from "lucide-react";
 
-type ToolState = { savedRead: boolean; activity: { id: string; tool: string; module: string; status: string; reason: string; createdAt: string }[] };
+type ToolState = { savedRead: boolean; tradingRead: boolean; activity: { id: string; tool: string; module: string; status: string; reason: string; createdAt: string }[] };
 export function ToolActivity() {
   const { data: session } = useSession();
   return <ToolActivityState key={session?.user?.id ?? "anonymous"} />;
@@ -15,12 +15,12 @@ function ToolActivityState() {
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
-  const request = useCallback(async (savedRead?: boolean, signal?: AbortSignal) => {
+  const request = useCallback(async (permission?: { savedRead: boolean } | { tradingRead: boolean }, signal?: AbortSignal) => {
     setBusy(true); setError(null);
     try {
-      const response = await fetch("/api/assistant/tools", { method: savedRead === undefined ? "GET" : "PUT", cache: "no-store", signal,
-        headers: savedRead === undefined ? undefined : { "Content-Type": "application/json" },
-        body: savedRead === undefined ? undefined : JSON.stringify({ savedRead }) });
+      const response = await fetch("/api/assistant/tools", { method: permission === undefined ? "GET" : "PUT", cache: "no-store", signal,
+        headers: permission === undefined ? undefined : { "Content-Type": "application/json" },
+        body: permission === undefined ? undefined : JSON.stringify(permission) });
       const result = await response.json();
       if (!response.ok || !result.ok) throw Error(result.error ?? "Tool access could not be confirmed.");
       if (!signal?.aborted) setData(result);
@@ -49,9 +49,15 @@ function ToolActivityState() {
         {data && <>
           <div className="my-4 rounded-lg border border-line p-3">
             <label className="flex items-center justify-between gap-3 text-sm font-medium">Cloud-saved bookmark titles
-              <input type="checkbox" checked={data.savedRead} disabled={busy || Boolean(error)} onChange={event => void request(event.target.checked)} />
+              <input type="checkbox" checked={data.savedRead} disabled={busy || Boolean(error)} onChange={event => void request({ savedRead: event.target.checked })} />
             </label>
             <p className="mt-2 text-xs text-fg-muted">Allow reads of up to 12 saved bookmark/favorite titles and categories. This excludes local notes, holdings, files, credentials and live balances. Results enter your chat and may be sent to your selected model in later conversation turns. Turn off to stop future reads.</p>
+          </div>
+          <div className="my-4 rounded-lg border border-line p-3">
+            <label className="flex items-center justify-between gap-3 text-sm font-medium">Bybit Unified account balances
+              <input type="checkbox" checked={data.tradingRead} disabled={busy || Boolean(error)} onChange={event => void request({ tradingRead: event.target.checked })} />
+            </label>
+            <p className="mt-2 text-xs text-fg-muted">Allow a fresh read of Unified account totals and up to 12 asset balances from your configured Bybit environment. Funding wallets, orders and positions are excluded. This grants no permission to trade or move money. Balances enter chat and may be sent to your selected model in later turns. Turn off to stop future reads.</p>
           </div>
           <h3 className="mb-2 font-medium">Recent tool activity</h3>
           {!data.activity.length && <p className="text-sm text-fg-muted">No tool activity recorded.</p>}

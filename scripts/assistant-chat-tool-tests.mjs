@@ -9,10 +9,16 @@ globalThis.chatToolAuditFail=false;
 globalThis.toolPermissions=new Map();
 globalThis.savedQueries=[];
 globalThis.savedReadFail=false;
+globalThis.bybitCalls=[];
+globalThis.bybitFixture={list:[{accountType:"UNIFIED",totalEquity:"0",totalWalletBalance:"0",totalAvailableBalance:"",coin:[]}]};
+globalThis.bybitConfigured=true;
+globalThis.bybitFailure=false;
+globalThis.bybitRevoke=false;
 const mocks={
  'server-only':'',
  'next/server':'export const NextResponse={json:(body,init)=>Response.json(body,init)};',
- '@/lib/db':`const memory={findMany:async()=>[],findUnique:async({where})=>({value:globalThis.toolPermissions.get(where.userId_key.userId)??'deny'}),upsert:async({where,update})=>{globalThis.toolPermissions.set(where.userId_key.userId,update.value);return update;}};const activity={create:async({data})=>{if(globalThis.chatToolAuditFail)throw Error('Audit unavailable');globalThis.chatToolEvents.push(data);return data;},findMany:async({where})=>globalThis.chatToolEvents.filter(e=>e.userId===where.userId)};export const db={assistantMemory:memory,assistantActivity:activity,savedItem:{findMany:async(query)=>{globalThis.savedQueries.push(query);if(globalThis.savedReadFail)throw Error('Read unavailable');return [{title:'Example saved favorite',source:'news',type:'article',createdAt:new Date('2026-10-07')}] }},$transaction:async(fn)=>fn({assistantMemory:memory,assistantActivity:activity})};`,
+ '@/lib/db':`const memory={findMany:async()=>[],findUnique:async({where})=>({value:globalThis.toolPermissions.get(where.userId_key.userId+':'+where.userId_key.key)??(where.userId_key.key.endsWith('saved.read')?globalThis.toolPermissions.get(where.userId_key.userId):null)??'deny'}),upsert:async({where,update})=>{globalThis.toolPermissions.set(where.userId_key.userId+':'+where.userId_key.key,update.value);return update;}};const activity={create:async({data})=>{if(globalThis.chatToolAuditFail)throw Error('Audit unavailable');globalThis.chatToolEvents.push(data);return data;},findMany:async({where})=>globalThis.chatToolEvents.filter(e=>e.userId===where.userId)};export const db={assistantMemory:memory,assistantActivity:activity,savedItem:{findMany:async(query)=>{globalThis.savedQueries.push(query);if(globalThis.savedReadFail)throw Error('Read unavailable');return [{title:'Example saved favorite',source:'news',type:'article',createdAt:new Date('2026-10-07')}] }},$transaction:async(fn)=>fn({assistantMemory:memory,assistantActivity:activity})};`,
+ '@/lib/bybit/client':`export class BybitApiError extends Error {} export const getBybitConfig=async()=>({environment:'mainnet',configured:globalThis.bybitConfigured,apiKey:'SECRET-KEY',apiSecret:'SECRET-VALUE'});export const bybitRequest=async(...args)=>{globalThis.bybitCalls.push(args);if(globalThis.bybitRevoke)globalThis.toolPermissions.set(args[0]+':_tool_permission:trading.read','deny');if(globalThis.bybitFailure)throw Error('SECRET-VALUE');return globalThis.bybitFixture;};`,
  '@/lib/auth/owner':`import {AuthError} from '@/lib/auth/errors';export const requireOwnerId=async()=>{if(!globalThis.chatToolOwner)throw new AuthError('unauthorized','Owner required',403);return globalThis.chatToolOwner;};`,
  '@/lib/agent/providers':`export const isProviderConfigured=async()=>true;export const getProvider=async()=>({chat:async(params)=>{globalThis.lastChatParameters=params;return {content:globalThis.chatToolReply(),fromModel:true};}});`,
 };
@@ -56,12 +62,37 @@ assert.equal((await accessAPI.PUT(permissionRequest({savedRead:true},'https://ev
 assert.equal((await accessAPI.PUT(permissionRequest({savedRead:true,ownerUserId:'owner-B'}))).status,400);
 assert.equal((await accessAPI.PUT(permissionRequest({savedRead:true}))).status,200);
 assert.equal((await (await accessAPI.GET()).json()).savedRead,true);
-assert.equal(globalThis.toolPermissions.get('owner-fixture'),'allow');
+assert.equal(globalThis.toolPermissions.get('owner-fixture:_tool_permission:saved.read'),'allow');
 assert.equal((await accessAPI.PUT(permissionRequest({savedRead:false}))).status,200);
 assert.equal((await (await accessAPI.GET()).json()).savedRead,false);
+assert.equal((await accessAPI.PUT(permissionRequest({tradingRead:true}))).status,200);
+assert.equal((await (await accessAPI.GET()).json()).tradingRead,true);
+assert.equal((await accessAPI.PUT(permissionRequest({tradingRead:false}))).status,200);
+assert.equal((await (await accessAPI.GET()).json()).tradingRead,false);
+const tradingEnvelope=JSON.stringify({lucian_tool:'trading.read',arguments:{}});
+assert.match(await resolveChatTool('owner-A',tradingEnvelope),/access is off/);
+assert.equal(globalThis.bybitCalls.length,0);
+globalThis.toolPermissions.set('owner-A:_tool_permission:trading.read','allow');
+let balance=await resolveChatTool('owner-A',tradingEnvelope);
+assert.match(balance,/Total equity \(USD\): 0/);assert.match(balance,/Available balance.*Unavailable/);assert.match(balance,/Mainnet/);assert.doesNotMatch(balance,/SECRET/);
+assert.deepEqual(globalThis.bybitCalls.at(-1).slice(0,3),['owner-A','/v5/account/wallet-balance',{method:'GET',query:{accountType:'UNIFIED'}}]);
+assert.equal(events.at(-2).status,'started');assert.equal(events.at(-1).status,'completed');
+globalThis.bybitFixture={list:[{accountType:'UNIFIED',totalEquity:'12.5',coin:Array.from({length:15},()=>({coin:'BTC',walletBalance:'1',equity:'1',usdValue:'12.5',apiKey:'SECRET-KEY'}))}]};
+balance=await resolveChatTool('owner-A',tradingEnvelope);assert.equal((balance.match(/- BTC:/g)??[]).length,12);assert.doesNotMatch(balance,/SECRET/);
+const before=globalThis.bybitCalls.length;
+assert.match(await resolveChatTool('owner-B',tradingEnvelope),/access is off/);
+assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.read',arguments:{environment:'testnet'}})),/unavailable/);
+assert.equal(globalThis.bybitCalls.length,before);
+globalThis.bybitFixture={list:[]};assert.match(await resolveChatTool('owner-A',tradingEnvelope),/could not be verified/);assert.equal(events.at(-1).status,'failed');
+globalThis.bybitFailure=true;balance=await resolveChatTool('owner-A',tradingEnvelope);assert.match(balance,/no zero balance is confirmed/);assert.doesNotMatch(balance,/SECRET/);globalThis.bybitFailure=false;
+globalThis.bybitConfigured=false;assert.match(await resolveChatTool('owner-A',tradingEnvelope),/not configured/);globalThis.bybitConfigured=true;
+globalThis.bybitRevoke=true;assert.match(await resolveChatTool('owner-A',tradingEnvelope),/revoked/);assert.equal(events.at(-1).status,'denied');globalThis.bybitRevoke=false;
 const {assistantCommand}=await bundle('src/lib/assistant/service.ts');
 await assert.rejects(assistantCommand('owner-A',{action:'memory',key:'_tool_permission:saved.read',value:'allow'}),/tool permissions/);
+globalThis.toolPermissions.set('owner-A:_tool_permission:trading.read','allow');
 globalThis.chatToolAuditFail=true;
+const beforeAudit=globalThis.bybitCalls.length;
+await assert.rejects(resolveChatTool('owner-A',tradingEnvelope),/Audit unavailable/);assert.equal(globalThis.bybitCalls.length,beforeAudit);
 await assert.rejects(resolveChatTool('owner-A','{"lucian_tool":"app.navigate","arguments":{"module":"markets"}}'),/Audit unavailable/);
 globalThis.chatToolAuditFail=false;
 const {POST}=await bundle('app/api/ai/chat/route.ts');
@@ -74,4 +105,4 @@ reply='{"lucian_tool":"trading.execute","arguments":{}}';
 res=await POST(request('https://fixture.test',true));const stream=await res.text();assert.match(stream,/unavailable/);assert.doesNotMatch(stream,/lucian_tool/);
 assert.equal((await POST(request('https://evil.test'))).status,403);
 globalThis.chatToolOwner=null;assert.equal((await POST(request())).status,403);assert.equal((await accessAPI.PUT(permissionRequest({savedRead:true}))).status,403);
-console.log('PASS: model chat invokes audited app utilities; validated navigation; unknown/financial/file tools denied; owner spoofing and arbitrary URLs rejected; audit failure closes access; normal replies preserved; streaming resolves tool envelopes; auth/origin checked. Saved reads require owner grant, revoke immediately, select bounded metadata only, isolate owners and report failures; permission API enforces owner/origin/schema; memory cannot grant tool access. No network or paid inference.');
+console.log('PASS: model chat invokes audited app utilities; validated navigation; unknown/financial/file tools denied; owner spoofing and arbitrary URLs rejected; audit failure closes access; normal replies preserved; streaming resolves tool envelopes; auth/origin checked. Saved reads require owner grant, revoke immediately, select bounded metadata only, isolate owners and report failures; permission API enforces owner/origin/schema; memory cannot grant tool access. Bybit balances require separate owner permission, bounded fixed GET, owner isolation, distinguish unavailable from zero, redact unexpected fields/errors, reject missing accounts and suppress in-flight revoked results. No network or paid inference.');
