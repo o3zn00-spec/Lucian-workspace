@@ -1534,3 +1534,21 @@ Production evidence, 2026-10-08:
 - Still open: actual exchange protection/fill/exit/recovery evidence and autonomous
   live worker; universal app tools, voice, Investing canvas and wider stability.
   Do not mark these complete from simulations or a read-only preview.
+
+- Navigation release verified: GitHub 28637d8fe87031d1b002b08a8368e07535c06087,
+  tested tree 296224bb5c7c7d5f04f0672742735b226ae38fea; Vercel
+  4BUJSnV4jiFBLVevVEXJ5sEXWG2e Ready / Production (46 seconds). Browser
+  closed Instruments then clicked New order: broker form reopened. Chart Sell
+  selected red Sell; chart Buy selected green Buy. No order submit.
+- Production read-only 4.91 USDT preview completed and was rejected for exchange
+  minimum notional; there was no intent or exchange order created. Requested
+  action-time browser confirmation for manual live flags and 6 USDT order cap;
+  preserve 10 USDT exposure / 1 daily loss / one Spot position / no leverage.
+  User response pending; existing 5 USDT cap and execution locks remain.
+- Prepared unsubmitted draft 0.00007 BTC at 81875.7 (5.73 USDT), stop 81460,
+  target 82290. Prices require fresh review before execution. Browser financial
+  policy requires owner final Submit. Screenshots retained outside repository:
+  outputs/trading-order-navigation-production.jpg and trading-bounded-trial-draft.jpg.
+- Initial chart requests intermittently timed out, then recovered to candles
+  labelled Delayed. Account balance read succeeded. Do not claim all market
+  feeds are continuously live or all wider stability work has passed.
