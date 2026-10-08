@@ -864,3 +864,9 @@ paper trading only against their documented acceptance criteria.
   committing a fill, and must handle gap losses and exits separately.
 - No production state, model request, exchange API, session start or real money was
   used. This module is not connected to execution; C09/C10/C11 remain In progress.
+- GitHub code/checkpoint `02cc9a702c22813d52ab3fea7c21860d8ca5983a`
+  published first; automatic Vercel production deployment
+  `dpl_FQEv4sz3jMvVmSJDgxkkpyer9e12` verified Ready with that exact source
+  commit. Local and GitHub trees match. Release proof outside source:
+  `outputs/paper-risk-release-verification.png`. No runtime integration or
+  production simulated fill is implied by deployment readiness.
