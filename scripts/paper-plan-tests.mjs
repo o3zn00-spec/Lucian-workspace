@@ -10,6 +10,9 @@ const mocks={
  export const db={assistantMemory:memory,$transaction:async fn=>{const prior=new Map(rows()),count=globalThis.paperEvents.length;try{return await fn({assistantMemory:memory,assistantActivity:activity});}catch(e){globalThis.paperRows=prior;globalThis.paperEvents.length=count;throw e;}}};`,
 };
 async function bundle(entry){const result=await build({entryPoints:[entry],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'mocks',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'fixture'}:undefined);b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],resolveDir:process.cwd()}));}}]});return import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));}
+const {isAssistantDestination}=await bundle('src/lib/assistant/contracts.ts');
+assert.equal(isAssistantDestination('/markets?paperSetup=1'),true);
+for(const path of ['/markets?paperSetup=live','//evil.test','https://evil.test','/markets?paperSetup=1&mode=live'])assert.equal(isAssistantDestination(path),false);
 const {validatePaperPlan,cents}=await bundle('src/lib/assistant/paper-policy.ts');
 const plan={mode:'paper',exchange:'bybit',category:'spot',currency:'USDT',leverage:1,capital:'1000',maxOrder:'100',maxExposure:'500',maxLoss:'50',maxRiskPerTrade:'10',symbols:['BTCUSDT'],maxOrders:10,maxPositions:2,reviewMinutes:5,durationHours:24,maxDataAgeSeconds:60,feeBps:10,slippageBps:5,strategy:'Example fixture: wait for verified strategy; no trades.',additionalRules:''};
 assert.equal(cents('0.10'),10);assert.equal(cents('1.01'),101);assert.equal(validatePaperPlan(plan).mode,'paper');

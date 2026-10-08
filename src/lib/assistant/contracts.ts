@@ -17,6 +17,10 @@ export const ASSISTANT_MODULES = [
   { id: "settings", path: "/settings", label: "Settings" },
 ] as const;
 
+export function isAssistantDestination(path: string) {
+  return path === "/markets?paperSetup=1" || ASSISTANT_MODULES.some(module => module.path === path);
+}
+
 export type AssistantModule = typeof ASSISTANT_MODULES[number]["id"];
 export function moduleForPath(path: string): AssistantModule {
   if (path === "/knowledge-library") return "mindset-library";
