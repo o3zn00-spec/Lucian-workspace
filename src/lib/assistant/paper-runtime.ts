@@ -10,7 +10,7 @@ const key="_paper_session:active";
 type Tx=Parameters<Parameters<typeof db.$transaction>[0]>[0];
 const where=(userId:string)=>({userId_key:{userId,key}});
 async function locked<T>(userId:string, fn:(tx:Tx)=>Promise<T>):Promise<T> {
-  return db.$transaction(async tx=>{await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper:"+userId}))`;return fn(tx);},{maxWait:5000,timeout:10000});
+  return db.$transaction(async tx=>{await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper:"+userId}))::text`;return fn(tx);},{maxWait:5000,timeout:10000});
 }
 async function read(tx:Tx,userId:string) {
   const row=await tx.assistantMemory.findUnique({where:where(userId)});

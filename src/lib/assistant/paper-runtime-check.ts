@@ -13,7 +13,7 @@ export async function runtimeCheckSnapshot(userId:string) {
 }
 export async function reserveRuntimeCheck(userId:string) {
   return db.$transaction(async tx=>{
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper-check:"+userId}))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper-check:"+userId}))::text`;
     const old=await tx.assistantMemory.findUnique({where:{userId_key:{userId,key}}});
     if(old && Date.now()-JSON.parse(old.value).startedAtMs<60000)throw new PaperPlanError("Wait one minute before another runtime check.",429);
     const check={id:randomUUID(),status:"queued",startedAtMs:Date.now(),message:"Checking database, public prices and durable wake-up. No session or funds."};
@@ -30,7 +30,7 @@ export async function runtimeCheckStage(userId:string,id:string,final:boolean,di
     ok=(await runPaperTick(userId,"verification:"+id,"verification")).done;
   }catch{ok=false;}
   await db.$transaction(async tx=>{
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper-check:"+userId}))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"paper-check:"+userId}))::text`;
     const row=await tx.assistantMemory.findUnique({where:{userId_key:{userId,key}}});
     if(!row)return;const check=JSON.parse(row.value);if(check.id!==id)return;
     if(check.status==="failed")return;

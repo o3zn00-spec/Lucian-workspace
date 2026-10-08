@@ -921,3 +921,13 @@ paper trading only against their documented acceptance criteria.
   timestamps; never let model failure block a protective exit; reconcile persisted
   balances instead of trusting serialization; verify platform wake-up separately
   without guessing the owner's financial policy. C09/C10/C11 remain In progress.
+
+- Initial GitHub release `092affb60b94e01a4272f255c45868ac2ede0f71` (tree
+  `48022a3297a1d35e301a37477611f4fbfa005a9d`) deployed Ready as
+  `dpl_DtvogM1LNN7ei8LrrHfYKz12VP4T`. Production GET and controls rendered;
+  unauthenticated session API returned 403. Nonfinancial POST exposed Prisma's
+  inability to deserialize PostgreSQL advisory-lock void results (503).
+  Fix: cast lock return to text while preserving transaction-scoped serialization.
+  No session was started or financial ledger changed. Repeat production probe before
+  marking background runtime verified. Lesson: mock transaction success cannot prove
+  driver compatibility; verify actual lock SQL and platform workflow wake-up.
