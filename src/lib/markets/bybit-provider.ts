@@ -51,7 +51,9 @@ export const BybitProvider: MarketDataProvider = {
     if (!row) return null;
     const last = Number(row.lastPrice);
     const previous = Number(row.prevPrice24h);
-    return { symbol, lastPrice: last, priceChange: last - previous, priceChangePercent: Number(row.price24hPcnt) * 100, highPrice: Number(row.highPrice24h), lowPrice: Number(row.lowPrice24h), volume: Number(row.volume24h), quoteVolume: Number(row.turnover24h), bidPrice: Number(row.bid1Price), askPrice: Number(row.ask1Price) };
+    const ticker = { symbol, lastPrice: last, priceChange: last - previous, priceChangePercent: Number(row.price24hPcnt) * 100, highPrice: Number(row.highPrice24h), lowPrice: Number(row.lowPrice24h), volume: Number(row.volume24h), quoteVolume: Number(row.turnover24h), bidPrice: Number(row.bid1Price), askPrice: Number(row.ask1Price) };
+    if (row.symbol !== symbol || Object.values(ticker).some(value => typeof value === "number" && !Number.isFinite(value)) || Math.min(last, previous, ticker.bidPrice, ticker.askPrice, ticker.highPrice, ticker.lowPrice) <= 0 || ticker.bidPrice > ticker.askPrice || ticker.volume < 0 || ticker.quoteVolume < 0) throw new Error("Bybit returned malformed quotes.");
+    return ticker;
   },
 
   subscribePrice(symbol: string, callback: (update: PriceUpdate) => void, onStatus?: Status) {

@@ -1351,3 +1351,36 @@ Production evidence, 2026-10-08:
   evidence that every app control or indefinite unattended trading is complete.
 - Execution flags remain disabled. Remaining protection/live-session/recovery,
   rolling accounting and final forward-trial gates above are still open.
+
+
+### Quote integrity and completed forward trial — 2026-10-08
+
+- Production inspection showed authenticated chart history around 81,000 while
+  quote buttons still displayed catalog values around 77,128 and were marked Live.
+  Public quote setup could fail during authentication hydration and never retry.
+- Added non-overlapping five-second authenticated ticker polling per shared symbol
+  subscription, retry after failure and cleanup at the last unsubscribe. Late
+  responses from stopped polling do not update the store. REST snapshots are
+  labelled Delayed; socket-open and retained candle history no longer prove Live.
+- Crypto quote displays use no catalog fallback when unavailable. Unknown prices
+  display a dash/unavailable, invalid chart price lines are skipped, and crypto
+  charts no longer fabricate reference candles during initial loading. Non-crypto
+  reference mode remains intact. Corrected the Buy button's incorrect aria-label.
+- Ticker validation rejects wrong symbols, invalid/nonpositive prices, crossed
+  bid/ask, nonfinite fields and negative volume. Market-quote fixtures, architecture,
+  lint and completed production build passed. Production quote refresh still needs
+  verification after release; live execution remains disabled.
+- Final forward trial fbe1fcd6-21e9-415a-b0f4-fdf3fac9af21 stopped at
+  2026-10-08T20:48:22.247Z after its four-hour schedule. Fifteen reviews were HOLD;
+  zero orders/fills/positions, cash and equity 1,000 virtual USDT, eight researched
+  markets, nine contexts, 200 retained equity observations, no error. Evidence:
+  outputs/forward-paper-latest.json outside source delivery. This validates expiry
+  and runner mechanics; no filled strategy, realized return or exchange recovery
+  was demonstrated. Do not force trades to make a trial look successful.
+- Risk form follow-up source uploaded as d4423c71c9ef42353c3b904c49a4bee53cd5223c
+  with matching tested tree 6063806b96c7d408d334b996894dd6ad21fb6ab4. Release
+  verification pending together with this quote correction.
+- Remaining: native Spot protection and partial-fill/OCO handling, bounded live
+  runner/recovery, real fill/fee evidence, database reservation concurrency and
+  retained accounting rollover. App tools, voice, Investing canvas and broader
+  stability retain their existing checkpoint scope. No financial exchange write.

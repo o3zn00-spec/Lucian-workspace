@@ -203,13 +203,13 @@ export function InstrumentsPanel({
               const ticker = tickers.get(inst.symbol);
               const live = isSupportedCrypto(inst.symbol);
               const status: DataStatus = statusBySymbol.get(inst.symbol) ??
-                (live ? "live" : "setup-required");
-              // Display price: live ticker bidPrice → live price → catalog bid.
-              const displayBid = ticker?.bidPrice ?? livePrice ?? inst.bid;
-              const displayAsk = ticker?.askPrice ?? livePrice ?? inst.ask;
-              const displayLow = ticker?.lowPrice ?? inst.low;
-              const displayHigh = ticker?.highPrice ?? inst.high;
-              const displayChange = ticker?.priceChangePercent ?? inst.changePct;
+                (live ? "disconnected" : "setup-required");
+              const available = !live || (status !== "disconnected" && Boolean(ticker));
+              const displayBid = available ? ticker?.bidPrice ?? livePrice ?? inst.bid : Number.NaN;
+              const displayAsk = available ? ticker?.askPrice ?? livePrice ?? inst.ask : Number.NaN;
+              const displayLow = ticker?.lowPrice ?? (live ? Number.NaN : inst.low);
+              const displayHigh = ticker?.highPrice ?? (live ? Number.NaN : inst.high);
+              const displayChange = ticker?.priceChangePercent ?? (live ? null : inst.changePct);
               const chgColor = !inst.marketOpen
                 ? NEUTRAL
                 : (displayChange ?? 0) > 0
@@ -299,10 +299,9 @@ export function InstrumentsPanel({
                           <span style={{ color: NEUTRAL }}>Market closed</span>
                         ) : (
                           <span style={{ color: chgColor }}>
-                            {(displayChange ?? 0) >= 0 ? "+" : ""}
-                            {(displayChange ?? 0).toFixed(2)}%{" "}
+                            {displayChange === null ? "—" : `${displayChange >= 0 ? "+" : ""}${displayChange.toFixed(2)}%`}{" "}
                             <span style={{ color: NEUTRAL }}>
-                              S: {inst.spread.toFixed(1)}
+                              S: {Number.isFinite(displayAsk - displayBid) ? (displayAsk - displayBid).toFixed(1) : "—"}
                             </span>
                           </span>
                         )}
@@ -467,10 +466,10 @@ function PriceCol({
         className="font-mono text-[11px] tabular-nums"
         style={{ color }}
       >
-        {marketOpen ? price.toFixed(precision) : price.toFixed(precision)}
+        {Number.isFinite(price) ? price.toFixed(precision) : "—"}
       </div>
       <div className="font-mono text-[8px] tabular-nums text-fg-faint">
-        {label}: {subValue.toFixed(subPrecision)}
+        {label}: {Number.isFinite(subValue) ? subValue.toFixed(subPrecision) : "—"}
       </div>
     </div>
   );

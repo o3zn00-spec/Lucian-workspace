@@ -757,7 +757,7 @@ function ChartPane({
   const livePrice = useMarketsStore((s) => s.prices.get(symbol));
   const ticker = useMarketsStore((s) => s.tickers.get(symbol));
   const status = useMarketsStore(
-    (s) => s.statusBySymbol.get(symbol) ?? (isSupportedCrypto(symbol) ? "live" : "setup-required"),
+    (s) => s.statusBySymbol.get(symbol) ?? (isSupportedCrypto(symbol) ? "disconnected" : "setup-required"),
   );
 
   useEffect(() => {
@@ -765,14 +765,15 @@ function ChartPane({
     return () => unsubscribePane(symbol, timeframe);
   }, [symbol, timeframe, subscribePane, unsubscribePane]);
 
-  // Display prices: live ticker bid/ask → live trade price → catalog bid/ask.
-  const sellPrice = ticker?.bidPrice ?? livePrice ?? inst.bid;
-  const buyPrice = ticker?.askPrice ?? livePrice ?? inst.ask;
-  const changePct = ticker?.priceChangePercent ?? inst.changePct;
+  const crypto = isSupportedCrypto(symbol);
+  const quoteAvailable = !crypto || (status !== "disconnected" && Boolean(ticker));
+  const sellPrice = quoteAvailable ? ticker?.bidPrice ?? livePrice ?? inst.bid : Number.NaN;
+  const buyPrice = quoteAvailable ? ticker?.askPrice ?? livePrice ?? inst.ask : Number.NaN;
+  const changePct = ticker?.priceChangePercent ?? (crypto ? null : inst.changePct);
   const chgColor = (changePct ?? 0) < 0 ? C_DOWN : C_UP;
   const chgText =
     changePct === null
-      ? "0.00%"
+      ? "—"
       : `${(changePct ?? 0) >= 0 ? "+" : ""}${changePct!.toFixed(2)}%`;
 
   return (
@@ -1036,7 +1037,7 @@ function CompactQuickTrade({
           style={{ background: C_DOWN }}
         >
           <span className="text-[7px] uppercase opacity-90">Sell</span>
-          <span className="font-mono text-[10px] tabular-nums">{sellPrice.toFixed(5)}</span>
+          <span className="font-mono text-[10px] tabular-nums">{Number.isFinite(sellPrice) ? sellPrice.toFixed(5) : "Unavailable"}</span>
         </button>
 
         {/* Size controls — kept visible so the trader sees the current
@@ -1069,14 +1070,14 @@ function CompactQuickTrade({
         {/* Buy — opens OrderDetails with preselected "buy" side. */}
         <button
           type="button"
-          aria-label="Close instrument selector"
+          aria-label="Open buy order panel"
           title="Open order panel to place a BUY"
           onClick={() => onQuickTrade?.("buy")}
           className="flex flex-col items-center justify-center px-1.5 py-1 transition-opacity hover:opacity-90"
           style={{ background: C_UP }}
         >
           <span className="text-[7px] uppercase opacity-90">Buy</span>
-          <span className="font-mono text-[10px] tabular-nums">{buyPrice.toFixed(5)}</span>
+          <span className="font-mono text-[10px] tabular-nums">{Number.isFinite(buyPrice) ? buyPrice.toFixed(5) : "Unavailable"}</span>
         </button>
       </div>
     </div>
@@ -1946,19 +1947,10 @@ function CandleChart({
         close: c.close,
       }));
     }
-    // Non-crypto OR crypto before first data arrives: reference candles.
-    // For crypto, this branch only briefly fills the gap before the live
-    // history fetch lands; the moment Bybit responds, the store
-    // replaces the candles and we re-render with real data.
-    if (isSupportedCrypto(symbol)) {
-      // Crypto with no candles yet + disconnected status = DON'T fabricate.
-      // Render an empty array; the unavailable overlay below takes over.
-      if (status === "disconnected") return [];
-      // Otherwise show reference candles as a "loading" placeholder.
-      return generateReferenceCandles(timeframe, 120, midPrice, symbol);
-    }
+    // Never invent crypto candles while an exchange request is pending.
+    if (isSupportedCrypto(symbol)) return [];
     return generateReferenceCandles(timeframe, 120, midPrice, symbol);
-  }, [liveCandles, midPrice, symbol, timeframe, status]);
+  }, [liveCandles, midPrice, symbol, timeframe]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -2093,7 +2085,7 @@ function CandleChart({
       bidLineRef.current = null;
     }
 
-    if (settings.showBid) {
+    if (settings.showBid && Number.isFinite(bidPrice) && bidPrice > 0) {
       bidLineRef.current = series.createPriceLine({
         price: bidPrice,
         color: C_DOWN,
@@ -2115,7 +2107,7 @@ function CandleChart({
       askLineRef.current = null;
     }
 
-    if (settings.showAsk) {
+    if (settings.showAsk && Number.isFinite(askPrice) && askPrice > 0) {
       askLineRef.current = series.createPriceLine({
         price: askPrice,
         color: C_UP,

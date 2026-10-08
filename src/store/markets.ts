@@ -314,6 +314,7 @@ interface PriceSubscription {
   refCount: number;
   bybitSymbol: string;
   unsubscribePrice: () => void;
+  stopTicker: () => void;
 }
 
 interface KlineSubscription {
@@ -363,25 +364,36 @@ function ensurePriceSubscription(lucianSymbol: string): void {
     (update) => useMarketsStore.getState().updatePrice(update),
     (status) => {
       const store = useMarketsStore.getState();
-      // Only downgrade to disconnected if we have no candles yet.
       if (status.kind === "error" || status.kind === "closed") {
-        const haveCandles = Array.from(store.candlesByKey.keys()).some(
-          (k) => typeof k === "string" && k.startsWith(lucianSymbol + "|"),
-        );
-        if (!haveCandles) {
-          store.setStatus(lucianSymbol, "disconnected");
-        }
-      } else if (status.kind === "open") {
-        const cur = store.statusBySymbol.get(lucianSymbol);
-        if (cur !== "live") store.setStatus(lucianSymbol, "live");
+        store.setStatus(lucianSymbol, "disconnected");
       }
     },
   );
+  let stopped = false;
+  let polling = false;
+  const pollTicker = async () => {
+    if (stopped || polling) return;
+    polling = true;
+    try {
+      const ticker = await provider.getTicker(bybitSymbol);
+      if (stopped) return;
+      if (!ticker) throw new Error("No exchange quote.");
+      const store = useMarketsStore.getState();
+      store.updateTicker(bybitSymbol, ticker);
+      store.updatePrice({ symbol: bybitSymbol, price: ticker.lastPrice, time: Math.floor(Date.now() / 1000) });
+      store.setStatus(lucianSymbol, "delayed");
+    } catch {
+      if (!stopped) useMarketsStore.getState().setStatus(lucianSymbol, "disconnected");
+    } finally { polling = false; }
+  };
+  const tickerTimer = window.setInterval(() => void pollTicker(), 5000);
   priceSubscriptions.set(lucianSymbol, {
     refCount: 1,
     bybitSymbol,
     unsubscribePrice,
+    stopTicker: () => { stopped = true; window.clearInterval(tickerTimer); },
   });
+  void pollTicker();
 }
 
 /**
@@ -394,6 +406,7 @@ function releasePriceSubscription(lucianSymbol: string): void {
   if (!sub) return;
   sub.refCount -= 1;
   if (sub.refCount > 0) return;
+  sub.stopTicker();
   sub.unsubscribePrice();
   priceSubscriptions.delete(lucianSymbol);
 }
@@ -484,6 +497,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
 
   prices: new Map(),
   updatePrice: (update) => {
+    if (!Number.isFinite(update.price) || update.price <= 0 || !Number.isFinite(update.time)) return;
     set((s) => {
       const next = new Map(s.prices);
       // `update.symbol` is the Bybit-native symbol (BTCUSDT). We store
@@ -623,7 +637,6 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
           try {
             const candles = await provider.getCandles(bybitSymbol, tf, 200);
             get().setCandles(key, candles);
-            get().setStatus(lucianSymbol, "live");
           } catch (err) {
             // HONEST failure — do NOT fabricate reference candles for crypto.
             console.error(
@@ -641,13 +654,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
           (candle) => get().upsertCandle(key, candle),
           (status) => {
             if (status.kind === "error" || status.kind === "closed") {
-              const have = get().candlesByKey.get(key);
-              if (!have || have.length === 0) {
-                get().setStatus(lucianSymbol, "disconnected");
-              }
-            } else if (status.kind === "open") {
-              const cur = get().statusBySymbol.get(lucianSymbol);
-              if (cur !== "live") get().setStatus(lucianSymbol, "live");
+              get().setStatus(lucianSymbol, "disconnected");
             }
           },
         );
@@ -662,7 +669,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
 
     // ── PRICE subscription (shared with open positions + pending orders) ──
     // Mark as connecting immediately so the UI can show a transition.
-    get().setStatus(lucianSymbol, "live");
+    get().setStatus(lucianSymbol, "delayed");
     ensurePriceSubscription(lucianSymbol);
   },
 
