@@ -1,5 +1,5 @@
 import "server-only";
-import { TOOL_PERMISSION_PREFIX } from "./tool-access";
+import { PRIVATE_MEMORY_FILTER, isPrivateAssistantKey } from "./private-state";
 import { db } from "@/lib/db";
 import { ASSISTANT_CAPABILITIES, ASSISTANT_IDENTITY, ASSISTANT_MODULES, validateContext } from "./contracts";
 
@@ -23,7 +23,7 @@ export async function assistantSnapshot(userId: string, id?: string | null) {
   const [conversations, recentMessages, memories, activity] = await Promise.all([
     db.assistantConversation.findMany({ where: { userId, deletedAt: null }, orderBy: { updatedAt: "desc" }, take: 100 }),
     conversation ? db.assistantMessage.findMany({ where: { conversationId: conversation.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 100 }) : [],
-    db.assistantMemory.findMany({ where: { userId, NOT: { key: { startsWith: TOOL_PERMISSION_PREFIX } } }, orderBy: { updatedAt: "desc" }, take: 50 }),
+    db.assistantMemory.findMany({ where: { userId, ...PRIVATE_MEMORY_FILTER }, orderBy: { updatedAt: "desc" }, take: 50 }),
     db.assistantActivity.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
   return { identity: ASSISTANT_IDENTITY, providerStatus: "not_connected", profile, conversation,
@@ -54,7 +54,7 @@ export async function assistantCommand(userId: string, body: Record<string, unkn
   }
   if (action === "memory") {
     const key = text(body.key, "memory key", 80);
-    if (key.startsWith(TOOL_PERMISSION_PREFIX)) throw new AssistantError("Use owner tool permissions to change access.", 403);
+    if (isPrivateAssistantKey(key)) throw new AssistantError("Use owner tool permissions to change access.", 403);
     const value = text(body.value, "memory value", 1500);
     // Explicit owner-entered memory only; no automatic extraction or model writes.
     return { memory: await db.assistantMemory.upsert({ where: { userId_key: { userId, key } }, create: { userId, key, value }, update: { value } }) };

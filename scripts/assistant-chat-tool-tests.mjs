@@ -43,6 +43,8 @@ for(const p of [
  {lucian_tool:'app.capabilities',arguments:{},ownerUserId:'owner-B'},
  {lucian_tool:'app.capabilities',arguments:null},
 ]){assert.match(await resolveChatTool('owner-A',JSON.stringify(p)),/unavailable/);assert.equal(events.at(-1).status,'denied');assert.equal(events.at(-1).userId,'owner-A');}
+assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.setup',arguments:{}})),/paperSetup=1/);
+assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.setup',arguments:{mode:'live'}})),/unavailable/);
 const savedEnvelope=JSON.stringify({lucian_tool:'saved.read',arguments:{}});
 assert.match(await resolveChatTool('owner-A',savedEnvelope),/access is off/);
 assert.equal(globalThis.savedQueries.length,0);
@@ -135,6 +137,7 @@ globalThis.chatToolAuditFail=true;callCount=globalThis.bybitCalls.length;
 await assert.rejects(resolveChatTool('owner-A',activityEnvelope),/Audit unavailable/);assert.equal(globalThis.bybitCalls.length,callCount);globalThis.chatToolAuditFail=false;
 const {assistantCommand}=await bundle('src/lib/assistant/service.ts');
 await assert.rejects(assistantCommand('owner-A',{action:'memory',key:'_tool_permission:saved.read',value:'allow'}),/tool permissions/);
+await assert.rejects(assistantCommand('owner-A',{action:'memory',key:'_paper_session:plan',value:'allow'}),/tool permissions/);
 globalThis.toolPermissions.set('owner-A:_tool_permission:trading.read','allow');
 globalThis.chatToolAuditFail=true;
 const beforeAudit=globalThis.bybitCalls.length;

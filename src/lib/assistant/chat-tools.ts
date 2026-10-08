@@ -30,6 +30,12 @@ For an explicit request for Bybit open orders or positions, return only:
 This needs separate order/position permission and reads bounded spot open orders
 and USDT-settled linear open orders/positions. No other products, history or
 financial execution. Respect partial/unavailable results; never call them empty.
+For an explicit request to trade or set up a trading session, return only:
+{"lucian_tool":"trading.setup","arguments":{}}
+This opens an owner-reviewed paper plan form; no session starts. Setup asks for
+paper/live mode (live unavailable), capital, assets, strategy, review interval,
+duration, order/position/exposure/loss/risk limits, fees/slippage and extra rules.
+No default capital or guessed limits. Model text cannot save or authorize a plan.
 These are the only callable tools. Other record access, research execution, coding,
 financial execution and voice are unavailable. Never claim those actions ran.
 For all other conversation, reply normally. Do not use code fences for tool requests.
@@ -50,7 +56,7 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
     args !== null && typeof args === "object" && !Array.isArray(args);
   const values = validEnvelope ? args as Record<string, unknown> : {};
   const destination = tool === "app.navigate" ? ASSISTANT_MODULES.find(m => m.id === values.module) : undefined;
-  const validUtility = validEnvelope && ((tool === "app.capabilities" || (tool === "saved.read" || tool === "trading.read" || tool === "trading.activity.read")) ? Object.keys(values).length === 0 :
+  const validUtility = validEnvelope && ((tool === "app.capabilities" || tool === "trading.setup" || (tool === "saved.read" || tool === "trading.read" || tool === "trading.activity.read")) ? Object.keys(values).length === 0 :
     tool === "app.navigate" && Boolean(destination) && Object.keys(values).every(key => key === "module"));
   const recordTool = tool === "saved.read" || tool === "trading.read" || tool === "trading.activity.read";
   const allowed = validUtility && (tool === "saved.read" ? await savedReadAllowed(ownerUserId) : tool === "trading.read" ? await tradingReadAllowed(ownerUserId) : tool === "trading.activity.read" ? await tradingActivityReadAllowed(ownerUserId) : true);
@@ -90,6 +96,7 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
       return "Cloud-saved items could not be read. No result is available; retry later.";
     }
   }
+  if (tool === "trading.setup") return "Set up a [paper session plan](/markets?paperSetup=1). Choose capital, assets, strategy, timing and risk limits. Saving a plan does not start trading. Live sessions and the background paper runner are not available yet.";
   if (destination) return `Open [${destination.label}](${destination.path}). Your conversation stays saved with Lilthe.`;
   return `Lilthe is available throughout Lucian. Open a workspace below:\n\n${ASSISTANT_MODULES.map(m => `- [${m.label}](${m.path})`).join("\n")}\n\nCurrently available: app map, validated navigation links, and permission-controlled cloud-saved bookmark titles and Bybit Unified balances and bounded open order/position reads. Still being built: ${ASSISTANT_CAPABILITIES.filter(c => !c.available).map(c => c.description).join(" ")}`;
 }

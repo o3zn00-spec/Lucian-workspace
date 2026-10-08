@@ -1,5 +1,6 @@
 "use client";
 
+import { PaperSessionSetup } from "@/components/assistant/paper-session-setup";
 import { Suspense } from "react";
 import { MarketsFrame } from "@/components/markets/markets-frame";
 import { MarketsDeepLinkReceiver } from "@/components/markets/markets-deep-link-receiver";
@@ -12,11 +13,12 @@ import { MarketsDeepLinkReceiver } from "@/components/markets/markets-deep-link-
  */
 export default function MarketsPage() {
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <Suspense fallback={null}>
         <MarketsDeepLinkReceiver />
       </Suspense>
-      <MarketsFrame />
-    </>
+      <Suspense fallback={null}><PaperSessionSetup /></Suspense>
+      <div className="min-h-0 flex-1"><MarketsFrame /></div>
+    </div>
   );
 }

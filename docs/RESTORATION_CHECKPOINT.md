@@ -288,7 +288,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
-| C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
+| C09 | Trading session setup and enforced rules | In progress — paper draft setup | Strict owner-reviewed simulated spot plan storage; runtime policy enforcement, session authorization, templates and amendments remain |
 | C10 | Background runner, research and charts | Agreed | Continues without browser; restart recovery; sourced data; cost controls |
 | C11 | Paper trading and failure reconciliation | Agreed | Duplicates/timeouts/restarts tested; fills/fees/results reconcile |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
@@ -790,3 +790,32 @@ paper trading only against their documented acceptance criteria.
   reads remain unverified; actual successful data handling is fixture-tested.
 - C04/C08 stay In progress. Next: paper-session policy/setup, durable runtime and paper reconciliation;
   Funding/other-product adapters and live-readiness remain unfinished.
+
+### C09 — owner-reviewed paper plan setup, 2026-10-08
+
+- `trading.setup` connects an explicit trade/setup request to Markets paper setup.
+  Empty arguments only; no model-selected live mode, account or financial action.
+  Markets has a visible setup control and accessible portal dialog, including a
+  direct `/markets?paperSetup=1` entry. Existing manual terminal remains intact.
+- First supported draft is simulated Bybit USDT spot, no leverage. Owner enters
+  capital, maximum order/exposure/loss/per-trade risk, symbols, order/position
+  counts, review interval, duration, quote freshness, fee/slippage assumptions,
+  strategy/exit conditions and extra rules. Numerical fields have no guessed defaults.
+- Server requires exact fields/types, decimal money with at most two decimal places,
+  allowed bounds and compatible limits. Invalid/live/unsupported plans rejected.
+  Symbol syntax is checked; actual listing/strategy support remains to be verified.
+- Draft stored per immutable owner in existing key/value storage; no migration.
+  Revision check and conditional update prevent stale overwrite. Save and audit
+  are transactional. No scheduler, orders, exchange reads, session start or grant.
+- Internal plan keys are excluded from model memory, normal memory listings and
+  memory deletion; ordinary memory commands cannot overwrite them. Export retains
+  owner data. Free-text rules are notes, not executable risk enforcement.
+- Actual API/policy fixtures passed: strict paper-only validation, precision and
+  risk boundaries, owner/origin isolation, persistence/reload, stale revisions,
+  audit rollback and unauthenticated rejection. Shared chat/tool tests passed.
+  Typecheck, lint, production build and consolidation/architecture checks passed.
+  Persistence tests use fixtures; production draft-write/reload proof is pending.
+- GitHub then Vercel release and production setup/model UI verification pending.
+  C09 remains In progress: explicit start authorization, reusable templates, runtime
+  checks, loss/fill accounting and active-rule amendments are still needed. C10/C11
+  durable background runner and paper execution/reconciliation remain unimplemented.

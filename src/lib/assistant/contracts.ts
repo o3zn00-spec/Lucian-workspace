@@ -29,6 +29,7 @@ export const ASSISTANT_CAPABILITIES = [
   { id: "saved.read", available: true, description: "Read at most 12 cloud-saved bookmark titles after explicit owner permission." },
   { id: "trading.read", available: true, description: "Read Bybit Unified balances after explicit owner permission; no financial execution." },
   { id: "trading.activity.read", available: true, description: "Read bounded Bybit spot open orders and USDT linear open orders/positions after separate owner permission." },
+  { id: "trading.setup", available: true, description: "Open owner-reviewed simulated spot plan setup; saving does not authorize or start trading." },
   { id: "records.read", available: false, description: "Module record access awaits verified adapters and permissions." },
   { id: "research.run", available: false, description: "Sourced research awaits provider and research adapters." },
   { id: "workspace.edit", available: false, description: "Controlled project changes await coding tool integration." },

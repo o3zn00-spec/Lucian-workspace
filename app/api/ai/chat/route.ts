@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getProvider, isProviderConfigured, type ChatMessage } from "@/lib/agent/providers";
 import { db } from "@/lib/db";
 import { requireOwnerId } from "@/lib/auth/owner";
-import { TOOL_PERMISSION_PREFIX } from "@/lib/assistant/tool-access";
+import { PRIVATE_MEMORY_FILTER } from "@/lib/assistant/private-state";
 import { CHAT_TOOL_INSTRUCTIONS, resolveChatTool } from "@/lib/assistant/chat-tools";
 import type { ProviderId } from "@/store/shared-ai-config";
 import {
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
   // a public endpoint), the chat proceeds without memory. This preserves
   // backward compatibility with existing unauthenticated callers.
   if (authenticatedUserId && behavior.rememberConversations) {
-    const memoryRows = await db.assistantMemory.findMany({where:{userId:authenticatedUserId,NOT:{key:{startsWith:TOOL_PERMISSION_PREFIX}}},take:50});
+    const memoryRows = await db.assistantMemory.findMany({where:{userId:authenticatedUserId,...PRIVATE_MEMORY_FILTER},take:50});
     const memorySection = memoryRows.map(m=>`${m.key}: ${m.value}`).join("\n").slice(0,6000);
     if (memorySection) {
       fullSystemPrompt += `\n\n${memorySection}`;
