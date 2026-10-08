@@ -1205,3 +1205,57 @@ Production evidence, 2026-10-08:
   preview. Unsupported protection must reject clearly, never disappear from the
   exchange payload. Pre-submission rejection and uncertain exchange submission
   are different states. Tests with no actual fills must not mark recovery done.
+
+
+## Trading continuation — 2026-10-08, funded test authorization and account exposure
+
+- Owner explicitly delegated real-money test sizing: the money already in Bybit
+  is for testing. Do not ask for the same general test authorization again. Use
+  only the existing funds, Spot, no borrowing/leverage for the first test; do not
+  infer permission for additional deposits, withdrawals or access expansion.
+- Authenticated production balance read at approximately 18:12 UTC found
+  0.0005089 BTC available in Funding, zero Funding USDT, and zero Unified trading
+  equity. Funding holdings must not be presented as spendable Unified funds.
+  Owner was given Bybit's Funding → Unified Trading transfer steps. Browser money
+  transfers/final exchange orders require owner handoff under the browser tool's
+  policy; that requirement is separate from the owner's testing authorization.
+- Markets Portfolio now reads and labels the separate Funding wallet, with coin
+  balances and unavailable-state handling. The old generic Vault registry's
+  disconnected state does not describe the authenticated Bybit Money adapter.
+- Account exposure now includes non-USDT Unified inventory at provider USD value,
+  Linear positions and potentially increasing pending orders. It conservatively
+  does not net unfilled sells/hedges or reducing orders against current inventory.
+  Unknown values, duplicate identities and paginated pending orders reject new
+  orders. Existing inventory and pending orders share position-count checks.
+  This is gross-exposure accounting, not complete Spot cost-basis/daily loss,
+  exchange margin certification or foreign-currency reconciliation.
+- Derivative previews carry an explicit one-way/hedge position index. Reduce-only
+  requests must match and fit the selected opposite position; they skip leverage
+  changes. Inventory sells/reductions do not add entry exposure. Emergency-stop,
+  order-size, loss gates and unresolved-reservation review remain in force.
+- Confirmation checks saved credential identity/environment again after exchange
+  reads and pins all financial writes to that checked configuration. Stop/target
+  and reduce-only form edits invalidate the previous preview.
+- Account refreshes no longer overlap every five seconds or let an old request
+  overwrite a newer mode/symbol response. Aborted or stale responses are ignored;
+  the next periodic read waits for the current read to finish.
+- Verification: exposure fixtures, execution fixtures (including inventory,
+  positions, pending exposure and incomplete data), reconciliation fixtures and
+  terminal-read fixtures pass. Typecheck, consolidation, architecture and completed
+  web build pass. These fixtures do not prove actual fills, protective trigger
+  execution, PostgreSQL concurrency or full live recovery. No financial exchange
+  write, migration/bootstrap or real-money transfer was used in these checks.
+- Forward trial at 18:23:01 UTC: running, six model reviews, HOLD, zero orders or
+  fills, 1,000 virtual USDT, eight researched markets/nine sources, 150 equity
+  observations, no error. Scheduled end remains 20:47:55 UTC; no final result yet.
+- Live execution flags remain disabled while exchange protection, Spot loss
+  accounting, bounded autonomous live-session execution and actual recovery are
+  unfinished. Do not call all trading complete, live enabled or profitable based
+  on compilation, fixture tests or the balance read.
+- Next gates: owner funds Unified; re-read exact spendable inventory; review a
+  bounded Spot order; owner submits any browser final financial action; match
+  exchange fills and fees; verify actual exits/protection and partial-fill recovery;
+  export the forward trial; finish the bounded autonomous live-session path.
+- Experience rule: deposit location, connection state and execution readiness are
+  three separate facts. A zero trading balance can coexist with funded Funding.
+  Avoid repeated polling which aborts slow valid reads or displays stale mode data.

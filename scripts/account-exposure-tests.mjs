@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const bundle = await build({entryPoints:['src/lib/bybit/exposure.ts'],bundle:true,write:false,format:'esm',platform:'node'});
+const {accountExposure} = await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const coins=[{coin:'USDT',walletBalance:'100'},{coin:'BTC',walletBalance:'0.001',usdValue:'40'}];
+const positions=[{symbol:'ETHUSDT',side:'Buy',size:'0.01',positionValue:'20',positionIdx:'0'}];
+const spot=[{orderId:'spot-buy',symbol:'BTCUSDT',side:'Buy',leavesValue:'5'},{orderId:'spot-sell',symbol:'BTCUSDT',side:'Sell',leavesValue:'40'}];
+const linear=[{orderId:'linear-open',symbol:'ETHUSDT',side:'Buy',leavesValue:'10',reduceOnly:'false',positionIdx:'0'},{orderId:'linear-close',symbol:'ETHUSDT',side:'Sell',leavesValue:'20',reduceOnly:'true',positionIdx:'0'}];
+const result=accountExposure(coins,positions,spot,linear);
+assert.equal(result.exposure,75);assert.equal(result.assets.size,2);
+assert.throws(()=>accountExposure([...coins,coins[1]],[],[],[]),/Conflicting/);
+assert.throws(()=>accountExposure([{coin:'BTC',walletBalance:'1'}],[],[],[]),/unavailable/);
+assert.throws(()=>accountExposure([],[],[{...spot[0],leavesValue:'NaN'}],[]),/unavailable/);
+assert.throws(()=>accountExposure([],[],[spot[0],spot[0]],[]),/duplicated/);
+assert.throws(()=>accountExposure([],[],[],[{...linear[0],reduceOnly:undefined}]),/reduction flag/);
+assert.equal(accountExposure([{coin:'ETH',walletBalance:'0'}],[],[],[]).exposure,0);
+console.log('PASS account exposure: gross inventory/derivatives/pending entries, no netting unfilled sells, reduce-only exclusion, duplicate/malformed rejection, zero inventory. Pure fixtures; no exchange calls.');

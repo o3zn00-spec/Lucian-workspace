@@ -24,6 +24,7 @@ export function BybitOrderForm({ symbol, marketPrice }: { symbol: string; market
   const [stopLoss, setStopLoss] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
   const [reduceOnly, setReduceOnly] = useState(false);
+  const [positionIdx, setPositionIdx] = useState("0");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [confirmation, setConfirmation] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +44,7 @@ export function BybitOrderForm({ symbol, marketPrice }: { symbol: string; market
   }
 
   async function review() {
-    const result = await request({ mode: bybitMode, symbol: bybitSymbol, category, side, orderType, quantity, price, leverage, stopLoss, takeProfit, reduceOnly });
+    const result = await request({ mode: bybitMode, symbol: bybitSymbol, category, side, orderType, quantity, price, leverage, stopLoss, takeProfit, reduceOnly, positionIdx });
     if (result?.intentId) { setPreview(result); setConfirmation(""); setMessage({ ok: true, text: "Risk checks passed. Review and approve the exact order below." }); }
   }
 
@@ -66,7 +67,7 @@ export function BybitOrderForm({ symbol, marketPrice }: { symbol: string; market
     <div className="grid grid-cols-2 gap-2"><button className={`rounded py-2 font-semibold ${side === "Buy" ? "bg-emerald-500 text-black" : "bg-surface-2"}`} onClick={() => { setSide("Buy"); setPreview(null); }}>Buy</button><button className={`rounded py-2 font-semibold ${side === "Sell" ? "bg-red-500 text-white" : "bg-surface-2"}`} onClick={() => { setSide("Sell"); setPreview(null); }}>Sell</button></div>
     <label>Quantity ({getLucianBase(symbol)})<input className={inputClass} inputMode="decimal" value={quantity} onChange={(event) => { setQuantity(event.target.value); setPreview(null); }} /></label>
     {orderType === "Limit" && <label>Limit price (USDT)<input className={inputClass} inputMode="decimal" value={price} onChange={(event) => { setPrice(event.target.value); setPreview(null); }} /></label>}
-    {category === "linear" && <><label>Leverage<input className={inputClass} inputMode="decimal" value={leverage} onChange={(event) => { setLeverage(event.target.value); setPreview(null); }} /></label><div className="grid grid-cols-2 gap-2"><label>Stop loss<input className={inputClass} value={stopLoss} onChange={(event) => setStopLoss(event.target.value)} /></label><label>Take profit<input className={inputClass} value={takeProfit} onChange={(event) => setTakeProfit(event.target.value)} /></label></div><label className="flex items-center gap-2"><input type="checkbox" checked={reduceOnly} onChange={(event) => setReduceOnly(event.target.checked)} /> Reduce only</label></>}
+    {category === "linear" && <><label>Position mode<select className={inputClass} value={positionIdx} onChange={(event) => { setPositionIdx(event.target.value); setPreview(null); }}><option value="0">One-way</option><option value="1">Hedge · long</option><option value="2">Hedge · short</option></select></label><label>Leverage<input className={inputClass} inputMode="decimal" value={leverage} onChange={(event) => { setLeverage(event.target.value); setPreview(null); }} /></label><div className="grid grid-cols-2 gap-2"><label>Stop loss<input className={inputClass} value={stopLoss} onChange={(event) => { setStopLoss(event.target.value); setPreview(null); }} /></label><label>Take profit<input className={inputClass} value={takeProfit} onChange={(event) => { setTakeProfit(event.target.value); setPreview(null); }} /></label></div><label className="flex items-center gap-2"><input type="checkbox" checked={reduceOnly} onChange={(event) => { setReduceOnly(event.target.checked); setPreview(null); }} /> Reduce only</label></>}
     <div className="flex justify-between rounded bg-surface-2 px-2 py-2"><span className="text-fg-muted">Estimated exposure</span><span className="font-mono text-fg">{estimated.toFixed(2)} USDT</span></div>
     {message && <div className={`rounded border px-2 py-2 ${message.ok ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}>{message.ok ? <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />}{message.text}</div>}
     {!preview ? <button disabled={busy} onClick={() => void review()} className="flex w-full items-center justify-center gap-2 rounded bg-[var(--accent)] py-2 font-semibold text-[var(--accent-fg)] disabled:opacity-50">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Review order</button> : <div className="space-y-2 rounded border border-line-muted p-2">
