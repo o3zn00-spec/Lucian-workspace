@@ -1,6 +1,6 @@
 import "server-only";
-import { readTradingBalance } from "./trading-read";
-import { tradingReadAllowed, savedReadAllowed } from "./tool-access";
+import { readTradingBalance, readTradingActivity } from "./trading-read";
+import { tradingActivityReadAllowed, tradingReadAllowed, savedReadAllowed } from "./tool-access";
 import { db } from "@/lib/db";
 import { ASSISTANT_CAPABILITIES, ASSISTANT_MODULES } from "./contracts";
 
@@ -25,6 +25,11 @@ For an explicit request for Bybit account balances, return only:
 This reads fresh Unified balances from the owner's configured environment only
 when the owner enables Bybit balance permission. It excludes Funding wallets,
 orders and positions. It grants no execution or money movement permission.
+For an explicit request for Bybit open orders or positions, return only:
+{"lucian_tool":"trading.activity.read","arguments":{}}
+This needs separate order/position permission and reads bounded spot open orders
+and USDT-settled linear open orders/positions. No other products, history or
+financial execution. Respect partial/unavailable results; never call them empty.
 These are the only callable tools. Other record access, research execution, coding,
 financial execution and voice are unavailable. Never claim those actions ran.
 For all other conversation, reply normally. Do not use code fences for tool requests.
@@ -45,10 +50,10 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
     args !== null && typeof args === "object" && !Array.isArray(args);
   const values = validEnvelope ? args as Record<string, unknown> : {};
   const destination = tool === "app.navigate" ? ASSISTANT_MODULES.find(m => m.id === values.module) : undefined;
-  const validUtility = validEnvelope && ((tool === "app.capabilities" || (tool === "saved.read" || tool === "trading.read")) ? Object.keys(values).length === 0 :
+  const validUtility = validEnvelope && ((tool === "app.capabilities" || (tool === "saved.read" || tool === "trading.read" || tool === "trading.activity.read")) ? Object.keys(values).length === 0 :
     tool === "app.navigate" && Boolean(destination) && Object.keys(values).every(key => key === "module"));
-  const recordTool = tool === "saved.read" || tool === "trading.read";
-  const allowed = validUtility && (tool === "saved.read" ? await savedReadAllowed(ownerUserId) : tool === "trading.read" ? await tradingReadAllowed(ownerUserId) : true);
+  const recordTool = tool === "saved.read" || tool === "trading.read" || tool === "trading.activity.read";
+  const allowed = validUtility && (tool === "saved.read" ? await savedReadAllowed(ownerUserId) : tool === "trading.read" ? await tradingReadAllowed(ownerUserId) : tool === "trading.activity.read" ? await tradingActivityReadAllowed(ownerUserId) : true);
   // Persist authorization evidence before returning any result. A failed audit
   // prevents execution; the model cannot choose the owner or write the event.
   await db.assistantActivity.create({ data: {
@@ -58,17 +63,19 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
   } });
   if (validUtility && tool === "saved.read" && !allowed) return "Saved-item access is off. Open Tool activity and permissions to enable cloud-saved bookmark title reads. No records were read.";
   if (validUtility && tool === "trading.read" && !allowed) return "Bybit balance access is off. Open Tool activity and permissions to enable Bybit Unified account balance reads. No balance was read and no money was moved.";
+  if (validUtility && tool === "trading.activity.read" && !allowed) return "Bybit order/position access is off. Enable Bybit open orders and positions in Tool activity and permissions. No orders or positions were read or changed.";
   if (!allowed) return "That action is unavailable. No app records, files or money were changed.";
-  if (tool === "trading.read") {
+  if (tool === "trading.read" || tool === "trading.activity.read") {
+    const activityRead = tool === "trading.activity.read";
     let result;
-    try { result = await readTradingBalance(ownerUserId); }
-    catch { result = { ok: false, text: "Bybit account configuration could not be read. Balance is unavailable; no zero balance is confirmed." }; }
+    try { result = activityRead ? await readTradingActivity(ownerUserId) : await readTradingBalance(ownerUserId); }
+    catch { result = { ok: false, text: "Bybit account configuration could not be read. Requested account data is unavailable; no empty or zero result is confirmed." }; }
     // Revocation while the provider request was in flight prevents disclosure.
-    if (!await tradingReadAllowed(ownerUserId)) {
-      await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: "denied", reason: "Owner revoked balance access before result delivery." } });
-      return "Bybit balance access was revoked. No balance result is available.";
+    if (!(activityRead ? await tradingActivityReadAllowed(ownerUserId) : await tradingReadAllowed(ownerUserId))) {
+      await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: "denied", reason: "Owner revoked trading-data access before result delivery." } });
+      return "Bybit trading-data access was revoked. No result is available.";
     }
-    await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: result.ok ? "completed" : "failed", reason: result.ok ? "Read a fresh Bybit Unified balance snapshot; no financial action." : "Bybit balance could not be verified; no financial action." } });
+    await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: result.ok ? "completed" : "failed", reason: result.ok ? "Read the requested bounded Bybit snapshot; no financial action." : "Bybit snapshot failed or was incomplete; no financial action." } });
     return result.text;
   }
   if (tool === "saved.read") {
@@ -84,5 +91,5 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
     }
   }
   if (destination) return `Open [${destination.label}](${destination.path}). Your conversation stays saved with Lilthe.`;
-  return `Lilthe is available throughout Lucian. Open a workspace below:\n\n${ASSISTANT_MODULES.map(m => `- [${m.label}](${m.path})`).join("\n")}\n\nCurrently available: app map, validated navigation links, and permission-controlled cloud-saved bookmark titles and Bybit Unified balance reads. Still being built: ${ASSISTANT_CAPABILITIES.filter(c => !c.available).map(c => c.description).join(" ")}`;
+  return `Lilthe is available throughout Lucian. Open a workspace below:\n\n${ASSISTANT_MODULES.map(m => `- [${m.label}](${m.path})`).join("\n")}\n\nCurrently available: app map, validated navigation links, and permission-controlled cloud-saved bookmark titles and Bybit Unified balances and bounded open order/position reads. Still being built: ${ASSISTANT_CAPABILITIES.filter(c => !c.available).map(c => c.description).join(" ")}`;
 }

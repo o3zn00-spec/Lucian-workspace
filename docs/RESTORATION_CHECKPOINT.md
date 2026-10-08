@@ -287,7 +287,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
-| C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified read tool locally tested; production permission denial verified. Funding/orders/positions and exchange capability framework remain open |
+| C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance denial verified in production; activity deployment verification pending. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
 | C10 | Background runner, research and charts | Agreed | Continues without browser; restart recovery; sourced data; cost controls |
 | C11 | Paper trading and failure reconciliation | Agreed | Duplicates/timeouts/restarts tested; fills/fees/results reconcile |
@@ -753,3 +753,32 @@ paper trading only against their documented acceptance criteria.
 - C04/C08 remain In progress: Funding/order/position read adapters, paper session
   policy/setup, durable scheduling, strategy execution and reconciliation remain.
   This step is not evidence of readiness for unattended or real-money trading.
+
+### C04 / C08 — bounded open orders and positions, 2026-10-08
+
+- Added `trading.activity.read` with its own default-off owner permission, separate
+  from balances and bookmarks. Same-origin owner PUT accepts exactly one boolean;
+  model proposals cannot select accounts, environments, categories or endpoints.
+- Three fixed authenticated GETs use existing encrypted owner configuration:
+  spot open orders, USDT linear open orders, and USDT linear positions. Each
+  requests at most 50 rows and displays at most 12. Cursor or display truncation
+  marks the snapshot incomplete. Failed/invalid reads do not confirm empty lists.
+- Output contains timestamp/environment and bounded product fields; no raw
+  payload, order IDs, pagination cursor, secrets or provider errors. Other
+  settlement currencies, inverse/options, Funding and closed history excluded.
+  Flat rows and product units are explained. Protective-order execution and
+  continuous monitoring are not inferred from snapshots.
+- Audit before execution; owner isolation, immediate revocation and suppression
+  of in-flight revoked results. No order placement/change/cancellation, transfers
+  or withdrawals. UI explains that returned data enters chat/model context.
+- Actual route/tool fixture checks passed for default denial, separate grant/revoke,
+  strict schema/arguments, fixed owner GETs, bounded/redacted output, pagination,
+  partial query failure, invalid rows, missing configuration and audit failures.
+  Typecheck, lint, full build, five consolidation checks and architecture checks
+  (11 trading, 12 interaction, 52 Vault) passed. Fixtures use mocks, no real money.
+- Reviewed Bybit V5 open-order and position documentation:
+  https://bybit-exchange.github.io/docs/v5/order/open-order
+  https://bybit-exchange.github.io/docs/v5/position
+- Release/production model verification pending. C04/C08 stay In progress.
+  Next: paper-session policy/setup, durable runtime and paper reconciliation;
+  Funding/other-product adapters and live-readiness remain unfinished.

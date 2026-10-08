@@ -5,6 +5,35 @@ import { BybitApiError, bybitRequest, getBybitConfig } from "@/lib/bybit/client"
 function amount(value: unknown): string {
   return typeof value === "string" && value.length <= 80 && /^-?\d+(\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? value : "Unavailable";
 }
+
+type Page = { list?: unknown; nextPageCursor?: unknown };
+const label = (value: unknown) => typeof value === "string" && /^[A-Za-z0-9-]{1,40}$/.test(value) ? value : "Unavailable";
+export async function readTradingActivity(userId: string): Promise<{ ok: boolean; text: string }> {
+  const config = await getBybitConfig(userId);
+  if (!config.configured) return { ok: false, text: "Bybit credentials are not configured. Orders and positions are unavailable, not confirmed empty." };
+  const queries = [
+    { title: "Spot open orders", path: "/v5/order/realtime", query: { category: "spot", openOnly: 0, limit: 50 }, positions: false },
+    { title: "USDT linear open orders", path: "/v5/order/realtime", query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 }, positions: false },
+    { title: "USDT linear positions", path: "/v5/position/list", query: { category: "linear", settleCoin: "USDT", limit: 50 }, positions: true },
+  ];
+  const results = await Promise.allSettled(queries.map(q => bybitRequest<Page>(userId, q.path, { method: "GET", query: q.query }, config)));
+  let complete = true;
+  const sections = results.map((result, index) => {
+    const q = queries[index];
+    if (result.status !== "fulfilled" || !Array.isArray(result.value?.list) || result.value.list.some(item => !item || typeof item !== "object" || Array.isArray(item))) {
+      complete = false;
+      return `### ${q.title}\nUnavailable: this read failed or returned invalid data. No empty list is confirmed.`;
+    }
+    const rows = result.value.list as Record<string, unknown>[];
+    const partial = Boolean(result.value.nextPageCursor) || rows.length > 12;
+    if (partial) complete = false;
+    const format = (row: Record<string, unknown>) => q.positions
+      ? `- ${label(row.symbol)} · ${label(row.side)} · size ${amount(row.size)} · average price ${amount(row.avgPrice)} · unrealized P/L ${amount(row.unrealisedPnl)} · leverage ${amount(row.leverage)} · stop loss ${amount(row.stopLoss)} · take profit ${amount(row.takeProfit)}`
+      : `- ${label(row.symbol)} · ${label(row.side)} · ${label(row.orderType)} · ${label(row.orderStatus)} · quantity ${amount(row.qty)} · price ${amount(row.price)} · filled quantity ${amount(row.cumExecQty)} · remaining quantity ${amount(row.leavesQty)}`;
+    return `### ${q.title}\n${partial ? "Partial snapshot: additional rows/pages are omitted.\n" : ""}${rows.length ? rows.slice(0, 12).map(format).join("\n") : "No rows returned for this specific query."}`;
+  });
+  return { ok: complete, text: `Bybit ${config.environment === "mainnet" ? "Mainnet — real funds" : "Testnet — test funds"} · read at ${new Date().toISOString()}\nBounded snapshots: up to 12 displayed rows per query. ${complete ? "All three requested reads succeeded within the display limit." : "Incomplete snapshot: at least one read failed or additional rows were omitted."}\n\n${sections.join("\n\n")}\n\nOther settlement currencies, inverse contracts, options, Funding wallets and closed-order history are excluded. Position size zero means a flat position row, not a missing request. Values are in the product's units, not all USD. These are observations, not continuous risk monitoring or proof that protective orders will execute. No orders were placed, changed or cancelled.` };
+}
 export async function readTradingBalance(userId: string): Promise<{ ok: boolean; text: string }> {
   const config = await getBybitConfig(userId);
   const environment = config.environment === "mainnet" ? "Mainnet — real funds" : "Testnet — test funds";

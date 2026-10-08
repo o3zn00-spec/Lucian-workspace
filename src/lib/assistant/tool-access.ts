@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
 // They are never model memory and cannot be changed through memory endpoints.
 export const TOOL_PERMISSION_PREFIX = "_tool_permission:";
 const key = `${TOOL_PERMISSION_PREFIX}saved.read`;
+const activityKey = `${TOOL_PERMISSION_PREFIX}trading.activity.read`;
+export async function tradingActivityReadAllowed(userId: string) {
+  return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key: activityKey } } }))?.value === "allow";
+}
 const tradingKey = `${TOOL_PERMISSION_PREFIX}trading.read`;
 export async function tradingReadAllowed(userId: string) {
   return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key: tradingKey } } }))?.value === "allow";
@@ -13,13 +17,14 @@ export async function savedReadAllowed(userId: string) {
   return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key } } }))?.value === "allow";
 }
 export async function toolAccessSnapshot(userId: string) {
-  const [savedRead, tradingRead, activity] = await Promise.all([
+  const [savedRead, tradingRead, tradingActivityRead, activity] = await Promise.all([
     savedReadAllowed(userId),
     tradingReadAllowed(userId),
+    tradingActivityReadAllowed(userId),
     db.assistantActivity.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30,
       select: { id: true, tool: true, module: true, status: true, reason: true, createdAt: true } }),
   ]);
-  return { savedRead, tradingRead, activity };
+  return { savedRead, tradingRead, tradingActivityRead, activity };
 }
 export async function setSavedRead(userId: string, allow: boolean) {
   await db.$transaction(async tx => {
@@ -36,5 +41,14 @@ export async function setTradingRead(userId: string, allow: boolean) {
       create: { userId, key: tradingKey, value: allow ? "allow" : "deny" }, update: { value: allow ? "allow" : "deny" } });
     await tx.assistantActivity.create({ data: { userId, tool: "permission.trading.read", module: "markets", status: "completed",
       reason: allow ? "Owner enabled Bybit Unified balance reads." : "Owner revoked Bybit Unified balance reads." } });
+  });
+}
+
+export async function setTradingActivityRead(userId: string, allow: boolean) {
+  await db.$transaction(async tx => {
+    await tx.assistantMemory.upsert({ where: { userId_key: { userId, key: activityKey } },
+      create: { userId, key: activityKey, value: allow ? "allow" : "deny" }, update: { value: allow ? "allow" : "deny" } });
+    await tx.assistantActivity.create({ data: { userId, tool: "permission.trading.activity.read", module: "markets", status: "completed",
+      reason: allow ? "Owner enabled bounded Bybit order/position reads." : "Owner revoked Bybit order/position reads." } });
   });
 }
