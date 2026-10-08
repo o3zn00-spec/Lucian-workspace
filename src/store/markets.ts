@@ -323,6 +323,7 @@ interface KlineSubscription {
   bybitSymbol: string;
   timeframe: Timeframe;
   unsubscribeKline: () => void;
+  stopHistory: () => void;
 }
 
 const priceSubscriptions = new Map<string, PriceSubscription>();
@@ -633,19 +634,27 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
         }
 
         // Initial historical fetch + 24h ticker (best-effort, non-blocking).
-        void (async () => {
+        let historyStopped = false;
+        let historyRetry: number | undefined;
+        const loadHistory = async () => {
           try {
             const candles = await provider.getCandles(bybitSymbol, tf, 200);
+            if (historyStopped) return;
             get().setCandles(key, candles);
           } catch (err) {
+            if (historyStopped) return;
             // HONEST failure — do NOT fabricate reference candles for crypto.
             console.error(
               `[markets] Bybit historical fetch failed for ${lucianSymbol} ${lucianTimeframe}:`,
               err,
             );
             get().setStatus(lucianSymbol, "disconnected");
+            // Authentication hydration and temporary provider failures must not
+            // leave an empty chart permanently. Retry only while subscribed.
+            historyRetry = window.setTimeout(() => void loadHistory(), 5000);
           }
-        })();
+        };
+        void loadHistory();
         void get().refreshTicker(lucianSymbol);
 
         const unsubscribeKline = provider.subscribeKline(
@@ -663,6 +672,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
           bybitSymbol,
           timeframe: tf,
           unsubscribeKline,
+          stopHistory: () => { historyStopped = true; if (historyRetry !== undefined) window.clearTimeout(historyRetry); },
         });
       }
     }
@@ -681,6 +691,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
     if (ksub) {
       ksub.refCount -= 1;
       if (ksub.refCount <= 0) {
+        ksub.stopHistory();
         ksub.unsubscribeKline();
         klineSubscriptions.delete(key);
       }

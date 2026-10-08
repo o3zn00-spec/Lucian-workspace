@@ -1405,3 +1405,16 @@ Production evidence, 2026-10-08:
   multiple quote/account refreshes; quote moved from 81,842.40 to 81,812.90.
   Restored displayed draft to the saved 1 USDT without saving a changed policy.
   Private-state follow-up lint and completed 22/22 production build passed.
+
+
+### Historical candle recovery follow-up — 2026-10-08
+
+- Actual production screenshot caught an empty chart despite current quotes:
+  the first authenticated history request could fail before account hydration.
+  Added five-second retry after failed history fetch, bounded to the active
+  symbol/timeframe subscription; cleanup cancels the timer and ignores late
+  responses. This keeps real data recovery without inventing crypto candles.
+- Quote and risk evidence screenshot is outside source at
+  outputs/trading-quote-risk-verified.jpg. It confirms updated quote and retained
+  risk values but does not certify candle rendering; new production visual proof
+  is required after this recovery fix. Remaining live gates are unchanged.
