@@ -8,7 +8,7 @@ funding is complete: last authenticated check showed 40.94851553 USDT. The owner
 has authorized bounded real-money tests and delegated test sizing. Do not ask for
 that same general authorization again. Live entry now also requires a proven
 Spot cost-basis baseline, initialized and wallet-reconciled in production.
-Approved test limits: 6 USDT/order (production save pending),, 10 USDT exposure, 1 USDT daily realized loss,
+Saved test limits: 6 USDT/order, 10 USDT exposure, 1 USDT daily realized loss,
 one position, no borrowing/leverage for first Spot trial. Quote/candle retries,
 truthful Delayed status, protected accounting memory and stable risk edits are
 deployed and verified. Partially filled cancelled orders now remain visible and
@@ -31,7 +31,7 @@ The resumed worker completed the model exit with the page closed; final equity
 C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
-bounded manual live submission; production activation is being verified.
+bounded manual live submission; production activation is verified below.
 
 ## Real model verification and connection hardening — 2026-10-07
 
@@ -1583,3 +1583,24 @@ Production evidence, 2026-10-08:
   does not allow the agent to click it or bypass through another tool.
 - Lilthe's unattended strategy/execution worker remains unfinished. This observer
   is recovery infrastructure, not a strategy worker or a profit claim.
+## Production manual-live activation verified — 2026-10-08
+
+- GitHub main `130d5ea77e054490890fbf6285ad2f564d1691fc` was deployed first via
+  GitHub integration. Vercel `39Zv4bWZbkfm8xTZwRKVHYRrMZrq` is Ready, Production,
+  Current (1m 7s), serving lucian-workspace.vercel.app.
+- Production-only LIVE_TRADING_ENABLED and BYBIT_LIVE_MODE_ENABLED were saved
+  true under the owner's explicit approval. BYBIT_LIVE_SPOT_ONLY is absent;
+  the new server default therefore enforces Spot-only preview/execution.
+- Authenticated risk limits persisted after reload: 6 USDT/order, 10 USDT gross
+  exposure, 1 USDT daily realized loss, one position, leverage ceiling 1.
+- Fresh live preview passed: Buy 0.00007 BTCUSDT, Spot Limit 81750 USDT,
+  stop 81330, target 82170, notional 5.7225 USDT. Exchange quantity step
+  0.000001 and tick 0.1 passed; unlocked balance and fee reserve passed;
+  Spot ledger reconciled and daily realized P/L 0.00. Displayed equity 40.92 USD.
+  Manual Submit is available after exact confirmation and owner password.
+- No exchange POST was made. Final financial Submit is handed to the owner by
+  the browser tool's mandatory policy. Preview expires after 120 seconds and
+  must be reviewed again if expired; never bypass this check.
+- Evidence: outputs/trading-live-approved-preview.jpg outside source. Actual fill,
+  attached protective order activation/exit, recovery, and the observer's real
+  production run are still unverified. Unattended strategy execution stays open.
