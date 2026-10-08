@@ -1010,3 +1010,40 @@ paper trading only against their documented acceptance criteria.
 - Experience rule: reserve review budget/schedule durably before external inference,
   and require actual production research plus decision/ledger evidence. A mocked
   model response or rendered chart alone is not a verified paper trial.
+
+### C10–C12 — broader research and historical/recovery validation, 2026-10-08
+
+Owner requested broader research, longer strategy trials and execution/recovery
+validation after the first trial established mechanics. Paper testing remains
+approved; no real order, withdrawal or live-unlock authorization is inferred.
+
+Implemented in this batch (production verification pending):
+- Every paper review gathers 5m, 1h, 4h and daily closed candles. Optional Coinbase
+  BTC/ETH USD ticker corroboration and attributed Alternative.me seven-day Bitcoin
+  sentiment have freshness/value validation and explicit unavailable-source warnings.
+  USD and USDT are distinct; sentiment is context, not a trade signal. Macro/news
+  breadth remains incomplete and exchange announcements are not independent news.
+- Owner-only historical validation replays approximately 40 days of hourly BTC/ETH
+  with a fixed SMA20/50 reference strategy, prior-close signals and next-open fills.
+  Baseline costs, higher fee/slippage costs and a fixed last-week reporting segment
+  are shown separately; stop-first paths resolve ambiguous candles conservatively.
+  This is not Lilthe's real-time model, independent out-of-sample evidence or a
+  profitability claim. Equity/fills/results export is available as JSON.
+- Manual exchange confirmations now atomically reserve a preview once. Submission
+  timeout/unknown outcomes remain reconciliation_required with stable orderLinkId,
+  preventing resubmission. Preview position/daily-P/L request failures now reject
+  rather than silently treating risk data as empty. No exchange order was sent.
+
+Local evidence: paper runtime/research, historical replay and mocked execution
+checks pass. Covers malformed/stale/duplicate candles, optional-source failure,
+prior-only signals, cost/equity reconciliation, competing confirmations, ambiguous
+submission, no resubmit, paper pause/recovery and old-generation denial. Production
+build, lint and consolidation checks pass. Production research/recovery evidence
+will be appended after deployment; no pending item is marked complete yet.
+
+Live blockers still open: actual order/fill reconciliation after unknown outcomes,
+account-wide spot/derivative exposure and pending-order reservations, confirmation-
+time risk rechecks, protection/partial-fill handling and validated exchange recovery.
+Live flags remain disabled. Longer forward model trials also remain distinct from
+historical replay. Other required scope remains C02 stability, C04/C07 universal
+module tools, C09 templates/amendments, C13 voice, C14 Investing and C15 recovery.

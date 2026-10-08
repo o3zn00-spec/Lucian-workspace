@@ -1,8 +1,9 @@
 import "server-only";
 export type ResearchMarket = {symbol:string; intervalMinutes:number; candles:{atMs:number;close:number}[]; changePercent:number;sma20:number;sma50:number;rangePercent:number;source:string};
-export type PaperResearch = {observedAtMs:number;markets:ResearchMarket[];announcements:{title:string;url:string;publishedAtMs:number}[];warnings:string[]};
+export type ResearchContext = {kind:"coinbase"|"sentiment";symbol:string;value:number;atMs:number;source:string};
+export type PaperResearch = {context?:ResearchContext[];observedAtMs:number;markets:ResearchMarket[];announcements:{title:string;url:string;publishedAtMs:number}[];warnings:string[]};
 export type PaperReview = {atMs:number;research:PaperResearch|null;action:string;rationale:string;outcome:string};
-async function publicData(url:URL) {
+export async function publicData(url:URL) {
   const r=await fetch(url,{cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw Error("Public research unavailable.");
   const raw=await r.text();if(raw.length>200000)throw Error("Research response too large.");
@@ -24,7 +25,7 @@ export function parseResearchCandles(rows:unknown, symbol:string, intervalMinute
 }
 export async function collectPaperResearch(symbols:string[]):Promise<PaperResearch> {
   if(!symbols.length || symbols.length>10 || symbols.some(s=>!/^[A-Z0-9]{2,16}USDT$/.test(s)))throw Error("Invalid research symbols.");
-  const markets=await Promise.all(symbols.flatMap(symbol=>[5,60].map(async interval=>{
+  const markets=await Promise.all(symbols.flatMap(symbol=>[5,60,240,1440].map(async interval=>{
     const url=new URL("https://api.bybit.com/v5/market/kline");url.search=new URLSearchParams({category:"spot",symbol,interval:String(interval),limit:"61"}).toString();
     const b=await publicData(url);if(b.result.symbol!==symbol || b.result.category!=="spot")throw Error("Research symbol mismatch.");
     return parseResearchCandles(b.result.list,symbol,interval,b.time);
@@ -38,6 +39,26 @@ export async function collectPaperResearch(symbols:string[]):Promise<PaperResear
       announcements.push({title:item.title.replace(/<[^>]*>/g,"").slice(0,180),url:link.href,publishedAtMs:item.publishTime});
     }
   }catch{warnings.push("Exchange announcements unavailable. No news conclusion is supported.");}
-  warnings.push("Research covers Bybit public candles and recent exchange announcements only; it is not comprehensive financial or macroeconomic research.");
-  return {observedAtMs:Date.now(),markets,announcements,warnings};
+  const context:ResearchContext[]=[];
+  const extra=await Promise.allSettled([
+    ...symbols.filter(s=>["BTCUSDT","ETHUSDT"].includes(s)).map(async symbol=>{
+      const product=symbol.replace("USDT","-USD"),source=`https://api.exchange.coinbase.com/products/${product}/ticker`;
+      const b=await contextJson(source);const value=Number(b.price),atMs=Date.parse(b.time);
+      if(typeof b.price!=="string" || !Number.isFinite(value) || value<=0 || value>1e12 || !Number.isSafeInteger(atMs) || Math.abs(Date.now()-atMs)>120000)throw Error("Coinbase reference unavailable or stale.");
+      return [{kind:"coinbase" as const,symbol:product,value,atMs,source}];
+    }),
+    (async()=>{const source="https://api.alternative.me/fng/?limit=7",b=await contextJson(source);
+      if(!Array.isArray(b.data) || b.data.length!==7 || b.metadata?.error)throw Error("Sentiment unavailable.");
+      const points=b.data.map((r:{value:unknown;timestamp:unknown})=>({kind:"sentiment" as const,symbol:"Bitcoin sentiment",value:Number(r.value),atMs:Number(r.timestamp)*1000,source}));
+      if(points.some((p:ResearchContext,i:number)=>!Number.isInteger(p.value)||p.value<0||p.value>100||!Number.isSafeInteger(p.atMs)||p.atMs>Date.now()||(i>0 && points[i-1].atMs<=p.atMs)) || Date.now()-points[0].atMs>2*86400000)throw Error("Sentiment stale or malformed.");
+      return points;})()
+  ]);
+  for(const item of extra)if(item.status==="fulfilled")context.push(...item.value);else warnings.push("Independent context source unavailable; do not infer missing corroboration.");
+  warnings.push("Coinbase references are USD, Bybit is USDT; no parity/arbitrage assumption. Alternative.me sentiment is daily Bitcoin context, not an entry signal. News coverage is exchange announcements; macro/news coverage remains incomplete.");
+  return {observedAtMs:Date.now(),markets,announcements,context,warnings};
+}
+
+async function contextJson(source:string) {
+  const r=await fetch(source,{cache:"no-store",redirect:"error",signal:AbortSignal.timeout(10000)});
+  if(!r.ok)throw Error("Context unavailable.");const raw=await r.text();if(raw.length>20000)throw Error("Context response too large.");return JSON.parse(raw);
 }

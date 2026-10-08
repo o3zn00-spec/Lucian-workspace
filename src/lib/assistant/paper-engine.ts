@@ -48,10 +48,19 @@ export function validatePaperSession(s: PaperSession): PaperSession {
   if(s.reviews!==undefined && (!Array.isArray(s.reviews) || s.reviews.length>20 || s.reviews.some(r=>!Number.isSafeInteger(r.atMs) || r.atMs<s.startedAtMs || r.atMs>s.updatedAtMs || !["hold","buy","sell","unavailable"].includes(r.action) || typeof r.rationale!=="string" || r.rationale.length>500 || typeof r.outcome!=="string" || r.outcome.length>2000)))throw Error("Invalid review history.");
   for(const review of s.reviews??[]) {
     const r=review.research;if(r===null)continue;
-    if(!r || !Number.isSafeInteger(r.observedAtMs) || r.observedAtMs<s.startedAtMs || r.observedAtMs>review.atMs || !Array.isArray(r.markets) || r.markets.length>s.plan.symbols.length*2 || !Array.isArray(r.announcements) || r.announcements.length>20 || !Array.isArray(r.warnings) || r.warnings.length>3 || r.warnings.some(w=>typeof w!=="string" || w.length>500))throw Error("Invalid research report.");
+    if(!r || !Number.isSafeInteger(r.observedAtMs) || r.observedAtMs<s.startedAtMs || r.observedAtMs>review.atMs || !Array.isArray(r.markets) || r.markets.length>s.plan.symbols.length*4 || !Array.isArray(r.announcements) || r.announcements.length>20 || !Array.isArray(r.warnings) || r.warnings.length>14 || r.warnings.some(w=>typeof w!=="string" || w.length>500))throw Error("Invalid research report.");
     for(const m of r.markets) {
-      if(!s.plan.symbols.includes(m.symbol) || ![5,60].includes(m.intervalMinutes) || m.source!==`https://api.bybit.com/v5/market/kline?category=spot&symbol=${m.symbol}&interval=${m.intervalMinutes}&limit=61` || !Array.isArray(m.candles) || m.candles.length>60 || [m.changePercent,m.sma20,m.sma50,m.rangePercent].some(n=>!Number.isFinite(n)))throw Error("Invalid research market.");
+      if(!s.plan.symbols.includes(m.symbol) || ![5,60,240,1440].includes(m.intervalMinutes) || m.source!==`https://api.bybit.com/v5/market/kline?category=spot&symbol=${m.symbol}&interval=${m.intervalMinutes}&limit=61` || !Array.isArray(m.candles) || m.candles.length>60 || [m.changePercent,m.sma20,m.sma50,m.rangePercent].some(n=>!Number.isFinite(n)))throw Error("Invalid research market.");
       let previous=0;for(const c of m.candles){if(!Number.isSafeInteger(c.atMs) || c.atMs<=previous || c.atMs>=r.observedAtMs || !Number.isFinite(c.close) || c.close<=0)throw Error("Invalid research series.");previous=c.atMs;}
+    }
+    if(r.context!==undefined){
+      if(!Array.isArray(r.context)||r.context.length>9)throw Error("Invalid independent context.");
+      for(const c of r.context){
+        if(!Number.isSafeInteger(c.atMs)||c.atMs<=0||c.atMs>r.observedAtMs||!Number.isFinite(c.value))throw Error("Invalid context values.");
+        if(c.kind==="coinbase") {if(!["BTC-USD","ETH-USD"].includes(c.symbol)||c.source!==`https://api.exchange.coinbase.com/products/${c.symbol}/ticker`||c.value<=0||c.value>1e12)throw Error("Invalid reference source.");}
+        else if(c.kind==="sentiment") {if(c.symbol!=="Bitcoin sentiment"||c.source!=="https://api.alternative.me/fng/?limit=7"||!Number.isInteger(c.value)||c.value<0||c.value>100)throw Error("Invalid sentiment source.");}
+        else throw Error("Unknown research context.");
+      }
     }
     for(const a of r.announcements){const url=new URL(a.url);if(url.protocol!=="https:" || !["announcements.bybit.com","www.bybit.com","bybit.com"].includes(url.hostname) || url.username || url.password || typeof a.title!=="string" || a.title.length>180 || !Number.isSafeInteger(a.publishedAtMs) || a.publishedAtMs>r.observedAtMs)throw Error("Invalid research source.");}
   }

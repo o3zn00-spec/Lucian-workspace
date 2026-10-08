@@ -1,4 +1,5 @@
 "use client";
+import { StrategyValidation } from "./strategy-validation";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import type { PaperSession } from "@/lib/assistant/paper-engine";
@@ -56,6 +57,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
       <details><summary className="cursor-pointer">Equity history</summary>{s.history.slice(-20).map((h,i)=><p key={i}>{new Date(h.atMs).toLocaleString()} · {amount(h.equityCents)} USDT</p>)}</details>
       <p className="text-fg-muted">Active rules are frozen at start. Draft edits apply only to a new session. Pause retains protective exits; recovery keeps the same capital, positions and authorization.</p>
     </>}
+    <StrategyValidation />
     {(!s || s.status==="stopped") && <div className="space-y-3">
       <p>Starting uses {config.provider} / {config.model} ({effort}). Review the saved plan above. The model interprets strategy notes; numerical limits are enforced by the server. Unsupported requests must result in Hold.</p>
       <label className="flex gap-2"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)} />I reviewed the saved limits and authorize background paper trading and model usage.</label>

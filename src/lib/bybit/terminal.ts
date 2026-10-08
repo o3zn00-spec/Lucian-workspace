@@ -173,8 +173,8 @@ export async function previewTerminalOrder(userId: string, input: Record<string,
   const [ticker, instruments, currentPositions, closedPnl] = await Promise.all([
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     bybitPublicRequest<{ list?: Array<Record<string, unknown>> }>(config.environment, "/v5/market/instruments-info", { category, symbol }),
-    category === "linear" ? safeList(bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })) : Promise.resolve([]),
-    safeList(bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 } })),
+    category === "linear" ? bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } }).then(r=>{if(!Array.isArray(r.list))throw Error("Position risk data unavailable.");return r.list;}) : Promise.resolve([]),
+    bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 } }).then(r=>{if(!Array.isArray(r.list))throw Error("Daily risk data unavailable.");return r.list;}),
   ]);
   const marketPrice = Number(ticker.list?.[0]?.lastPrice ?? 0);
   if (!marketPrice) throw new Error("Bybit did not return a current market price.");
@@ -234,7 +234,9 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
   const profile = await getTradingProfile(userId);
   if (profile.emergencyStop) throw new Error("Emergency stop is active.");
   const preview = intent.preview as Record<string, unknown>;
-  await db.liveTradeIntent.update({ where: { id: intent.id }, data: { state: "executing" } });
+  // Only one confirmation may reserve this preview, even across server instances.
+  const reserved=await db.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:"previewed",initiatedBy:"user",expiresAt:{gt:new Date()}},data:{state:"executing"}});
+  if(reserved.count!==1)throw new Error("Order already reserved, changed or expired. Refresh before acting.");
   try {
     if (intent.category === "linear" && Number(preview.leverage ?? 1) > 0) {
       await bybitRequest(userId, "/v5/position/set-leverage", { method: "POST", body: { category: "linear", symbol: intent.productId, buyLeverage: String(preview.leverage), sellLeverage: String(preview.leverage) } });
@@ -256,8 +258,8 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
     return { status: "submitted", orderId: execution.orderId, intentId: intent.id };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Order submission failed.";
-    await db.liveTradeIntent.update({ where: { id: intent.id }, data: { state: "failed", execution: { error: message } } });
-    await audit(userId, "order.submit", mode, "failed", { symbol: intent.productId, intentId: intent.id, error: message });
+    await db.liveTradeIntent.update({ where: { id: intent.id }, data: { state: "reconciliation_required", execution: { error: message, orderLinkId:intent.clientOrderId } } });
+    await audit(userId, "order.submit", mode, "reconciliation_required", { symbol: intent.productId, intentId: intent.id, error: message });
     throw error;
   }
 }
