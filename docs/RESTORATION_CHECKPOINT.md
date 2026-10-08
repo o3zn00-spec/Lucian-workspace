@@ -1328,3 +1328,26 @@ Production evidence, 2026-10-08:
   readiness are distinct. Do not silently use derivatives-only P/L as account-wide
   loss control, reset losses through reinitialization or mark live protection
   verified from request fields, mocked responses or a successful build.
+
+
+### Production Spot accounting evidence and risk-form follow-up — 2026-10-08
+
+- GitHub source commit d45e45debe025d14f232ffa696e6a45d39d01b52 matches the local
+  tested tree 9981d6fc083d71fc9c7dbe24204ce1b684dc4480. Vercel deployment
+  dpl_FHrqtWo2gFkMC48qjPHqopVTrr43 reached Ready/Production with the public
+  alias lucian-workspace.vercel.app; build duration 47 seconds.
+- Actual owner-authenticated Markets → Risk initialization succeeded: “Spot
+  accounting initialized and wallet reconciled.” This proves initialization,
+  exchange read shape and flat-wallet comparison, not real-fill reconciliation.
+  No order, withdrawal or transfer was submitted by the agent.
+- Owner delegated sizing. Conservative limits saved and read back in production:
+  max order 5 USDT, gross exposure 10 USDT, daily realized-loss stop 1 USDT,
+  one held/pending position, max leverage 1×, manual approval retained. The first
+  real trial remains Spot only without borrowing; balance remains about 40.92 USD.
+- Live UI checks exposed periodic refreshes resetting unsaved risk edits and
+  flashing the old values while a save was in flight. The form now preserves
+  dirty edits and ignores snapshot replacement during actions; after a successful
+  save it adopts the refreshed server policy. This is a targeted follow-up, not
+  evidence that every app control or indefinite unattended trading is complete.
+- Execution flags remain disabled. Remaining protection/live-session/recovery,
+  rolling accounting and final forward-trial gates above are still open.
