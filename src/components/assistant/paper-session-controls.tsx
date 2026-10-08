@@ -18,7 +18,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
   const refresh=useCallback(async(signal?:AbortSignal)=>{
     const version=++requestVersion.current;
     const response=await fetch("/api/assistant/paper-session",{cache:"no-store",signal});const data=await response.json();
-    if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);setError(null);}
+    if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);}
   },[]);
   useEffect(()=>{
     const controller=new AbortController();
@@ -31,7 +31,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
     try {
       const body=action==="verify"?{action}:action==="start"?{action,revision:planRevision,confirmation,provider:config.provider,model:config.model,effort}:{action,id:s?.id,revision:s?.revision};
       const response=await fetch("/api/assistant/paper-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const data=await response.json();
-      if(!response.ok || !data.ok)throw Error(data.error??"Control failed.");setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);setConfirmation("");
+      if(!response.ok || !data.ok)throw Error(response.status===409?`${data.error??"Session changed."} The current state has been refreshed. Review it and retry your control.`:data.error??"Control failed.");setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);setConfirmation("");
     }catch(e){await refresh().catch(()=>{});setError((e as Error).message);}finally{setBusy(false);}
   };
   return <section aria-label="Paper session runtime" className="mt-5 space-y-3 border-t border-line pt-4 text-sm">
@@ -64,6 +64,6 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
       <label className="block">Type START PAPER<input aria-label="Paper start confirmation" value={confirmation} onChange={e=>setConfirmation(e.target.value)} className="mt-1 block w-full rounded-lg border border-line bg-surface-2 p-2" /></label>
       <button type="button" disabled={busy || !ready || !planRevision || !verified || confirmation!=="START PAPER"} onClick={()=>void action("start")} className="focus-ring rounded-lg bg-accent px-4 py-2 text-black disabled:opacity-50">Start paper session</button>
     </div>}
-    <button type="button" disabled={busy} onClick={()=>void refresh().catch(e=>setError(e.message))} className="focus-ring rounded-lg border border-line px-3 py-2">Refresh session</button>
+    <button type="button" disabled={busy} onClick={()=>{setError(null);void refresh().catch(e=>setError(e.message));}} className="focus-ring rounded-lg border border-line px-3 py-2">Refresh session</button>
   </section>;
 }

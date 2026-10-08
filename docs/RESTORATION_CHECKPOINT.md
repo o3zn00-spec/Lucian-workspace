@@ -3,17 +3,19 @@
 Updated: 2026-10-08 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C09–C11 owner-authorized paper lifecycle is deployed: exact start,
-background worker, simulated entries/exits, pause/stop and generation recovery.
-Production owner-approved paper trial completed a model-driven BTC entry/exit
-with the page closed: two reviews, two fills, no remaining positions, stopped.
-Net result was -0.26 virtual USDT including assumed fees/slippage. Sourced
-Bybit candle/announcement research and interactive charts are verified; this is
-operational proof, not strategy profitability. Broader concurrency/failure paths
-remain fixture-tested. OpenRouter GPT-6.1 Sol Medium was used.
+Current batch: C10–C12 wider research, historical strategy validation and paper
+worker recovery are deployed. Each review now has BTC/ETH closed candles at
+5m/1h/4h/daily plus independently sourced Coinbase USD and Alternative.me context.
+Production historical replay covered 949 hours (about 40 days); every reference
+case lost money after simulated costs. This does not justify enabling live trades.
+The initial owner-approved paper round trip returned -0.26 virtual USDT. A second
+paper trial verified replacing a paused worker without changing cash, position,
+fill count or model-review count; it continued checks with the browser page closed.
+The resumed worker completed the model exit with the page closed; final equity
+999.68 virtual USDT, net -0.32, two fills, no open positions, stopped.
 C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
-readiness are not inferred from a build or nonfinancial worker check.
+readiness are not inferred from a build or operational trial. Live flags stay off.
 
 ## Real model verification and connection hardening — 2026-10-07
 
@@ -1017,7 +1019,7 @@ Owner requested broader research, longer strategy trials and execution/recovery
 validation after the first trial established mechanics. Paper testing remains
 approved; no real order, withdrawal or live-unlock authorization is inferred.
 
-Implemented in this batch (production verification pending):
+Implemented and production-verified in this batch:
 - Every paper review gathers 5m, 1h, 4h and daily closed candles. Optional Coinbase
   BTC/ETH USD ticker corroboration and attributed Alternative.me seven-day Bitcoin
   sentiment have freshness/value validation and explicit unavailable-source warnings.
@@ -1038,8 +1040,8 @@ Local evidence: paper runtime/research, historical replay and mocked execution
 checks pass. Covers malformed/stale/duplicate candles, optional-source failure,
 prior-only signals, cost/equity reconciliation, competing confirmations, ambiguous
 submission, no resubmit, paper pause/recovery and old-generation denial. Production
-build, lint and consolidation checks pass. Production research/recovery evidence
-will be appended after deployment; no pending item is marked complete yet.
+build, lint, typecheck, consolidation and architecture checks pass. Live execution
+checks use mocks; they are not real exchange recovery evidence.
 
 Live blockers still open: actual order/fill reconciliation after unknown outcomes,
 account-wide spot/derivative exposure and pending-order reservations, confirmation-
@@ -1053,4 +1055,41 @@ Bybit V5 requires D. Corrected request and persisted source validation; fixture 
 asserts exact supported interval values. No paper session started during this failure.
 Lesson: validate external enum values against the provider contract, not only a
 mock that accepts arbitrary numeric intervals. Initial historical check failed
-closed; rerun is required after the correction deploys.
+closed; the corrected production rerun passed.
+
+Production evidence, 2026-10-08:
+- GitHub `c6ce9f576d78712ffc2bcb18fc964f8e713c51ce` deployed READY as
+  `dpl_Fu7C24KXhVYwLuko3uVA8GC1byir` (56s), production alias, CPT1.
+- Historical report observed 15:52:19 UTC: 949 hours per full replay; last-week
+  segment 168 hours. BTC baseline -3.68 USDT / 46 trades, stressed -15.01 / 45;
+  ETH baseline -10.88 / 55, stressed -20.05 / 46. BTC last week -1.99 / 10;
+  ETH last week -1.86 / 8. All include configured fees/slippage. Exported actual
+  JSON at outputs/historical-strategy-validation.json outside source. No inference
+  credits used by replay. Last-week reporting is not independent out-of-sample.
+- Production wider research loaded eight candle reports and nine independent
+  context points. The live paper model also received those sources. Incomplete
+  independent news/macro coverage remains explicitly disclosed.
+- Paper recovery trial `d5db90fb-9d88-4935-bae9-640d46d102d8` started 15:52:50 UTC;
+  model bought 0.000613 simulated BTC at 15:53:18, debit 49.93 virtual USDT.
+  Paused then recovered at 16:00:11. Read-only persisted comparisons confirm
+  generation and worker run changed; session ID, 950.07 cash, position, one fill
+  and one reserved model review remained identical. At 16:01:23, with the page
+  closed, worker history had advanced from 14 to 16 observations; no new fill or
+  model call occurred. Files: outputs/paper-before-recovery.json,
+  outputs/paper-after-recovery.json, outputs/paper-closed-page-recovery.json.
+- Operator controls correctly reject stale revisions, but automatic refresh erased
+  the visible rejection. Keep control errors visible until explicit refresh/retry;
+  show that current state was refreshed, and require manual retry. No automatic
+  mutation retry or relaxed concurrency guard. Historical table padding improved;
+  visible segment label says last week rather than suggesting independent holdout.
+- Experience rule: verify worker generation/run replacement in persisted data,
+  not just a dispatched label. A click or HTTP attempt is not successful recovery.
+  Do not call historical reference replay a completed forward model strategy trial.
+
+- Recovery trial completed: resumed worker model exit at 16:03:54 UTC with page
+  closed, credit 49.61 USDT, final cash/equity 999.68 virtual USDT, realized -0.32,
+  no remaining positions, two reserved model reviews and two fills. Owner stop
+  persisted at 16:05:10. Sampled drawdown 0.37 USDT. Export button downloaded the
+  actual report; persisted final proof outputs/paper-recovery-final.json and
+  screenshot outputs/paper-recovery-proof.png remain outside source. This verifies
+  paper recovery and exit mechanics, not real exchange fills or strategy fitness.
