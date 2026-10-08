@@ -20,6 +20,7 @@ export interface BybitTerminalSnapshot {
   risk: { maxOrderUsd: number; maxPositionUsd: number; maxDailyLossUsd: number; maxOpenPositions: number; maxLeverage: number; requireApproval: boolean; emergencyStop: boolean };
   audits: Array<{ id: string; action: string; tradingMode: string; status: string; symbol: string | null; createdAt: string }>;
   approvals: Array<{ id: string; productId: string; side: string; tradingMode: string; category: string; orderType: string; state: string; quoteSize: string | null; providerOrderId: string | null; expiresAt: string | null; createdAt: string }>;
+  readErrors?: Record<string,string>;
   refreshedAt: string;
 }
 

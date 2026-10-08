@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const mocks={
+'server-only':'',
+'@/lib/auth/password':'export const verifyPassword=async()=>true;',
+'@/lib/bybit/trading':'export const getTradingProfile=async()=>({emergencyStop:false});',
+'@/lib/db':'export const db={tradingAuditEvent:{findMany:async()=>[]},liveTradeIntent:{findMany:async()=>[]}};',
+'@/lib/bybit/client':`export const getBybitConfig=async()=>({configured:true,environment:'mainnet'});export const bybitPublicRequest=async()=>({list:[]});export async function bybitRequest(user,path,options){if(options.method==='POST')throw Error('No exchange mutation');if(path==='/v5/account/wallet-balance'){if(globalThis.fixture.noWallet)return {list:[]};return {list:[{accountType:'UNIFIED',totalEquity:'123.45'}]};}if(path==='/v5/position/list')throw Error('Position service unavailable');if(path==='/v5/order/realtime'&&options.query.category==='spot')return {list:[{orderId:'partial-page'}],nextPageCursor:'more'};if(path==='/v5/account/transaction-log')return {};return {list:[]};}`
+};
+const b=await build({entryPoints:['src/lib/bybit/terminal.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'mocks',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));}}]});
+const {terminalSnapshot}=await import('data:text/javascript;base64,'+Buffer.from(b.outputFiles[0].text).toString('base64'));
+globalThis.fixture={};
+const report=await terminalSnapshot('owner',{mode:'bybit_live'});
+assert.equal(report.portfolio.totalEquity,'123.45');
+assert.match(report.readErrors.positions,/unavailable/);
+assert.match(report.readErrors.spotOrders,/page/);
+assert.match(report.readErrors.transactions,/Malformed/);
+assert.equal(report.readErrors.linearOrders,undefined);
+assert.equal(report.openOrders.length,1);
+globalThis.fixture.noWallet=true;
+await assert.rejects(terminalSnapshot('owner',{mode:'bybit_live'}),/Balance is unavailable/);
+console.log('PASS terminal read failures: successful balance retained, failed/paginated/malformed records explicitly incomplete, missing Unified wallet rejects. Mocked reads only.');

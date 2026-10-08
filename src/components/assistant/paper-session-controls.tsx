@@ -1,4 +1,5 @@
 "use client";
+import { ExchangeReconciliation } from "@/components/markets/exchange-reconciliation";
 import { StrategyValidation } from "./strategy-validation";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
@@ -58,6 +59,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
       <p className="text-fg-muted">Active rules are frozen at start. Draft edits apply only to a new session. Pause retains protective exits; recovery keeps the same capital, positions and authorization.</p>
     </>}
     <StrategyValidation />
+    <ExchangeReconciliation />
     {(!s || s.status==="stopped") && <div className="space-y-3">
       <p>Starting uses {config.provider} / {config.model} ({effort}). Review the saved plan above. The model interprets strategy notes; numerical limits are enforced by the server. Unsupported requests must result in Hold.</p>
       <label className="flex gap-2"><input type="checkbox" checked={verified} onChange={e=>setVerified(e.target.checked)} />I reviewed the saved limits and authorize background paper trading and model usage.</label>

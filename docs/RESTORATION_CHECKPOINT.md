@@ -295,8 +295,8 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
-| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper round trip verified; broader research and strategy validation remain |
-| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; longer strategy validation and real exchange reconciliation remain |
+| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper round trip verified; multi-timeframe research and bounded independent context production verified; four-hour forward model trial running, strategy fitness unproven |
+| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; four-hour forward trial running; owner order/fill reconciliation fixture-tested, actual exchange recovery still unproven |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
 | C14 | Investing canvas and existing views | Agreed | Pan/zoom/drill-down; persistent relationships; consistent underlying records |
@@ -1093,3 +1093,47 @@ Production evidence, 2026-10-08:
   actual report; persisted final proof outputs/paper-recovery-final.json and
   screenshot outputs/paper-recovery-proof.png remain outside source. This verifies
   paper recovery and exit mechanics, not real exchange fills or strategy fitness.
+
+
+### 2026-10-08 — forward model trial and exchange reconciliation
+
+- Started owner-approved four-hour forward paper session
+  `fbe1fcd6-21e9-415a-b0f4-fdf3fac9af21` at 16:47:55 UTC. Scheduled stop
+  20:47:55 UTC (13:47:55 PDT). Frozen BTC/ETH trend rules compare SMA20/50 and
+  closes on 1h/4h, use 5m entry context, and permit HOLD. Virtual capital 1,000
+  USDT; entry 50, exposure 100, loss cap 20, risk/trade 5; one position/four
+  entries; 15-minute model reviews, 30-call hard cap, fees 10 bps/slip 5 bps.
+  Model remains OpenRouter openai/gpt-6.1-sol with medium reasoning.
+- At 16:51:59 UTC persisted running worker had completed one model review,
+  chose HOLD, had eight market reports/nine context sources, no error, no fills,
+  and equity/cash 1,000 virtual USDT. Page was closed after start. This is an
+  interim observation; duration, final drawdown, fills/costs and review decisions
+  must be exported after the scheduled stop before calling the trial complete.
+- Added owner-only exchange reconciliation under paper controls and the manual
+  terminal's Approvals tab. It reads Bybit realtime/history by stable orderLinkId
+  and bounded paginated executions, checks owner/environment/symbol/side/order
+  identity, deduplicates fills, compares cumulative quantities, and stores the
+  matched report with an atomic local state update and audit record. Original
+  ambiguous submission evidence is preserved. It never submits, cancels or retries
+  an exchange order, credits a wallet, or certifies protective exits.
+- Missing/delayed, malformed, incomplete, conflicting or regressed records retain
+  the reservation. Supported query window is seven days; older reservations need
+  manual history review and are not automatically released. Unknown fees remain
+  currency-labelled/unknown rather than aggregated across currencies. Partial and
+  cancelled-with-fill outcomes retain fill evidence; exposure/protection handling
+  is still a live-readiness blocker.
+- Fixed terminal snapshot error suppression: failed or paginated account reads now
+  report unavailable/incomplete records rather than implying zero positions,
+  orders or losses. Balances still require a successful wallet response.
+- Mocked reconciliation and execution tests cover history fallback, fill pages,
+  duplicates, partial/cancelled fills, mismatches, stale records, concurrent writes
+  and no exchange mutation. Production build/typecheck, lint, consolidation and architecture checks pass.
+  Terminal-read fixtures verify that failed, malformed or paginated account reads
+  are labelled incomplete while a successful balance remains available; missing
+  Unified wallet data rejects the snapshot. These are mocked checks, not actual
+  exchange recovery evidence.
+- Experience rule: an empty local unresolved-order list proves neither exchange
+  fills nor recovery. A running four-hour trial is not a completed strategy test.
+  Real exchange recovery, account-wide risk/protection and confirmation-time risk
+  checks remain open; live flags remain disabled. C04/C07 app module tools, C13
+  voice, C14 Investing canvas and C02/C15 stability/recovery remain tracked.

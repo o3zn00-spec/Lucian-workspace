@@ -64,16 +64,19 @@ async function audit(userId: string, action: string, tradingMode: TradingMode, s
   });
 }
 
-async function safeList(promise: Promise<BybitList>) {
-  try { return (await promise).list ?? []; } catch { return []; }
-}
-
 export async function terminalSnapshot(userId: string, input: { mode: unknown; symbol?: unknown; category?: unknown }) {
   const mode = normalizeMode(input.mode);
   const category = normalizeCategory(input.category);
   const symbol = normalizeSymbol(input.symbol ?? "BTCUSDT");
   const config = await assertMode(userId, mode);
   const profile = await getTradingProfile(userId);
+  const readErrors:Record<string,string>={};
+  const readList=async(key:string,promise:Promise<BybitList & {nextPageCursor?:string}>)=>{
+    try{const result=await promise;if(!Array.isArray(result.list))throw Error("Malformed exchange list.");
+      if(result.nextPageCursor)readErrors[key]="Exchange returned only a page of records; complete account history/exposure is unavailable.";
+      return result.list;
+    }catch(error){readErrors[key]=error instanceof Error?error.message:"Exchange read unavailable.";return [];}
+  };
 
   // Reuse this request's authenticated credentials across its read-only snapshot.
   // Never keep decrypted credentials in a process-global cache.
@@ -81,14 +84,14 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
 
   const [walletResult, positions, spotOrders, linearOrders, spotHistory, linearHistory, executions, closedPnl, transactions, ticker, audits, approvals] = await Promise.all([
     request<{ list?: Array<Record<string, unknown>> }>( "/v5/account/wallet-balance", { query: { accountType: "UNIFIED" } }),
-    safeList(request<BybitList>( "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    safeList(request<BybitList>( "/v5/order/realtime", { query: { category: "spot", openOnly: 0, limit: 50 } })),
-    safeList(request<BybitList>( "/v5/order/realtime", { query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 } })),
-    safeList(request<BybitList>( "/v5/order/history", { query: { category: "spot", limit: 50 } })),
-    safeList(request<BybitList>( "/v5/order/history", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    safeList(request<BybitList>( "/v5/execution/list", { query: { category, symbol, limit: 100 } })),
-    safeList(request<BybitList>( "/v5/position/closed-pnl", { query: { category: "linear", symbol, limit: 50 } })),
-    safeList(request<BybitList>( "/v5/account/transaction-log", { query: { accountType: "UNIFIED", limit: 50 } })),
+    readList("positions",request<BybitList>( "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
+    readList("spotOrders",request<BybitList>( "/v5/order/realtime", { query: { category: "spot", openOnly: 0, limit: 50 } })),
+    readList("linearOrders",request<BybitList>( "/v5/order/realtime", { query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 } })),
+    readList("spotHistory",request<BybitList>( "/v5/order/history", { query: { category: "spot", limit: 50 } })),
+    readList("linearHistory",request<BybitList>( "/v5/order/history", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
+    readList("executions",request<BybitList>( "/v5/execution/list", { query: { category, symbol, limit: 100 } })),
+    readList("closedPnl",request<BybitList>( "/v5/position/closed-pnl", { query: { category: "linear", symbol, limit: 50 } })),
+    readList("transactions",request<BybitList>( "/v5/account/transaction-log", { query: { accountType: "UNIFIED", limit: 50 } })),
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     db.tradingAuditEvent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
     db.liveTradeIntent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
@@ -116,6 +119,7 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
       coins: Array.isArray(wallet.coin) ? wallet.coin : [],
     },
     ticker: ticker.list?.[0] ?? null,
+    readErrors,
     positions,
     openOrders: [...spotOrders.map((item) => ({ ...item, category: "spot" })), ...linearOrders.map((item) => ({ ...item, category: "linear" }))],
     orderHistory: [...spotHistory.map((item) => ({ ...item, category: "spot" })), ...linearHistory.map((item) => ({ ...item, category: "linear" }))],

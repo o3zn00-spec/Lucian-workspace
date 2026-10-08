@@ -1,5 +1,6 @@
 "use client";
 
+import { ExchangeReconciliation } from "./exchange-reconciliation";
 import { useEffect, useMemo, useState } from "react";
 import { AlertOctagon, ChevronDown, ChevronUp, Loader2, Maximize2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useMarketsStore } from "@/store/markets";
@@ -56,8 +57,10 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
     const timer = window.setTimeout(() => setRiskDraft(Object.fromEntries(Object.entries(data.risk).filter(([, item]) => typeof item === "number").map(([key, item]) => [key, String(item)]))), 0);
     return () => window.clearTimeout(timer);
   }, [data?.risk]);
+  const readKeys:Partial<Record<Tab,string[]>>={positions:["positions"],orders:["spotOrders","linearOrders"],pnl:["closedPnl"],history:["transactions"]};
+  const readError=(readKeys[tab]??[]).map(key=>data?.readErrors?.[key]).filter(Boolean).join("; ");
   const floating = error ? undefined : data?.portfolio.totalPerpUPL;
-  const tabs: Array<[Tab, string, number?]> = [["positions", "Positions", data?.positions.filter((row) => Number(row.size) > 0).length], ["orders", "Orders", data?.openOrders.length], ["pnl", "P/L"], ["portfolio", "Portfolio"], ["history", "Transactions"], ["orderbook", "Order Book"], ["risk", "Risk"], ["approvals", "Approvals", data?.approvals.length], ["audit", "Audit"]];
+  const tabs: Array<[Tab, string, number?]> = [["positions", "Positions", data?.readErrors?.positions?undefined:data?.positions.filter((row) => Number(row.size) > 0).length], ["orders", "Orders", data?.readErrors?.spotOrders || data?.readErrors?.linearOrders?undefined:data?.openOrders.length], ["pnl", "P/L"], ["portfolio", "Portfolio"], ["history", "Transactions"], ["orderbook", "Order Book"], ["risk", "Risk"], ["approvals", "Approvals", data?.approvals.length], ["audit", "Audit"]];
 
   async function post(url: string, body: Record<string, unknown>, method = "POST") {
     setActionBusy(true); setActionError(null);
@@ -78,7 +81,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
     {expanded && <div className="h-[260px] overflow-auto border-t border-[#2a2e39] p-3">
       <div className="mb-2 flex items-center gap-2 text-[10px]"><span className={`rounded px-2 py-1 font-bold ${mode === "bybit_live" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}`}>{mode === "bybit_live" ? "BYBIT LIVE · REAL FUNDS" : "BYBIT TESTNET"}</span><span className="text-[#787b86]">{symbol} · {data?.environment ?? "not connected"}</span>{data?.risk.emergencyStop && <span className="rounded bg-red-500 px-2 py-1 font-bold text-white">EMERGENCY STOP ACTIVE</span>}</div>
       {(error || actionError) && <div className="mb-2 rounded border border-red-500/40 bg-red-500/10 p-2 text-[10px] text-red-300">{error || actionError}</div>}
-      {loading && !data ? <div className="flex h-32 items-center justify-center gap-2 text-[11px] text-[#787b86]"><Loader2 className="h-4 w-4 animate-spin" />Synchronizing directly with Bybit…</div> : error && !data && tab !== "orderbook" ? <div className="py-12 text-center text-[11px] text-[#787b86]">Account data unavailable. Resolve the connection error and retry.</div> : <>
+      {loading && !data ? <div className="flex h-32 items-center justify-center gap-2 text-[11px] text-[#787b86]"><Loader2 className="h-4 w-4 animate-spin" />Synchronizing directly with Bybit…</div> : error && !data && tab !== "orderbook" ? <div className="py-12 text-center text-[11px] text-[#787b86]">Account data unavailable. Resolve the connection error and retry.</div> : readError ? <p role="alert" className="py-8 text-center text-sm">Account records unavailable or incomplete: {readError}</p> : <>
         {tab === "positions" && <SimpleTable columns={["symbol", "side", "size", "avgPrice", "markPrice", "leverage", "unrealisedPnl", "liqPrice"]} rows={(data?.positions ?? []).filter((row) => Number(row.size) > 0)} />}
         {tab === "orders" && <SimpleTable columns={["symbol", "category", "side", "orderType", "qty", "price", "orderStatus", "createdTime"]} rows={data?.openOrders ?? []} action={(row) => <button className="text-red-400 hover:text-red-300" onClick={() => void post("/api/bybit/orders", { mode, category: row.category, symbol: row.symbol, orderId: row.orderId }, "DELETE")}>Cancel</button>} />}
         {tab === "pnl" && <><SummaryCards values={[["Unrealized P/L", data?.portfolio.totalPerpUPL], ["Wallet balance", data?.portfolio.totalWalletBalance], ["Equity", data?.portfolio.totalEquity]]} /><SimpleTable columns={["symbol", "side", "qty", "avgEntryPrice", "avgExitPrice", "closedPnl", "createdTime"]} rows={data?.closedPnl ?? []} /></>}
@@ -86,7 +89,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
         {tab === "history" && <SimpleTable columns={["currency", "type", "change", "cashFlow", "fee", "transactionTime"]} rows={data?.transactions ?? []} />}
         {tab === "orderbook" && <OrderBook book={book} />}
         {tab === "risk" && <div className="grid gap-3 lg:grid-cols-[1fr_1fr]"><div className="grid grid-cols-2 gap-2">{[["maxOrderUsd", "Max order (USDT)"], ["maxPositionUsd", "Max position (USDT)"], ["maxDailyLossUsd", "Daily loss stop (USDT)"], ["maxOpenPositions", "Open positions"], ["maxLeverage", "Leverage"]].map(([key, label]) => <label key={key} className="text-[10px] text-[#9aa0ae]">{label}<input className="mt-1 w-full rounded border border-[#2a2e39] bg-[#131722] px-2 py-1.5 text-white" value={riskDraft[key] ?? ""} onChange={(event) => setRiskDraft((current) => ({ ...current, [key]: event.target.value }))} /></label>)}<button disabled={actionBusy} onClick={() => void post("/api/bybit/risk", { ...riskDraft, mode }, "PATCH")} className="rounded bg-[#2962ff] px-3 py-2 font-semibold text-white disabled:opacity-50"><ShieldCheck className="mr-1 inline h-3.5 w-3.5" />Save server risk limits</button></div><div className="rounded border border-red-500/30 bg-red-500/5 p-3"><div className="font-semibold text-red-300">Emergency stop</div><p className="my-2 text-[10px] text-[#9aa0ae]">Blocks all new orders and sends cancel-all to both Spot and USDT Perpetual. It does not market-close positions.</p><button disabled={actionBusy} onClick={() => void post("/api/bybit/emergency-stop", { mode, active: !data?.risk.emergencyStop })} className="rounded bg-red-500 px-3 py-2 font-bold text-white disabled:opacity-50"><AlertOctagon className="mr-1 inline h-4 w-4" />{data?.risk.emergencyStop ? "Release emergency stop" : "STOP AND CANCEL ALL"}</button></div></div>}
-        {tab === "approvals" && <SimpleTable columns={["createdAt", "productId", "side", "category", "orderType", "quoteSize", "tradingMode", "state", "providerOrderId"]} rows={(data?.approvals ?? []) as unknown as Row[]} />}
+        {tab === "approvals" && <><ExchangeReconciliation /><SimpleTable columns={["createdAt", "productId", "side", "category", "orderType", "quoteSize", "tradingMode", "state", "providerOrderId"]} rows={(data?.approvals ?? []) as unknown as Row[]} /></>}
         {tab === "audit" && <SimpleTable columns={["createdAt", "action", "tradingMode", "status", "symbol"]} rows={(data?.audits ?? []) as unknown as Row[]} />}
       </>}
     </div>}
