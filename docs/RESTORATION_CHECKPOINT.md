@@ -704,8 +704,15 @@ paper trading only against their documented acceptance criteria.
   owner isolation, metadata selection/limit, invalid arguments, read failures,
   owner/origin checks and reserved memory protection passed without network or
   paid inference. Typecheck, lint, production build, consolidation and architecture
-  checks passed. Production permission-off/model-denial/activity UI verification
-  is pending publication; production permission enabling has not been performed.
+  checks passed.
+- Production: GitHub `4904459b1ea2d05b08d7ab377cce67f36f016268` deployed Ready
+  as `dpl_DvEfwAgYC9EeRZvv7q4VoXprE1Gs` on the production alias. The panel
+  opened and confirmed access off. One paid OpenRouter `openai/gpt-6.1-sol`
+  Medium request for cloud bookmarks returned the server denial with no records
+  read; reopening the panel displayed its owner-scoped `saved.read` denied event.
+  Closing and refreshing the panel worked. Proof outside the repository:
+  `outputs/lilthe-tool-permissions-verification.png`. Production access enabling
+  has not been performed; grant/revoke and allowed reads were verified locally.
 - C04/C06 remain In progress. Next: verified module read adapters (particularly
   trading account state), then bounded paper session policies/runtime. Full
   coding tools, live/autonomous trades, voice, canvas and broad stability/recovery
