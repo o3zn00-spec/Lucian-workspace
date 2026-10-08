@@ -741,7 +741,15 @@ paper trading only against their documented acceptance criteria.
   unavailable, missing account, provider/config failure, audit failure and in-flight
   revocation. Typecheck, lint, full production build, consolidation and architecture
   checks passed. These fixtures use mocks; production allowed-read model verification
-  remains unperformed. Production panel/default-denial verification pending release.
+  remains unperformed.
+- Production: GitHub `334d4749548700a89efd276e0dad9e86a2c9f5ce` deployed Ready
+  as `dpl_HXx5EQcZQnZMxHkJMpRjDfXyb1NV`. Production panel confirmed the
+  separate Bybit permission off. One paid OpenRouter `openai/gpt-6.1-sol` Medium
+  request invoked `trading.read`, returned the server's access-off response and
+  recorded a denied event with the correct reason. No account was read, permission
+  granted or financial action performed. Proof outside source:
+  `outputs/lilthe-bybit-tool-verification.png`. Allowed production reads remain
+  unverified; this checkpoint distinguishes local fixtures from production proof.
 - C04/C08 remain In progress: Funding/order/position read adapters, paper session
   policy/setup, durable scheduling, strategy execution and reconciliation remain.
   This step is not evidence of readiness for unattended or real-money trading.
