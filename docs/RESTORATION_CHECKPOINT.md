@@ -5,10 +5,12 @@ Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
 Current batch: C09–C11 owner-authorized paper lifecycle is deployed: exact start,
 background worker, simulated entries/exits, pause/stop and generation recovery.
-Production nonfinancial check passed database, public Bybit quotes and durable
-sleep/wake, persisted after page closure/reopen. Ledger and concurrency behaviors
-are fixture-tested; no owner financial-session start or production simulated fill
-is claimed. OpenRouter GPT-6.1 Sol Medium text/vision worked in earlier checks.
+Production owner-approved paper trial completed a model-driven BTC entry/exit
+with the page closed: two reviews, two fills, no remaining positions, stopped.
+Net result was -0.26 virtual USDT including assumed fees/slippage. Sourced
+Bybit candle/announcement research and interactive charts are verified; this is
+operational proof, not strategy profitability. Broader concurrency/failure paths
+remain fixture-tested. OpenRouter GPT-6.1 Sol Medium was used.
 C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or nonfinancial worker check.
@@ -291,8 +293,8 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
-| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper trial pending |
-| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production financial-session lifecycle remains unverified |
+| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper round trip verified; broader research and strategy validation remain |
+| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; longer strategy validation and real exchange reconciliation remain |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
 | C14 | Investing canvas and existing views | Agreed | Pan/zoom/drill-down; persistent relationships; consistent underlying records |
@@ -981,8 +983,29 @@ paper trading only against their documented acceptance criteria.
 - Research parsing/endpoint/failure tests and realized/unrealized reconciliation
   tests passed. Runtime tests cover unavailable research and exhausted budget
   blocking entries/model calls, alongside prior protection/concurrency/recovery.
-- Typecheck, full lint and optimized build passed. Production visual/worker/model
-  trial evidence and final release proof are still pending; no fills claimed yet.
+- Typecheck, full lint, optimized build, consolidation and architecture checks passed.
+  GitHub code commit `09fbc1ff564d42532a3e11846e644a1e35c26292` deployed Ready
+  as `dpl_3Vh1TuWVUkoEq1marKBYNHBpHQvP` on the production alias before the trial.
+- Actual owner-approved trial `89efa10a-335d-41c2-a277-e71c78e21682` started
+  2026-10-08 15:01:47 UTC. OpenRouter `openai/gpt-6.1-sol`, medium, independently
+  collected four 60-candle reports (BTC/ETH, 5m/1h) and 18 Bybit announcements.
+  At 15:02:12 UTC it bought 0.000604 simulated BTC for 49.98 USDT. With the trial
+  page closed, the next review sold the full quantity at 15:08:23 UTC for 49.72 USDT.
+  Two reserved model reviews; no duplicates, no errors, no remaining positions.
+- Reopening showed persisted research, rationale, fills, charts and net accounting.
+  Final cash/equity 999.74 virtual USDT; realized -0.26, unrealized 0.00, one closed
+  trade, sampled drawdown 0.28. Owner stop was accepted and durable state verified
+  stopped. No live order, transfer or withdrawal was initiated. This deliberately
+  small operational round trip does not validate any profitable trading strategy.
+- Symbol/interval switching and chart point inspection verified in production.
+  Screenshot `outputs/owner-paper-trial.png`; read-only persisted report saved as
+  `outputs/owner-paper-trial.json`, both outside source. Browser download capture
+  timed out for the JSON export button, so export delivery remains unverified;
+  the independent persisted ledger report is available and reconciles exactly.
+- Remaining before live: longer owner-approved strategy trials, broader sourced
+  research, measured dollar budgets, outage/recovery production drills, actual
+  exchange order/fill reconciliation and a separate live-readiness/authorization
+  review. C10/C11 remain In progress for that broader scope; C12 stays locked.
 - Experience rule: reserve review budget/schedule durably before external inference,
   and require actual production research plus decision/ledger evidence. A mocked
   model response or rendered chart alone is not a verified paper trial.
