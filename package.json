@@ -66,7 +66,7 @@
     "lightweight-charts": "^5.2.1",
     "lucide-react": "^0.460.0",
     "monaco-editor": "^0.56.0",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "10.0.15",
     "pdfjs-dist": "^6.2.108",
@@ -75,10 +75,12 @@
     "react-resizable-panels": "^3.0.6",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
+    "workflow": "5.1.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
+    "@tauri-apps/cli": "^2",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__parser": "^7.0.0",
     "@types/babel__traverse": "^7.28.0",
@@ -88,20 +90,24 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "postcss": "8.5.26",
     "prisma": "6.19.3",
     "tailwindcss": "4.1.17",
     "tsx": "^4.23.12",
-    "typescript": "5.9.3",
-    "@tauri-apps/cli": "^2"
+    "typescript": "5.9.3"
   },
   "overrides": {
     "deepmerge-ts": "8.0.2",
     "dompurify": "3.4.16",
     "nodemailer": "10.0.15",
     "sharp": "0.35.5",
-    "source-map-js": "1.2.2"
+    "source-map-js": "1.2.2",
+    "@workflow/core": {
+      "devalue": "5.9.3",
+      "nanoid": "5.1.16"
+    },
+    "devalue": "5.9.3"
   },
   "allowScripts": {
     "@prisma/client@6.19.3": true,

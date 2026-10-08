@@ -21,7 +21,7 @@ export type PaperRiskResult =
   | { allowed: true; notionalCents: number; entryFeeCents: number;
       debitCents: number; stopProceedsCents: number; riskCents: number };
 const SCALE = 100000000n;
-const fixed = (value: unknown): bigint => {
+export const fixedPaperDecimal = (value: unknown): bigint => {
   if (typeof value !== "string" || !/^\d{1,12}(\.\d{1,8})?$/.test(value)) throw Error("Invalid fixed decimal.");
   const [whole, fraction = ""] = value.split(".");
   const result = BigInt(whole) * SCALE + BigInt(fraction.padEnd(8, "0"));
@@ -51,13 +51,13 @@ export function evaluatePaperEntry(planInput: PaperPlan, state: PaperRiskState, 
     if (!plan.symbols.includes(entry.symbol) || quote.symbol !== entry.symbol || quote.instrumentVerified !== true) return reject("Symbol is not allowed or instrument is unverified.");
     if (state.ordersPlaced >= plan.maxOrders) return reject("Order count limit reached.");
     if (state.positionSymbols.length > plan.maxPositions || (!state.positionSymbols.includes(entry.symbol) && state.positionSymbols.length >= plan.maxPositions)) return reject("Position count limit reached.");
-    const quantity = fixed(entry.quantity), step = fixed(quote.quantityStep), minimum = fixed(quote.minQuantity);
-    const bid = fixed(quote.bid), ask = fixed(quote.ask), stop = fixed(entry.stopPrice);
+    const quantity = fixedPaperDecimal(entry.quantity), step = fixedPaperDecimal(quote.quantityStep), minimum = fixedPaperDecimal(quote.minQuantity);
+    const bid = fixedPaperDecimal(quote.bid), ask = fixedPaperDecimal(quote.ask), stop = fixedPaperDecimal(entry.stopPrice);
     if (bid > ask || stop >= bid) return reject("Quote is crossed or stop is not below the bid.");
     if (quantity < minimum || quantity % step !== 0n) return reject("Quantity is below minimum or does not match instrument step.");
     const denominator = SCALE * SCALE;
     const rawNotional = quantity * ask * 100n;
-    if (quantity * ask < fixed(quote.minNotional) * SCALE) return reject("Order is below instrument minimum notional.");
+    if (quantity * ask < fixedPaperDecimal(quote.minNotional) * SCALE) return reject("Order is below instrument minimum notional.");
     const notionalCents = money(ceil(rawNotional, denominator));
     const slippedCents = ceil(rawNotional * BigInt(10000 + plan.slippageBps), denominator * 10000n);
     const entryFeeCents = money(ceil(slippedCents * BigInt(plan.feeBps), 10000n));

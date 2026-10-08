@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
+import { PaperSessionControls } from "./paper-session-controls";
 import { X } from "lucide-react";
 import type { PaperPlan } from "@/lib/assistant/paper-policy";
 const amountFields = [
@@ -64,13 +65,13 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
   const inputClass = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus-ring";
   return <Dialog.Root open={open} onOpenChange={changeOpen}>
     <div className="themed flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 text-sm text-fg">
-      <span>Lilthe paper session · setup only</span>
+      <span>Lilthe paper session</span>
       <Dialog.Trigger asChild><button className="focus-ring rounded-lg border border-line px-3 py-1.5" type="button">Set up paper session</button></Dialog.Trigger>
     </div>
     <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[180] bg-black/50" />
       <Dialog.Content className="themed fixed left-1/2 top-1/2 z-[181] max-h-[90dvh] w-[min(48rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-surface p-5 text-fg shadow-pop">
         <Dialog.Title className="text-lg font-semibold">Lilthe paper session plan</Dialog.Title>
-        <Dialog.Description className="mt-2 text-sm text-fg-muted">Choose the rules before a session can run. This saves a draft; background execution and start authorization are still being built.</Dialog.Description>
+        <Dialog.Description className="mt-2 text-sm text-fg-muted">Choose the rules before a session can run. Save the plan, review it, then explicitly authorize background paper execution below.</Dialog.Description>
         <Dialog.Close asChild><button aria-label="Close paper setup" className="focus-ring absolute right-3 top-3 rounded p-1"><X size={18} /></button></Dialog.Close>
         {busy && <p role="status" className="mt-3 text-sm">Loading or saving plan…</p>}
         {error && <p role="alert" className="my-3 text-sm">{error} Close and reopen to reload the latest saved plan.</p>}
@@ -79,7 +80,7 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
             <div className="rounded-lg bg-surface-2 p-3 text-sm">Mode: Paper · Bybit market data · USDT spot · no leverage. Simulated capital is separate from your exchange balance. Live session setup is unavailable.</div>
             <h3 className="font-medium">Capital and risk limits</h3>
             <div className="grid gap-3 sm:grid-cols-2">{amountFields.map(([key,label]) => <label key={key} className="text-sm">{label}<input required inputMode="decimal" type="text" pattern="[0-9]+(\.[0-9]{1,2})?" value={fields[key]} onChange={e => update(key,e.target.value)} className={inputClass} /></label>)}</div>
-            <p className="text-xs text-fg-muted">Maximum order ≤ exposure ≤ capital. Risk per trade ≤ session loss limit ≤ capital. Loss accounting and enforcement must be verified in the runner before starting.</p>
+            <p className="text-xs text-fg-muted">Maximum order ≤ exposure ≤ capital. Risk per trade ≤ session loss limit ≤ capital. Execution costs count toward order/exposure limits. Current equity losses and open-position stop risk count toward the loss budget.</p>
             <h3 className="font-medium">Markets and strategy</h3>
             <label className="block text-sm">Allowed symbols (comma separated)<input required value={fields.symbols} onChange={e => update("symbols",e.target.value)} placeholder="BTCUSDT, ETHUSDT" className={inputClass} /></label>
             <label className="block text-sm">Strategy and exit conditions<textarea required maxLength={500} rows={3} value={fields.strategy} onChange={e => update("strategy",e.target.value)} className={inputClass} /></label>
@@ -87,11 +88,12 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
             <div className="grid gap-3 sm:grid-cols-2">{numberFields.map(([key,label,min,max]) => <label key={key} className="text-sm">{label}<input required type="number" min={min} max={max} step="1" value={fields[key]} onChange={e => update(key,e.target.value)} className={inputClass} /></label>)}</div>
             <p className="text-xs text-fg-muted">100 basis points = 1%. Review frequency is not continuous protection. Fee/slippage values are simulation assumptions, not verified account fees.</p>
             <label className="block text-sm">Additional rules<textarea maxLength={1000} rows={2} value={fields.additionalRules} onChange={e => update("additionalRules",e.target.value)} className={inputClass} /></label>
-            <p className="text-xs text-fg-muted">Free-text strategy/rules are planning notes until supported by executable checks. Saving creates no orders, scheduler or exchange permission.</p>
+            <p className="text-xs text-fg-muted">The model interprets strategy notes; server checks enforce numerical limits. Saving alone does not start a session or create exchange permission.</p>
             <button type="submit" className="focus-ring rounded-lg bg-accent px-4 py-2 text-sm text-black">Save draft plan</button>
           </fieldset>
-          {saved && <p role="status" className="rounded-lg border border-line p-3 text-sm">Draft saved. Session has not started. Reopen this setup to review or edit it.</p>}
+          {saved && <p role="status" className="rounded-lg border border-line p-3 text-sm">Draft saved. Saving does not start or change an active session.</p>}
         </form>
+        <PaperSessionControls planRevision={revision} ready={saved && !busy} />
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

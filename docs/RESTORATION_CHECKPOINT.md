@@ -288,9 +288,9 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
-| C09 | Trading session setup and enforced rules | In progress — paper draft setup | Strict owner-reviewed simulated spot plan storage; runtime policy enforcement, session authorization, templates and amendments remain |
-| C10 | Background runner, research and charts | Agreed | Continues without browser; restart recovery; sourced data; cost controls |
-| C11 | Paper trading and failure reconciliation | Agreed | Duplicates/timeouts/restarts tested; fills/fees/results reconcile |
+| C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
+| C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production wake-up verification pending; independent research, full charts and spending budgets remain |
+| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production financial-session lifecycle remains unverified |
 | C12 | Live-readiness review | Agreed | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
 | C14 | Investing canvas and existing views | Agreed | Pan/zoom/drill-down; persistent relationships; consistent underlying records |
@@ -870,3 +870,54 @@ paper trading only against their documented acceptance criteria.
   commit. Local and GitHub trees match. Release proof outside source:
   `outputs/paper-risk-release-verification.png`. No runtime integration or
   production simulated fill is implied by deployment readiness.
+
+### C09/C10/C11 — combined paper runtime work, 2026-10-08
+
+- Owner requested session authorization, durable background paper execution, exits
+  and interruption recovery together. Implementing Vercel Workflow 5 with database
+  state, bounded workflow chunks, server-only model proposals and public Bybit data.
+- Only explicit owner-reviewed paper start may activate it. No live financial API,
+  transfer or withdrawal permission is added. Existing manual trading stays separate.
+- Pause blocks entries while exit monitoring continues; stop/expiry close simulated
+  positions with current quotes, including gap losses. Missing quotes cannot create
+  fills; status must show stale/error/recovery and outstanding positions honestly.
+- Session policy/model frozen at start; stored history and fills survive page closure
+  and workflow retries. Generation/lease/CAS checks must suppress duplicate fills
+  and proposals generated before pause/stop/recovery. Test full lifecycle and rollback.
+
+- Implemented owner-only same-origin session API and Markets controls: explicit
+  START PAPER against exact saved revision, selected provider/model/effort frozen,
+  pause/resume/stop/recover, cash/equity/P&L, open positions, fills and recent equity.
+  Saving a draft does not start or amend a session. No owner capital was invented.
+- Workflow 5 uses durable 60-second sleeps and 100-cycle continuations in CPT1.
+  Browser closure is independent of execution. DB advisory locks, expiring leases,
+  generation and revision checks serialize cycles and invalidate in-flight proposals.
+  Protective exits commit before model inference; pauses retain them. Stop/expiry/
+  loss-limit exits use current bids with costs and can exceed limits after price gaps.
+- Exact JSON proposals permit one hold/buy/sell per review, public fixed Bybit USDT
+  spot endpoints only; listed precision/minimums verified before authorization and
+  cycles. No private exchange key, order endpoint, transfer or withdrawal is used.
+  Free-text strategy is interpreted by the model, not executable risk policy. Current
+  evidence is quotes and recent equity; independent sourced research is not finished.
+- Every stored ledger reconciles capital and all fills against cash, quantities and
+  entry count; corrupt state blocks execution. History keeps 200 recent observations,
+  fills at most 200 (100 entries and corresponding exits); stopped sessions archived.
+  Missing prices retain outstanding positions and visible errors without invented
+  fills. Recovery preserves positions and rules. Stale UI checks show a delay warning.
+- Added owner-only, rate-limited nonfinancial runtime check: verify public BTC quotes
+  and real transaction path, durable five-second sleep/wake, then store the result.
+  It cannot match a session ID or authorize funds and requires no paid inference.
+- Lifecycle fixtures passed buys/exits/gaps/expiry, pause/recovery/stop, owner isolation,
+  strict confirmation/revisions, competing cycles, duplicate retry suppression, old
+  generations, in-flight pause, audit rollback, model/market failures, ledger corruption
+  and archival preservation. Risk (39 rejection cases), plan, chat/tool, consolidation
+  (5) and architecture (11 trading/12 interaction/52 Vault) checks passed. Production
+  financial session has not been started; those fixtures are not production fill proof.
+- Next patched to 16.3.8; Workflow dependency overrides use compatible patched
+  devalue 5.9.3 and nanoid 5.1.16. Production dependency audit has no advisories.
+  Production build compiles two workflows. System environment access already enabled
+  in Vercel; no permissions or credentials changed. Final lint and optimized build passed. GitHub/Vercel release and production wake-up proof pending.
+- Experience: stabilize Zustand selectors; distinguish successful checks from control
+  timestamps; never let model failure block a protective exit; reconcile persisted
+  balances instead of trusting serialization; verify platform wake-up separately
+  without guessing the owner's financial policy. C09/C10/C11 remain In progress.

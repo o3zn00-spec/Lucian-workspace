@@ -80,3 +80,8 @@ target/
 /logs/
 /tmp/
 /temp/
+
+# generated durable workflow handlers/state
+/app/.well-known/workflow/
+.workflow-data/
+/.swc

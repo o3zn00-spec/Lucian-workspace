@@ -174,6 +174,6 @@ export const config = {
   //   - _next/static, _next/image, favicon, branding, sw.js
   //   - public assets (they're served directly by Next.js)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|apple-icon.png|icon.png|branding|auth/guardian-entrance.mp4|auth/guardian-hold.webp|sw.js|manifest.json).*)",
+    "/((?!\\.well-known/workflow/|_next/static|_next/image|favicon.ico|apple-icon.png|icon.png|branding|auth/guardian-entrance.mp4|auth/guardian-hold.webp|sw.js|manifest.json).*)",
   ],
 };
