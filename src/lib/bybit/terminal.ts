@@ -7,6 +7,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { bybitPublicRequest, bybitRequest, getBybitConfig, type BybitEnvironment } from "@/lib/bybit/client";
 import { getTradingProfile } from "@/lib/bybit/trading";
 import { accountExposure } from "@/lib/bybit/exposure";
+import { readSpotRisk } from "@/lib/bybit/spot-risk";
 
 export type TradingMode = "bybit_testnet" | "bybit_live";
 export type TradingCategory = "spot" | "linear";
@@ -243,7 +244,10 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
     // An omitted zero-asset coin is zero, but missing numeric fields are unknown.
     spotAvailable = coins.length ? Math.max(0,riskNumber(coins[0].walletBalance,"Spot balance") - riskNumber(coins[0].locked,"Locked spot balance") - riskNumber(coins[0].spotBorrow,"Borrowed spot balance")) : 0;
   }
-  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + riskNumber(row.closedPnl, "Daily closed P/L"), 0);
+  const addsExposure = category === "spot" ? side === "Buy" : !reduceOnly;
+  // A live entry must never interpret missing Spot cost basis as zero loss.
+  const spotRisk = mode === "bybit_live" && addsExposure ? await readSpotRisk(userId, config) : null;
+  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + riskNumber(row.closedPnl, "Daily closed P/L"), 0) + (spotRisk?.dailyRealized ?? 0);
   const filters = instruments.list?.[0] ?? null;
   const lot = (filters?.lotSizeFilter ?? {}) as Record<string, string>;
   const priceFilter = (filters?.priceFilter ?? {}) as Record<string, string>;
@@ -254,7 +258,6 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
   const quantityAligned = !quantityStep || Math.abs(quantity / quantityStep - Math.round(quantity / quantityStep)) < 1e-8;
   const priceAligned = !limitPrice || !tickSize || Math.abs(limitPrice / tickSize - Math.round(limitPrice / tickSize)) < 1e-8;
   const existingExposure = exposure.exposure;
-  const addsExposure = category === "spot" ? side === "Buy" : !reduceOnly;
   const assetKey = category === "spot" ? `spot:${String(instruments.list[0].baseCoin)}` : `linear:${symbol}:${positionIdx}`;
   const resultingExposure = existingExposure + (addsExposure ? notional : 0);
   const resultingPositions = exposure.assets.size + (addsExposure && !exposure.assets.has(assetKey) ? 1 : 0);
@@ -267,7 +270,7 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
     { id: "position_limit", ok: !addsExposure || resultingExposure <= Number(profile.maxPositionUsd), message: `Gross account exposure including inventory and pending entries ${resultingExposure.toFixed(2)} USDT / ${Number(profile.maxPositionUsd).toFixed(2)} limit` },
     { id: "open_positions", ok: !addsExposure || resultingPositions <= profile.maxOpenPositions, message: `Held/pending positions ${resultingPositions} / ${profile.maxOpenPositions}` },
     { id: "leverage", ok: leverage <= Number(profile.maxLeverage), message: `Leverage ${leverage}× / ${Number(profile.maxLeverage)}× limit` },
-    { id: "daily_loss", ok: dailyClosedPnl > -Number(profile.maxDailyLossUsd), message: `Daily closed P/L ${dailyClosedPnl.toFixed(2)} USDT / -${Number(profile.maxDailyLossUsd).toFixed(2)} stop` },
+    { id: "daily_loss", ok: !addsExposure || dailyClosedPnl > -Number(profile.maxDailyLossUsd), message: `Daily realized P/L ${dailyClosedPnl.toFixed(2)} USDT / -${Number(profile.maxDailyLossUsd).toFixed(2)} stop${spotRisk ? " · Spot fills reconciled" : ""}` },
     { id: "minimum_quantity", ok: !minimumQuantity || quantity >= minimumQuantity, message: `Quantity ${quantity} / minimum ${minimumQuantity || "exchange default"}` },
     { id: "maximum_quantity", ok: Number.isFinite(maximumQuantity) && maximumQuantity > 0 && quantity <= maximumQuantity, message: `Quantity ${quantity} / maximum ${maximumQuantity}` },
     { id: "quantity_step", ok: quantityStep > 0 && quantityAligned, message: quantityAligned ? `Quantity follows ${quantityStep || "exchange"} step` : `Quantity must follow the ${quantityStep} step` },

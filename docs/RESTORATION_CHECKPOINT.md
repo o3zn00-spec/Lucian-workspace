@@ -3,7 +3,12 @@
 Updated: 2026-10-08 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C10–C12 wider research, historical strategy validation and paper
+Current batch: C08–C12 live loss-accounting and execution/recovery gates. Unified
+funding is complete: last authenticated check showed 40.94851553 USDT. The owner
+has authorized bounded real-money tests and delegated test sizing. Do not ask for
+that same general authorization again. Live entry now also requires a proven
+Spot cost-basis baseline; actual protection and autonomous live execution remain
+unfinished. Earlier C10–C12 wider research, historical strategy validation and paper
 worker recovery are deployed. Each review now has BTC/ETH closed candles at
 5m/1h/4h/daily plus independently sourced Coinbase USD and Alternative.me context.
 Production historical replay covered 949 hours (about 40 days); every reference
@@ -296,8 +301,8 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | In progress — paper authorization/runtime | Saved revision reviewed with START PAPER; frozen policy/model and server numerical limits; templates, amendments and live authorization remain |
 | C10 | Background runner, research and charts | In progress — paper worker | Durable minute checks and generation recovery implemented; production nonfinancial sleep/wake passed; closed-candle/announcement research, charts/results and a 30-review cap added; owner-approved production paper round trip verified; multi-timeframe research and bounded independent context production verified; four-hour forward model trial running, strategy fitness unproven |
-| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; four-hour forward trial running; owner order/fill reconciliation fixture-tested, actual exchange recovery still unproven |
-| C12 | Live-readiness review | In progress — fresh confirmation checks fixture verified | Specific supported exchange/strategy verified; unresolved gaps recorded; owner session authorization still required |
+| C11 | Paper trading and failure reconciliation | In progress — simulated spot ledger | Entry/exit accounting, fees, gaps, duplicate suppression, rollback and control races fixture-tested; production paper start/background entry/exit/stop/persistence verified; four-hour forward trial running; owner order/fill reconciliation fixture-tested; anchored Spot FIFO/fee/wallet accounting added with fail-closed live-entry gate; actual exchange recovery still unproven |
+| C12 | Live-readiness review | In progress — fresh confirmation checks fixture verified | Owner authorized real-money tests and delegated sizing; execution/protection and bounded autonomous session remain unfinished; strategy profitability unproven |
 | C13 | Two-way voice | In progress — original browser hook restored | Real speech round trip, interruption, transcripts and graceful failure |
 | C14 | Investing canvas and existing views | Agreed | Pan/zoom/drill-down; persistent relationships; consistent underlying records |
 | C15 | Recovery email and final regression review | Agreed | Actual recovery flow; targeted UI/API/security checks; deployment evidence |
@@ -1278,3 +1283,48 @@ Production evidence, 2026-10-08:
 - Live execution/protection/recovery/loss-accounting limitations above remain
   open. Funding transfer and actual exchange evidence are still required; do not
   mark trading complete based on a successful chart read or passing fixtures.
+
+
+### C08–C12 — funded Unified account and Spot loss gate, 2026-10-08
+
+- Funding is complete. After the owner transferred BTC and converted it, the
+  authenticated production Portfolio showed 40.94851553 USDT in Unified
+  (about 40.92 USD in provider totals), with Funding empty. Supersedes the earlier
+  zero-Unified/deposit blocker. No further owner funding step is required now.
+- Owner has explicitly authorized real-money tests and delegated sizing. Use
+  conservative bounded Spot-only tests with no borrowing/leverage; do not repeat
+  the general permission question. This authorization does not prove execution
+  readiness or remove UI hand-off requirements for final financial actions.
+- Added FIFO Spot realized-loss accounting from a verified flat USDT baseline.
+  Base/quote fees, rebates and partial disposals retain cost basis. Unknown opening
+  inventory, unsupported fee currency/extra fees, conflicting execution IDs and
+  ambiguous simultaneous buy/sell ordering reject rather than invent profit.
+- Owner-only Markets → Risk initialization reads an unlocked, unborrowed USDT
+  Unified wallet, no derivatives/open orders and no activity during initialization.
+  It stores an account/API-identity-bound baseline and an audit record; existing
+  baselines cannot be overwritten to erase losses. It makes no exchange writes.
+- Live entries now read bounded, paginated Spot execution/transaction history,
+  reject non-Spot account activity and reconcile filled inventory and USDT cash
+  against the current wallet. Daily realized loss combines Spot and Linear values.
+  Loss-limit breaches prevent new exposure while allowing inventory-covered
+  sells/reduce-only orders through that entry-loss check. Emergency-stop,
+  confirmations/passwords, inventory and unresolved-intent gates remain intact.
+- This initial baseline covers at most seven days and then fails closed. Durable
+  rollover with retained lots/loss history remains open; do not describe this
+  bounded implementation as indefinite unattended trading. External transfers,
+  conversions, derivatives cash flows and missing/delayed history require review.
+- Verified locally: Spot ledger/service fixtures, live confirmation/risk fixtures,
+  reconciliation fixtures, full typecheck, lint, architecture and consolidation.
+  Build/release and actual production initialization remain to verify below.
+  No financial exchange write or production database migration occurred.
+- Forward trial at 19:21:23 UTC: running, ten model reviews, all HOLD, zero
+  orders/fills/positions, 1,000 virtual USDT, eight markets/nine context sources,
+  200 retained equity observations, no error. Scheduled end remains 20:47:55 UTC.
+- Remaining trading gates: verified exchange-native protective attachment and
+  trigger/OCO/partial-fill coverage; bounded autonomous live-session runner and
+  recovery; real fill/fee reconciliation; actual database reservation concurrency;
+  retained cost-basis rollover; final forward-trial export. Live flags remain off.
+- Experience rule: funding, charts, bookkeeping, strategy quality and execution
+  readiness are distinct. Do not silently use derivatives-only P/L as account-wide
+  loss control, reset losses through reinitialization or mark live protection
+  verified from request fields, mocked responses or a successful build.
