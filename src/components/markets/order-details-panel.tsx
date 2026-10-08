@@ -163,7 +163,7 @@ export function OrderDetailsPanel({
       {/* ── Body ── */}
       <div className="min-h-0 flex-1 overflow-y-auto themed">
         {accountMode !== "paper" ? (
-          <BybitOrderForm symbol={inst.symbol} marketPrice={(SELL_PRICE + BUY_PRICE) / 2} />
+          <BybitOrderForm key={`${inst.symbol}:${preselectedSide ?? "new"}`} symbol={inst.symbol} marketPrice={(SELL_PRICE + BUY_PRICE) / 2} initialSide={preselectedSide === "sell" ? "Sell" : "Buy"} />
         ) : effectiveTab === "market" ? (
           <MarketOrderBody
             sellPrice={SELL_PRICE}

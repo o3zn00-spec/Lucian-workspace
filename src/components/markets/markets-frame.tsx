@@ -462,6 +462,11 @@ export function MarketsFrame() {
           {/* Center trading workspace (chart + drawing rail + bottom panel) */}
           <ChartWorkspace
             pendingOrderPriceOverride={null}
+            onNewOrder={() => {
+              setLeftPanelMode("order");
+              setPanelOpen(true);
+              setPendingOrderSide(null);
+            }}
             onQuickTrade={(side) => {
               // Chart BUY/SELL quick-trade button → open OrderDetails
               // with the active pane's symbol + preselected side.

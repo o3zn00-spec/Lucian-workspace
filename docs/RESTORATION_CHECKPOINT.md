@@ -1513,3 +1513,24 @@ Production evidence, 2026-10-08:
   fixtures, both isolated PostgreSQL integrations, full lint, architecture checks
   (11/12/52), consolidation checks (5), and completed production build/typecheck
   (22/22 pages) passed. GitHub-first release verification follows.
+
+
+## Production verification and order-panel navigation — 2026-10-08
+
+- GitHub commit 17c4e517faca5ec975cb6035ff80177160ae4d7a matches tested
+  tree 35ac11359c8043f9d2d38aebb0e72cb7ecd3de63. Vercel deployment
+  jVGbLYEeGMBmivYpC5vBhdsdQLkF is Ready / Production (47 seconds).
+- Live account UI reads approximately 40.92 USD equity/free margin, zero open
+  orders and positions. This is account connectivity evidence, not a trade.
+- Browser found New order did not reopen a previously closed contextual panel.
+  Added an explicit parent callback that opens it. Buy/Sell shortcuts now pass
+  their side into the broker form and remount drafts when symbol/side changes,
+  preventing a stale draft from appearing under a different instrument.
+- Spot Limit controls are visible in production. A read-only protected preview
+  trial uses 0.00006 BTC at 81840.1 USDT (4.91 USDT), stop 81430, target 82250.
+  No financial submit, transfer, withdrawal or live worker activation occurred.
+- Navigation patch: full lint and production build/typecheck passed (22/22).
+  Deployment and browser regression results are recorded after verification.
+- Still open: actual exchange protection/fill/exit/recovery evidence and autonomous
+  live worker; universal app tools, voice, Investing canvas and wider stability.
+  Do not mark these complete from simulations or a read-only preview.

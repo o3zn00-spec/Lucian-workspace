@@ -313,9 +313,11 @@ function loadChartConfig(): SavedChartConfig | null {
 
 export function ChartWorkspace({
   pendingOrderPriceOverride,
+  onNewOrder,
   onQuickTrade,
 }: {
   pendingOrderPriceOverride?: number | null;
+  onNewOrder?: () => void;
   /** Called when the chart's CompactQuickTrade BUY/SELL button is clicked.
    *  MarketsFrame uses this to open the OrderDetails panel with the
    *  preselected side. */
@@ -572,7 +574,7 @@ export function ChartWorkspace({
             onLoad={handleLoad}
             saveMessage={saveMessage}
             pendingOrderPrice={pendingOrderPrice}
-            onNewOrder={() => useMarketsStore.getState().setLeftPanelMode("order")}
+            onNewOrder={onNewOrder ?? (() => useMarketsStore.getState().setLeftPanelMode("order"))}
             onQuickTrade={onQuickTrade}
             activeTool={activeTool}
             drawingsByPane={drawingsByPane}

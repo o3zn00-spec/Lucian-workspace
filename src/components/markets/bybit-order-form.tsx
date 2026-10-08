@@ -13,12 +13,12 @@ interface Preview {
   preview: { mode: string; symbol: string; category: string; side: string; orderType: string; quantity: number; limitPrice: number | null; stopLoss: number | null; takeProfit: number | null; marketPrice: number; notional: number; leverage: number; checks: Array<{ id: string; ok: boolean; message: string }> };
 }
 
-export function BybitOrderForm({ symbol, marketPrice }: { symbol: string; marketPrice: number }) {
+export function BybitOrderForm({ symbol, marketPrice, initialSide = "Buy" }: { symbol: string; marketPrice: number; initialSide?: "Buy" | "Sell" }) {
   const mode = useMarketsStore((state) => state.accountMode);
   const bybitMode = mode === "bybit_live" ? "bybit_live" : "bybit_testnet";
   const bybitSymbol = `${getLucianBase(symbol)}USDT`;
   const [category, setCategory] = useState<"spot" | "linear">("spot");
-  const [side, setSide] = useState<"Buy" | "Sell">("Buy");
+  const [side, setSide] = useState<"Buy" | "Sell">(initialSide);
   const [orderType, setOrderType] = useState<"Market" | "Limit">("Market");
   const [quantity, setQuantity] = useState("0.001");
   const [price, setPrice] = useState("");
