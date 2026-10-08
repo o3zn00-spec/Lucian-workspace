@@ -7,8 +7,14 @@ Current batch: C08–C12 live loss-accounting and execution/recovery gates. Unif
 funding is complete: last authenticated check showed 40.94851553 USDT. The owner
 has authorized bounded real-money tests and delegated test sizing. Do not ask for
 that same general authorization again. Live entry now also requires a proven
-Spot cost-basis baseline; actual protection and autonomous live execution remain
-unfinished. Earlier C10–C12 wider research, historical strategy validation and paper
+Spot cost-basis baseline, initialized and wallet-reconciled in production.
+Saved test limits: 5 USDT/order, 10 USDT exposure, 1 USDT daily realized loss,
+one position, no borrowing/leverage for first Spot trial. Quote/candle retries,
+truthful Delayed status, protected accounting memory and stable risk edits are
+deployed and verified. Actual protection and autonomous live execution remain
+unfinished. The four-hour forward trial ended: 15 HOLD reviews, zero fills,
+1,000 virtual USDT equity, no error; this is not a profitable-strategy validation.
+Earlier C10–C12 wider research, historical strategy validation and paper
 worker recovery are deployed. Each review now has BTC/ETH closed candles at
 5m/1h/4h/daily plus independently sourced Coinbase USD and Alternative.me context.
 Production historical replay covered 949 hours (about 40 days); every reference
