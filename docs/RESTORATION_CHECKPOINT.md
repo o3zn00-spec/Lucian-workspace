@@ -287,7 +287,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
-| C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance denial verified in production; activity deployment verification pending. Funding, other products and exchange capability framework remain open |
+| C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified balance and bounded spot/USDT linear order/position tools locally tested; balance/activity permission denial verified in production; enabled production chat reads remain unverified. Funding, other products and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
 | C10 | Background runner, research and charts | Agreed | Continues without browser; restart recovery; sourced data; cost controls |
 | C11 | Paper trading and failure reconciliation | Agreed | Duplicates/timeouts/restarts tested; fills/fees/results reconcile |
@@ -779,6 +779,14 @@ paper trading only against their documented acceptance criteria.
 - Reviewed Bybit V5 open-order and position documentation:
   https://bybit-exchange.github.io/docs/v5/order/open-order
   https://bybit-exchange.github.io/docs/v5/position
-- Release/production model verification pending. C04/C08 stay In progress.
-  Next: paper-session policy/setup, durable runtime and paper reconciliation;
+- GitHub `83b6b4141fe2c233e828c791d6774839cbaa651a` published first; Vercel
+  production deployment `dpl_FvAtJEYpSmdxm3fdGsRgXe6PrScU` verified Ready.
+  Local and remote trees matched. Production permission panel showed bookmark,
+  balance and order/position access off; no permission was granted. One paid
+  OpenRouter `openai/gpt-6.1-sol` Medium request invoked `trading.activity.read`,
+  returned the access-off response and persisted its denied event. Panel reopening
+  and refreshed activity succeeded. Proof outside source:
+  `outputs/lilthe-bybit-orders-tool-verification.png`. Enabled production chat
+  reads remain unverified; actual successful data handling is fixture-tested.
+- C04/C08 stay In progress. Next: paper-session policy/setup, durable runtime and paper reconciliation;
   Funding/other-product adapters and live-readiness remain unfinished.
