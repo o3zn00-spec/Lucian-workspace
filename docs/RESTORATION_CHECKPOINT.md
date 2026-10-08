@@ -287,7 +287,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
-| C08 | Exchange adapter framework and first exchange | Agreed | Account/market discovery, paper/live separation and supported capabilities |
+| C08 | Exchange adapter framework and first exchange | In progress | Bybit Unified read tool locally tested; production permission denial verified. Funding/orders/positions and exchange capability framework remain open |
 | C09 | Trading session setup and enforced rules | Agreed | Stored session rules; boundary rejection; manual protections retained |
 | C10 | Background runner, research and charts | Agreed | Continues without browser; restart recovery; sourced data; cost controls |
 | C11 | Paper trading and failure reconciliation | Agreed | Duplicates/timeouts/restarts tested; fills/fees/results reconcile |
