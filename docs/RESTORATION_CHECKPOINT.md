@@ -1384,3 +1384,24 @@ Production evidence, 2026-10-08:
   runner/recovery, real fill/fee evidence, database reservation concurrency and
   retained accounting rollover. App tools, voice, Investing canvas and broader
   stability retain their existing checkpoint scope. No financial exchange write.
+
+
+### Production quote verification and private accounting guard — 2026-10-08
+
+- Quote/risk source edeb144743e4dff7d2931f0170d2f4848e1dabfd matches local
+  tree edd5b17418e1b191a668fa479e8d7a7b93e8a77b. Vercel
+  dpl_GrotYbAhNwkwXPYK9MtoDVtP71Qf reached Ready/Production and assigned
+  lucian-workspace.vercel.app. Actual authenticated screen shows Bybit bid/ask
+  81,842.40/81,842.50 with Delayed status, replacing catalog 77,128/77,156.
+- Cross-feature review found the new _spot_risk: accounting state was not excluded
+  from ordinary assistant memory. Added its prefix to both the shared database
+  read/delete filter and the memory editing guard. Clearing ordinary memories
+  must not expose/delete loss anchors or permit resetting realized-loss history.
+  Private-state regression checks pass; no owner memory or accounting record was
+  deleted. No migration, trade, transfer or withdrawal.
+- This is bookkeeping protection, not completed live execution/protection. The
+  previously listed remaining trading and universal app tasks remain open.
+- Actual production draft test: unsaved daily-loss edit 0.9 remained through
+  multiple quote/account refreshes; quote moved from 81,842.40 to 81,812.90.
+  Restored displayed draft to the saved 1 USDT without saving a changed policy.
+  Private-state follow-up lint and completed 22/22 production build passed.
