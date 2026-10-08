@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/lib/auth/owner";
-import { cancelTerminalOrder, executeTerminalOrder, previewTerminalOrder } from "@/lib/bybit/terminal";
+import { cancelTerminalOrder, previewTerminalOrder } from "@/lib/bybit/terminal";
+import { executeObservedOrder } from "@/lib/bybit/observed-execution";
 import { listBybitOrders } from "@/lib/bybit/trading";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const ownerUserId = await requireOwnerId();
     const body = await request.json() as Record<string, unknown>;
-    if (body.confirmed === true) return NextResponse.json(await executeTerminalOrder(ownerUserId, body));
+    if (body.confirmed === true) return NextResponse.json(await executeObservedOrder(ownerUserId, body));
     return NextResponse.json(await previewTerminalOrder(ownerUserId, body));
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Bybit order failed." }, { status: 400 });

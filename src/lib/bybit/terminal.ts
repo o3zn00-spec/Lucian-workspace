@@ -187,6 +187,9 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
   if (!["Buy", "BUY", "Sell", "SELL"].includes(String(input.side))) throw new Error("Choose Buy or Sell explicitly.");
   if (!["Market", "Limit"].includes(String(input.orderType))) throw new Error("Choose Market or Limit explicitly.");
   if (!["spot", "linear"].includes(String(input.category))) throw new Error("Choose Spot or USDT Linear explicitly.");
+  // Live derivatives require a separate explicit server configuration. A 1x
+  // leverage limit alone does not restrict an order to Spot.
+  if (mode === "bybit_live" && category !== "spot" && process.env.BYBIT_LIVE_SPOT_ONLY !== "false") throw new Error("Live trading is Spot-only. Derivatives are not enabled for this trial.");
   const side = input.side === "Sell" || input.side === "SELL" ? "Sell" : "Buy";
   const orderType = input.orderType === "Limit" ? "Limit" : "Market";
   const quantity = number(input.quantity, "Quantity", 0);

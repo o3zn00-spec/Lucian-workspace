@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireVaultOwner, unauthorizedVaultResponse } from "@/lib/auth/vault-ownership";
 import { listBybitOrders } from "@/lib/bybit/trading";
-import { executeTerminalOrder, previewTerminalOrder } from "@/lib/bybit/terminal";
+import { previewTerminalOrder } from "@/lib/bybit/terminal";
+import { executeObservedOrder } from "@/lib/bybit/observed-execution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json() as Record<string, unknown>;
     if (body.confirmed === true && typeof body.intentId === "string") {
-      return NextResponse.json(await executeTerminalOrder(userId, body));
+      return NextResponse.json(await executeObservedOrder(userId, body));
     }
     return NextResponse.json(await previewTerminalOrder(userId, body));
   } catch (error) {

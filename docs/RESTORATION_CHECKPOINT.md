@@ -8,7 +8,7 @@ funding is complete: last authenticated check showed 40.94851553 USDT. The owner
 has authorized bounded real-money tests and delegated test sizing. Do not ask for
 that same general authorization again. Live entry now also requires a proven
 Spot cost-basis baseline, initialized and wallet-reconciled in production.
-Saved test limits: 5 USDT/order, 10 USDT exposure, 1 USDT daily realized loss,
+Approved test limits: 6 USDT/order (production save pending),, 10 USDT exposure, 1 USDT daily realized loss,
 one position, no borrowing/leverage for first Spot trial. Quote/candle retries,
 truthful Delayed status, protected accounting memory and stable risk edits are
 deployed and verified. Partially filled cancelled orders now remain visible and
@@ -30,7 +30,8 @@ The resumed worker completed the model exit with the page closed; final equity
 999.68 virtual USDT, net -0.32, two fills, no open positions, stopped.
 C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
-readiness are not inferred from a build or operational trial. Live flags stay off.
+readiness are not inferred from a build or operational trial. Owner approved enabling
+bounded manual live submission; production activation is being verified.
 
 ## Real model verification and connection hardening — 2026-10-07
 
@@ -1552,3 +1553,33 @@ Production evidence, 2026-10-08:
 - Initial chart requests intermittently timed out, then recovered to candles
   labelled Delayed. Account balance read succeeded. Do not claim all market
   feeds are continuously live or all wider stability work has passed.
+
+## Approved manual Spot trial and durable exchange observer — 2026-10-08
+
+- Owner explicitly approved the 6 USDT/order, 10 USDT gross exposure, 1 USDT daily
+  realized loss, one-position, no-leverage manual Spot trial. Do not ask for this
+  same approval again. Exact confirmation and current owner password remain.
+- Live previews and execution now reject derivatives by default on the server.
+  `BYBIT_LIVE_SPOT_ONLY=false` is a separate explicit configuration needed to
+  change that restriction; this batch does not authorize derivatives.
+- Both owner order endpoints launch a durable read-only Workflow observer after
+  an acknowledged or ambiguous submission. It polls existing exchange
+  reconciliation every 15 seconds for up to 15 minutes (plus request duration),
+  stops on terminal fills/cancellations/rejections, and retains unresolved or
+  partially cancelled reservations for owner review. Worker audits include the
+  run ID and truthful `protectionVerified:false`. No exchange mutations in the
+  observer, no automatic order retry, cancellation, exit, or wallet credit.
+- Queue/database observer-start failures preserve the original submission result
+  and do not repeat its financial action. Provider errors are not saved verbatim
+  by this worker. Existing owner Recovery controls remain the manual fallback.
+- Verification: lint and production build passed (22/22 pages; 21 Workflow steps,
+  3 workflows), architecture 11/12/52 passed, exchange-reconciliation fixtures
+  passed; new observer fixtures cover ownership, read failure, bounded review,
+  partial cancellation, stopping, error redaction, and observer start failure.
+  Execution fixtures prove live derivatives are rejected with zero broker writes.
+- Actual exchange fill/exit/recovery and this observer's production run remain
+  unverified until the owner submits a real trial. The browser tool requires
+  owner handoff for the final consequential financial Submit; approval alone
+  does not allow the agent to click it or bypass through another tool.
+- Lilthe's unattended strategy/execution worker remains unfinished. This observer
+  is recovery infrastructure, not a strategy worker or a profit claim.
