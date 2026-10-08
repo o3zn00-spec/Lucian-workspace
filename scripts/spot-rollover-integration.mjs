@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
+import {build} from 'esbuild';
+import {PrismaClient} from '@prisma/client';
+const database=new URL(process.env.DATABASE_URL??'http://invalid');
+assert(['localhost','127.0.0.1'].includes(database.hostname)&&database.pathname==='/lucian_restoration_dev_20261007','Named local restoration database required; production is forbidden');
+const db=new PrismaClient();globalThis.integrationDb=db;
+const source=await readFile(new URL('./spot-risk-tests.mjs',import.meta.url),'utf8');
+const captured=source.slice(source.indexOf('const mocks=')+12,source.indexOf('\nconst b=await build'));
+const config={configured:true,environment:'mainnet',apiKey:'fixture-key',apiSecret:'fixture-secret'};
+const mocks=Function('config','return '+captured.replace(/;\s*$/,''))(config);
+mocks['@/lib/db']='export const db=globalThis.integrationDb;';
+mocks['@/lib/bybit/client']=mocks['@/lib/bybit/client'].replace("if(path.includes('wallet-balance'))return", "if(path.includes('wallet-balance')&&f.barrier)await f.barrier();if(path.includes('wallet-balance'))return");
+const bundle=await build({entryPoints:['src/lib/bybit/spot-risk.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'local-db-fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));}}]});
+const {initializeSpotRisk,readSpotRisk}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
+const owner=randomUUID(),key='_spot_risk:flat_anchor',where=k=>({userId_key:{userId:owner,key:k}});
+try {
+  await db.user.create({data:{id:owner,username:'rollover-'+owner,email:owner+'@example.test'}});
+  globalThis.spotFixture={coins:[{coin:'USDT',walletBalance:'40',locked:'0',spotBorrow:'0',borrowAmount:'0'}],fills:[],transactions:[],positions:[],orders:[],writes:0};
+  await initializeSpotRisk(owner,'bybit_live');
+  const anchor=await db.assistantMemory.findUnique({where:where(key)}),now=Date.now(),day=86400000;
+  await db.assistantMemory.update({where:where(key),data:{value:JSON.stringify({...JSON.parse(anchor.value),startMs:now-10*day})}});
+  const f=globalThis.spotFixture;
+  f.fills=[{execId:'old-buy',symbol:'BTCUSDT',side:'Buy',execQty:'0.1',execPrice:'100',execFee:'0.01',feeCurrency:'USDT',execTime:String(now-9*day),execType:'Trade'},{execId:'sell',symbol:'BTCUSDT',side:'Sell',execQty:'0.1',execPrice:'90',execFee:'0.01',feeCurrency:'USDT',execTime:String(now-100),execType:'Trade'}];f.coins[0].walletBalance='38.98';
+  let waiting=0,release;const barrier=new Promise(resolve=>{release=resolve;});f.barrier=async()=>{if(++waiting===2)release();await barrier;};
+  const results=await Promise.allSettled([readSpotRisk(owner,config),readSpotRisk(owner,config)]);delete f.barrier;
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1,'Only one initial checkpoint may commit');
+  assert.equal(await db.assistantMemory.count({where:{userId:owner,key:{startsWith:'_spot_risk:archive:'}}}),1);
+  assert.equal(await db.tradingAuditEvent.count({where:{userId:owner,action:'spot.accounting.rollover'}}),1);
+  const reread=await readSpotRisk(owner,config);assert.ok(Math.abs(reread.dailyRealized+1.02)<1e-8);assert.ok(Math.abs(reread.realized+1.02)<1e-8);
+  assert.equal(await db.assistantMemory.count({where:{userId:owner,key:{startsWith:'_spot_risk:archive:'}}}),1);assert.equal(f.writes,0);
+  console.log('PASS actual PostgreSQL FIFO rollover: concurrent initialization writes yield one atomic checkpoint/archive/audit; reread retains acquisition costs and daily loss. Disposable local owner, exchange fixtures only.');
+} finally {await db.user.deleteMany({where:{id:owner}});await db.$disconnect();delete globalThis.integrationDb;}

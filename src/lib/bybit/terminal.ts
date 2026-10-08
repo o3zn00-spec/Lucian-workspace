@@ -175,10 +175,10 @@ export async function updateRiskPolicy(userId: string, input: Record<string, unk
   return profile;
 }
 
-async function validateTerminalOrder(userId: string, input: Record<string, unknown>) {
+async function validateTerminalOrder(userId: string, input: Record<string, unknown>, requireExecution = true) {
   const mode = normalizeMode(input.mode);
-  const config = await assertMode(userId, mode, true);
-  if (mode === "bybit_testnet" && process.env.BYBIT_TESTNET_TRADING_ENABLED === "false") throw new Error("Bybit Testnet order submission is server-locked.");
+  const config = await assertMode(userId, mode, requireExecution);
+  if (requireExecution && mode === "bybit_testnet" && process.env.BYBIT_TESTNET_TRADING_ENABLED === "false") throw new Error("Bybit Testnet order submission is server-locked.");
   const profile = await getTradingProfile(userId);
   if (profile.emergencyStop) throw new Error("Emergency stop is active. No new orders are allowed.");
 
@@ -285,7 +285,7 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
 }
 
 export async function previewTerminalOrder(userId: string, input: Record<string, unknown>) {
-  const preview = await validateTerminalOrder(userId, input);
+  const preview = await validateTerminalOrder(userId, input, false);
   const { mode, symbol, category, side, orderType, quantity, notional, limitPrice, stopLoss, takeProfit, checks } = preview;
   const profile = await getTradingProfile(userId);
   const clientOrderId = `lucian${randomUUID().replace(/-/g, "").slice(0, 28)}`;
@@ -296,7 +296,8 @@ export async function previewTerminalOrder(userId: string, input: Record<string,
     previewId: randomUUID(), preview: preview as Prisma.InputJsonValue, expiresAt: new Date(Date.now() + 120_000),
   } });
   await audit(userId, "order.preview", mode, "approved", { symbol, intentId: intent.id, category, notional, checks });
-  return { requiresConfirmation: profile.requireApproval, intentId: intent.id, expiresAt: intent.expiresAt, confirmationPhrase: mode === "bybit_live" ? "CONFIRM BYBIT LIVE ORDER" : "CONFIRM BYBIT TESTNET ORDER", preview };
+  const executionEnabled = mode === "bybit_live" ? process.env.BYBIT_LIVE_MODE_ENABLED === "true" && process.env.LIVE_TRADING_ENABLED === "true" : process.env.BYBIT_TESTNET_TRADING_ENABLED !== "false";
+  return { executionEnabled, requiresConfirmation: profile.requireApproval, intentId: intent.id, expiresAt: intent.expiresAt, confirmationPhrase: mode === "bybit_live" ? "CONFIRM BYBIT LIVE ORDER" : "CONFIRM BYBIT TESTNET ORDER", preview };
 }
 
 export async function executeTerminalOrder(userId: string, input: Record<string, unknown>) {
@@ -356,6 +357,10 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
       ...(intent.category === "spot" && intent.orderType === "Market" ? { marketUnit: "baseCoin" } : {}),
       ...(intent.category === "linear" ? { reduceOnly: preview.reduceOnly === true, positionIdx: Number(preview.positionIdx ?? 0) } : { isLeverage: 0 }),
       ...((intent.category === "linear" || intent.orderType === "Limit") ? { stopLoss: intent.stopLoss?.toString(), takeProfit: intent.takeProfit?.toString() } : {}),
+      ...(intent.category === "spot" && intent.orderType === "Limit" ? {
+        ...(intent.stopLoss ? { slOrderType: "Market" } : {}),
+        ...(intent.takeProfit ? { tpOrderType: "Market" } : {}),
+      } : {}),
       orderLinkId: intent.clientOrderId,
     } }, executionConfig);
     if (!execution.orderId) throw new Error("Bybit accepted no order identifier.");

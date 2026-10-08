@@ -19,3 +19,9 @@ assert.throws(()=>book([a,fill('b','Sell',1.1,110,6000)]),/cost basis/);
 result=book([a,fill('b','Sell',0.99,110,6000,'0.01','BTC')]);close(result.inventory.BTC,0);close(result.realized,8.9);
 result=book([fill('a','Buy',1,100,2000,'-0.01','BTC'),fill('b','Sell',1.01,100,6000)]);close(result.realized,1);
 console.log('PASS Spot FIFO: base/quote fees, rebates, partial fills, daily window, duplicate/conflicting fills, unknown basis/currency, malformed history and ambiguous ordering. No exchange writes.');
+
+const initial=spotLedger([a],1000,4000,5000);
+const opening=JSON.stringify(initial.lots);
+const resumed=spotLedger([fill('b','Sell',1,90,6000)],4001,10000,5000,initial.lots);close(resumed.dailyRealized,-10);close(resumed.inventory.BTC,0);assert.equal(JSON.stringify(initial.lots),opening);
+for(const lots of [{BTC:[{quantity:1,cost:NaN}]},{USDT:[{quantity:1,cost:1}]},{BTC:[{quantity:0,cost:1}]}])assert.throws(()=>spotLedger([],1000,10000,5000,lots));
+console.log('PASS rollover FIFO retains opening costs without mutating the prior checkpoint; malformed basis is rejected.');

@@ -12,7 +12,10 @@ Saved test limits: 5 USDT/order, 10 USDT exposure, 1 USDT daily realized loss,
 one position, no borrowing/leverage for first Spot trial. Quote/candle retries,
 truthful Delayed status, protected accounting memory and stable risk edits are
 deployed and verified. Partially filled cancelled orders now remain visible and
-recheckable in recovery, retaining their execution block. Actual protection and autonomous live execution remain
+recheckable in recovery, retaining their execution block. FIFO rollover and
+reservation concurrency now pass actual isolated PostgreSQL tests. Spot Limit
+protection controls and locked read-only previews are implemented. Actual
+exchange protection/fill proof and autonomous live execution remain
 unfinished. The four-hour forward trial ended: 15 HOLD reviews, zero fills,
 1,000 virtual USDT equity, no error; this is not a profitable-strategy validation.
 Earlier C10–C12 wider research, historical strategy validation and paper
@@ -1465,3 +1468,48 @@ Production evidence, 2026-10-08:
   build/typecheck passed (22/22 pages). No exchange mutation or database migration.
 - Actual cancelled-fill exchange evidence and protective-exit certification remain
   outstanding. This is a recovery-path fix, not live readiness.
+
+
+## FIFO rollover, database concurrency and Spot protection controls — 2026-10-08
+
+- Replaced seven-day baseline expiration with FIFO checkpoints. Original flat
+  anchor is retained. Historical reads use consecutive seven-day-or-shorter
+  exchange windows, bounded to 28 days of unreviewed activity. Longer gaps block
+  entries and require recovery; they never reset costs or losses.
+- A checkpoint advances only after complete fill/fee history matches the current
+  wallet. It retains opening lots/costs, cash, cumulative realized P/L and execution
+  count. Two recent days remain replayable, preserving the rolling daily loss
+  window and allowing delayed records to settle. Late or missing older records
+  that break wallet reconciliation fail closed. Checkpoint, archived predecessor
+  and audit commit atomically; compare-and-swap protects concurrent reviewers.
+- Pure/service fixtures verify carried acquisition costs, prior and current losses,
+  duplicate history, malformed lots, long gaps, wallet mismatch and stale writers.
+- ACTUAL LOCAL POSTGRESQL evidence: scripts/live-reservation-integration.mjs ran
+  against only lucian_restoration_dev_20261007 with a disposable generated owner.
+  Six simultaneous confirmations of one preview and two competing previews each
+  yielded exactly one exchange-fixture write. An ambiguous submission remained
+  reserved and could not be resubmitted. No exchange network calls.
+- ACTUAL LOCAL POSTGRESQL rollover evidence: scripts/spot-rollover-integration.mjs
+  raced two reviewers; one atomic checkpoint/archive/audit committed. Rereading
+  retained the old acquisition's cost and today's loss. Disposable rows removed
+  by generated-owner ID; no production database changes or migrations.
+- Found Spot stop/target controls hidden by a derivatives-only UI condition.
+  Spot Limit now exposes both. Submission explicitly requests slOrderType=Market
+  and tpOrderType=Market for attached Spot exits, following Bybit's documented
+  request shape. This is request-shape validation, not proven native execution.
+- Owner can create an exact read-only live preview while execution flags are off.
+  It reports executionEnabled=false; submit stays disabled. Final execution still
+  requires both server flags, exact confirmation, owner password and fresh risk.
+  Order review shows server-approved side, quantity, price, stop/target and expiry.
+- Remaining: actual protected entry/fill/exit and partial-fill/OCO behavior,
+  live recovery on real exchange records, and the autonomous live worker. Existing
+  paper workers continue to be separate; do not claim they execute real trades.
+- Official references: https://bybit-exchange.github.io/docs/v5/order/create-order
+  and /v5/order/execution, /v5/account/transaction-log. Bybit's documented parent
+  link field applies to futures/options; do not invent Spot child-order ownership
+  or certify protection from merely echoed parent stop/target fields.
+
+- Validation for this batch: FIFO/service/live-execution/reconciliation/private-state
+  fixtures, both isolated PostgreSQL integrations, full lint, architecture checks
+  (11/12/52), consolidation checks (5), and completed production build/typecheck
+  (22/22 pages) passed. GitHub-first release verification follows.

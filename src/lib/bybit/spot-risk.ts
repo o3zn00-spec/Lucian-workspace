@@ -2,13 +2,28 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { bybitRequest, getBybitConfig } from "@/lib/bybit/client";
-import { spotLedger, type SpotFill } from "@/lib/bybit/spot-ledger";
+import { spotLedger, type SpotFill, type SpotLots } from "@/lib/bybit/spot-ledger";
 
 type Config = Awaited<ReturnType<typeof getBybitConfig>>;
 type Row = Record<string,string>;
 type Anchor = {version:1; startMs:number; usdt:number; connection:string};
 const key = "_spot_risk:flat_anchor";
 const week = 7*86_400_000;
+const day = 86_400_000;
+const checkpointKey = "_spot_risk:fifo_checkpoint";
+type Checkpoint = { version:1; anchorStartMs:number; throughMs:number; usdt:number; connection:string; lots:SpotLots; realized:number; executions:number };
+async function history(userId:string, config:Config, path:string, query:Record<string,string|number>, startMs:number, endMs:number) {
+  // Each exchange request remains within the documented seven-day window.
+  // A long unattended gap requires review rather than an unbounded request.
+  if(endMs-startMs>28*day) throw new Error("Spot accounting has more than 28 days of unreviewed history. Manual ledger recovery is required; no losses were reset.");
+  const result:Row[]=[];
+  for(let from=startMs;from<=endMs;) {
+    const to=Math.min(from+week-1,endMs);
+    result.push(...await rows(userId,config,path,{...query,startTime:from,endTime:to}));
+    from=to+1;
+  }
+  return result;
+}
 function connection(config: Config) { return createHash("sha256").update(`${config.environment}:${config.apiKey}`).digest("hex"); }
 function amount(value: unknown) {
   if (typeof value !== "string" || !/^-?\d+(?:\.\d+)?$/.test(value) || !Number.isFinite(Number(value))) throw new Error("Spot wallet accounting data is malformed.");
@@ -70,20 +85,42 @@ export async function readSpotRisk(userId:string, config:Config) {
   const row=await db.assistantMemory.findUnique({where:{userId_key:{userId,key}}});
   if(!row) throw new Error("Spot loss accounting needs a flat-account baseline. Initialize it in Markets → Risk before live entries.");
   const anchor=JSON.parse(row.value) as Anchor, endMs=Date.now();
-  if(anchor.version!==1 || !Number.isSafeInteger(anchor.startMs) || anchor.startMs>endMs || endMs-anchor.startMs>=week || !Number.isFinite(anchor.usdt) || anchor.usdt<0 || anchor.connection!==connection(config)) throw new Error("Spot accounting baseline expired or the connection changed. Review the ledger; losses cannot be reset automatically.");
+  if(anchor.version!==1 || !Number.isSafeInteger(anchor.startMs) || anchor.startMs>endMs || !Number.isFinite(anchor.usdt) || anchor.usdt<0 || anchor.connection!==connection(config)) throw new Error("Spot accounting baseline is invalid or the connection changed. Review the ledger; losses cannot be reset automatically.");
+  const saved=await db.assistantMemory.findUnique({where:{userId_key:{userId,key:checkpointKey}}});
+  const checkpoint=saved?JSON.parse(saved.value) as Checkpoint:null;
+  if(checkpoint && (checkpoint.version!==1 || checkpoint.anchorStartMs!==anchor.startMs || checkpoint.connection!==anchor.connection || !Number.isSafeInteger(checkpoint.throughMs) || checkpoint.throughMs<anchor.startMs || checkpoint.throughMs>endMs-day || !Number.isFinite(checkpoint.usdt) || checkpoint.usdt<0 || !Number.isFinite(checkpoint.realized) || !Number.isSafeInteger(checkpoint.executions) || checkpoint.executions<0)) throw new Error("Spot FIFO checkpoint is invalid. Ledger review is required.");
+  const fromMs=checkpoint?checkpoint.throughMs+1:anchor.startMs;
   const [fills,transactions,coins]=await Promise.all([
-    rows(userId,config,"/v5/execution/list",{category:"spot",startTime:anchor.startMs,endTime:endMs,limit:100}),
-    rows(userId,config,"/v5/account/transaction-log",{accountType:"UNIFIED",startTime:anchor.startMs,endTime:endMs,limit:50}),
+    history(userId,config,"/v5/execution/list",{category:"spot",limit:100},fromMs,endMs),
+    history(userId,config,"/v5/account/transaction-log",{accountType:"UNIFIED",limit:50},fromMs,endMs),
     wallet(userId,config),
   ]);
   // Transfers, conversions, interest and derivative cash flows invalidate a Spot-only baseline.
   if(transactions.some(t=>t.type!=="TRADE" || t.category!=="spot")) throw new Error("Non-Spot account activity requires ledger review before new live entries.");
-  const ledger=spotLedger(fills as SpotFill[],anchor.startMs,endMs,endMs-86_400_000);
-  const expected:Record<string,number>={...ledger.inventory,USDT:anchor.usdt+ledger.cashDelta};
+  const ledger=spotLedger(fills as SpotFill[],fromMs,endMs,endMs-day,checkpoint?.lots);
+  const openingCash=checkpoint?.usdt??anchor.usdt;
+  const expected:Record<string,number>={...ledger.inventory,USDT:openingCash+ledger.cashDelta};
   const observed=Object.fromEntries(coins.map(c=>[c.coin,amount(c.walletBalance)]));
   for(const coin of new Set([...Object.keys(expected),...Object.keys(observed)])) {
     const tolerance=coin==="USDT"?0.000001:0.0000000001;
     if(Math.abs((observed[coin]??0)-(expected[coin]??0))>tolerance) throw new Error("Spot fills and wallet balances do not reconcile. New live entries are blocked pending review.");
   }
-  return {startMs:anchor.startMs,observedAtMs:endMs,expiresAtMs:anchor.startMs+week,...ledger};
+  const latest=await getBybitConfig(userId);
+  if(latest.apiKey!==config.apiKey || latest.apiSecret!==config.apiSecret || latest.environment!==config.environment) throw new Error("Bybit connection changed during ledger review.");
+  // Keep two days replayable for exchange settling and the complete daily-loss window.
+  // Only older, fully wallet-reconciled fills can become a durable FIFO checkpoint.
+  const throughMs=endMs-2*day;
+  if(throughMs>fromMs+day) {
+    const older=spotLedger((fills as SpotFill[]).filter(f=>Number(f.execTime)<=throughMs),fromMs,throughMs,throughMs+1,checkpoint?.lots);
+    const next:Checkpoint={version:1,anchorStartMs:anchor.startMs,throughMs,usdt:openingCash+older.cashDelta,connection:anchor.connection,lots:older.lots,realized:(checkpoint?.realized??0)+older.realized,executions:(checkpoint?.executions??0)+older.executions};
+    await db.$transaction(async tx=>{
+      if(saved) {
+        const changed=await tx.assistantMemory.updateMany({where:{userId,key:checkpointKey,value:saved.value},data:{value:JSON.stringify(next)}});
+        if(changed.count!==1) throw new Error("Spot checkpoint changed during review. Retry with the retained ledger.");
+      } else await tx.assistantMemory.create({data:{userId,key:checkpointKey,value:JSON.stringify(next)}});
+      await tx.assistantMemory.create({data:{userId,key:`_spot_risk:archive:${throughMs}`,value:JSON.stringify({previous:checkpoint,checkpoint:next})}});
+      await tx.tradingAuditEvent.create({data:{userId,action:"spot.accounting.rollover",tradingMode:config.environment==="mainnet"?"bybit_live":"bybit_testnet",status:"reconciled",details:{throughMs,realized:next.realized,executions:next.executions}}});
+    });
+  }
+  return {startMs:anchor.startMs,observedAtMs:endMs,checkpointThroughMs:checkpoint?.throughMs??null,...ledger,realized:(checkpoint?.realized??0)+ledger.realized,executions:(checkpoint?.executions??0)+ledger.executions};
 }

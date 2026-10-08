@@ -3,11 +3,12 @@ export type SpotFill = {
   execId: string; symbol: string; side: string; execQty: string; execPrice: string;
   execFee: string; feeCurrency?: string; execTime: string; execType?: string; extraFees?: string;
 };
+export type SpotLots = Record<string, Array<{ quantity: number; cost: number }>>;
 function decimal(value: unknown, name: string) {
   if (typeof value !== "string" || !/^-?\d+(?:\.\d+)?$/.test(value) || !Number.isFinite(Number(value))) throw new Error(`Spot ${name} is unknown.`);
   return Number(value);
 }
-export function spotLedger(fills: SpotFill[], startMs: number, endMs: number, dailyStartMs: number) {
+export function spotLedger(fills: SpotFill[], startMs: number, endMs: number, dailyStartMs: number, opening: SpotLots = {}) {
   const unique = new Map<string, SpotFill>();
   for (const fill of fills) {
     if (!fill.execId) throw new Error("Spot execution identity is missing.");
@@ -24,6 +25,12 @@ export function spotLedger(fills: SpotFill[], startMs: number, endMs: number, da
     directions.set(key,fill.side);
   }
   const lots = new Map<string, Array<{ quantity: number; cost: number }>>();
+  if (!opening || typeof opening !== "object" || Array.isArray(opening)) throw new Error("Opening Spot lots are malformed.");
+  for (const [coin, rows] of Object.entries(opening)) {
+    if (!/^[A-Z0-9]{2,20}$/.test(coin) || coin === "USDT" || !Array.isArray(rows) || rows.length > 10000) throw new Error("Opening Spot lots are malformed.");
+    for (const row of rows) if (!row || !Number.isFinite(row.quantity) || row.quantity <= 0 || !Number.isFinite(row.cost) || row.cost <= 0) throw new Error("Opening Spot cost basis is unknown.");
+    lots.set(coin, rows.map(row => ({ ...row })));
+  }
   let realized = 0, dailyRealized = 0, cashDelta = 0;
   for (const fill of ordered) {
     if (!/^[A-Z0-9]{2,20}USDT$/.test(fill.symbol) || !["Buy","Sell"].includes(fill.side) || (fill.execType && fill.execType !== "Trade") || fill.extraFees) throw new Error("Unsupported Spot execution requires accounting review.");
@@ -54,6 +61,6 @@ export function spotLedger(fills: SpotFill[], startMs: number, endMs: number, da
     }
   }
   if (![realized,dailyRealized,cashDelta].every(Number.isFinite)) throw new Error("Spot accounting overflow.");
-  return { realized, dailyRealized, cashDelta, executions: ordered.length,
+  return { realized, dailyRealized, cashDelta, executions: ordered.length, lots: Object.fromEntries(lots),
     inventory: Object.fromEntries([...lots].map(([coin,rows]) => [coin,rows.reduce((sum,row)=>sum+row.quantity,0)])) };
 }
