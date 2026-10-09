@@ -28,7 +28,7 @@ import {
   OperationHistoryDrawer,
   type AccountActionKind,
 } from "@/components/markets/account-dialogs";
-import { useBybitTerminal } from "@/hooks/use-bybit-terminal";
+import { BybitTerminalContext, useBybitTerminal } from "@/hooks/use-bybit-terminal";
 import { getLucianBase } from "@/lib/markets/symbol-mapping";
 
 /* ------------------------------------------------------------------ */
@@ -153,6 +153,7 @@ export function MarketsFrame() {
   };
 
   return (
+    <BybitTerminalContext.Provider value={terminal}>
     <div className="themed flex h-full min-h-0 overflow-hidden bg-canvas text-fg">
       {/* ── LEFT VERTICAL RAIL (88px) — desktop only ── */}
       {/* Phase 17 responsive: rail is hidden on mobile (lg:flex). Mobile
@@ -497,6 +498,7 @@ export function MarketsFrame() {
           existing live-price stream. */}
       <PriceAlertsDialog open={alertsOpen} onClose={() => setAlertsOpen(false)} />
     </div>
+    </BybitTerminalContext.Provider>
   );
 }
 

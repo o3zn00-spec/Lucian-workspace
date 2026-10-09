@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const bundled=await build({entryPoints:['src/lib/bybit/pagination.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'server-only',setup(b){b.onResolve({filter:/^server-only$/},()=>({path:'server-only',namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:''}));}}]});
+const {readCompleteBybitList}=await import('data:text/javascript;base64,'+Buffer.from(bundled.outputFiles[0].text).toString('base64'));
+const seen=[];
+const result=await readCompleteBybitList(async cursor=>{seen.push(cursor);return !cursor?{list:[{orderId:'one'}],nextPageCursor:'page 2/+=='}:{list:[{orderId:'two'}],nextPageCursor:''};},'orders');
+assert.deepEqual(seen,[undefined,'page 2/+==']);assert.deepEqual(result.list.map(r=>r.orderId),['one','two']);
+await assert.rejects(readCompleteBybitList(async()=>({list:[],nextPageCursor:'repeat'}),'orders'),/repeated/);
+await assert.rejects(readCompleteBybitList(async cursor=>{if(cursor)throw Error('page two unavailable');return {list:[{orderId:'one'}],nextPageCursor:'two'};},'orders'),/page two unavailable/);
+await assert.rejects(readCompleteBybitList(async()=>({list:[],nextPageCursor:5}),'orders'),/Malformed/);
+let calls=0;await assert.rejects(readCompleteBybitList(async()=>({list:[],nextPageCursor:String(++calls)}),'orders'),/page limit/);assert.equal(calls,20);
+console.log('PASS complete cursor traversal, opaque cursor preservation, failed later pages, malformed/repeated cursors and bounded reads. No network.');

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHmac } from "node:crypto";
-import { readOwnerCredential } from "@/lib/security/owner-credentials";
+import { readOwnerCredentials } from "@/lib/security/owner-credentials";
 
 export type BybitEnvironment = "testnet" | "mainnet";
 
@@ -29,20 +29,11 @@ function normalizeEnvironment(value: string | null | undefined): BybitEnvironmen
   return value?.trim().toLowerCase() === "mainnet" ? "mainnet" : "testnet";
 }
 
-async function storedOrEnv(ownerUserId: string, key: "api_key" | "api_secret" | "environment") {
-  const stored = await readOwnerCredential(ownerUserId, "bybit", key);
-  if (stored) return stored;
-  if (key === "api_key") return process.env.BYBIT_API_KEY?.trim() || null;
-  if (key === "api_secret") return process.env.BYBIT_API_SECRET?.trim() || null;
-  return process.env.BYBIT_ENVIRONMENT?.trim() || "testnet";
-}
-
 export async function getBybitConfig(ownerUserId: string) {
-  const [apiKey, apiSecret, storedEnvironment] = await Promise.all([
-    storedOrEnv(ownerUserId, "api_key"),
-    storedOrEnv(ownerUserId, "api_secret"),
-    storedOrEnv(ownerUserId, "environment"),
-  ]);
+  const stored = await readOwnerCredentials(ownerUserId, "bybit", ["api_key", "api_secret", "environment"]);
+  const apiKey = stored.api_key || process.env.BYBIT_API_KEY?.trim() || null;
+  const apiSecret = stored.api_secret || process.env.BYBIT_API_SECRET?.trim() || null;
+  const storedEnvironment = stored.environment || process.env.BYBIT_ENVIRONMENT?.trim() || "testnet";
   const environment = normalizeEnvironment(storedEnvironment);
   return {
     apiKey,

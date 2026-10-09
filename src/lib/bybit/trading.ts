@@ -19,6 +19,8 @@ function maxOrderQuote(): number {
 
 
 export async function getTradingProfile(userId: string) {
+  const existing = await db.tradingAgentProfile.findUnique({ where: { userId } });
+  if (existing) return existing;
   return db.tradingAgentProfile.upsert({ where: { userId }, create: { userId, maxOrderUsd: maxOrderQuote() }, update: {} });
 }
 

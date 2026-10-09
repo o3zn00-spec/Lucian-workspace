@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const mocks={'server-only':'','@/lib/db':`export const db={ownerCredential:{findMany:async args=>{globalThis.reads.push(args);return [{keyName:'api_key',encryptedValue:'key'},{keyName:'api_secret',encryptedValue:'secret'},{keyName:'environment',encryptedValue:'mainnet'}];}}};`,'@/lib/security/owner-credential-encryption':`export const encryptOwnerCredential=()=>'';export const decryptOwnerCredential=(value,binding)=>{globalThis.bindings.push(binding);return value;};`};
+const b=await build({entryPoints:['src/lib/security/owner-credentials.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'mocks',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));}}]});
+const {readOwnerCredentials}=await import('data:text/javascript;base64,'+Buffer.from(b.outputFiles[0].text).toString('base64'));
+process.env.DATABASE_URL='fixture';globalThis.reads=[];globalThis.bindings=[];
+const keys=['api_key','api_secret','environment'];
+const values=await readOwnerCredentials('owner-one','bybit',keys);
+assert.equal(globalThis.reads.length,1);assert.deepEqual(globalThis.reads[0].where,{ownerUserId:'owner-one',service:'bybit',keyName:{in:keys}});
+assert.deepEqual(globalThis.bindings,keys.map(key=>'owner-one:bybit:'+key));assert.equal(values.environment,'mainnet');
+await assert.rejects(readOwnerCredentials('owner-one','bybit',['unsupported']),/Unsupported/);assert.equal(globalThis.reads.length,1);
+await readOwnerCredentials('owner-two','bybit',keys);assert.equal(globalThis.reads.length,2);assert.equal(globalThis.reads[1].where.ownerUserId,'owner-two');assert(globalThis.bindings.includes('owner-two:bybit:api_key'));
+delete process.env.DATABASE_URL;assert.deepEqual(await readOwnerCredentials('owner-one','bybit',keys),{api_key:null,api_secret:null,environment:null});assert.equal(globalThis.reads.length,2);
+console.log('PASS one scoped credential read, per-owner authenticated encryption binding, unsupported-key rejection, no shared decrypted cache and missing DB fallback. Fixtures only.');

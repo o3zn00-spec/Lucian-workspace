@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
-const bundled = await build({entryPoints:['src/lib/bybit/client.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'isolated-owner',setup(b){b.onResolve({filter:/^(server-only)$|owner-credentials$/},args=>({path:args.path,namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},args=>({contents:args.path==='server-only'?'':'export async function readOwnerCredential(_owner,_service,key){return {api_key:"fixture-key",api_secret:"fixture-secret",environment:"mainnet"}[key];}'}));}}]});
+const bundled = await build({entryPoints:['src/lib/bybit/client.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'isolated-owner',setup(b){b.onResolve({filter:/^(server-only)$|owner-credentials$/},args=>({path:args.path,namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},args=>({contents:args.path==='server-only'?'':'export async function readOwnerCredentials(){return {api_key:"fixture-key",api_secret:"fixture-secret",environment:"mainnet"};}'}));}}]});
 const {bybitRequest,bybitPublicRequest}=await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
 let calls=[];
 globalThis.fetch=async(url,init)=>{calls.push({url:String(url),...init});return new Response('<html>Forbidden</html>',{status:403});};

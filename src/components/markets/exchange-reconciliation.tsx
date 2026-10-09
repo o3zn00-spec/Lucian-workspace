@@ -4,7 +4,7 @@ type Candidate={id:string;productId:string;tradingMode:string;state:string};
 export function ExchangeReconciliation(){
   const [intents,setIntents]=useState<Candidate[]>([]),[message,setMessage]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false),[report,setReport]=useState<unknown>(null);
   const check=async(id?:string)=>{setBusy(true);setError("");try{
-    const response=await fetch("/api/bybit/reconciliation",id?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({intentId:id}),signal:AbortSignal.timeout(120000)}:{cache:"no-store",signal:AbortSignal.timeout(15000)});
+    const response=await fetch("/api/bybit/reconciliation",id?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({intentId:id}),signal:AbortSignal.timeout(120000)}:{cache:"no-store",signal:AbortSignal.timeout(120000)});
     const data=await response.json();if(!response.ok)throw Error(data.error??"Reconciliation unavailable.");
     if(id){setReport(data);setMessage(data.message);setIntents(current=>data.resolved?current.filter(i=>i.id!==id):current.map(i=>i.id===id?{...i,state:data.state}:i));}
     else{setIntents(data.intents);setMessage(data.message+(data.hasMore?" Showing the newest 20; older reservations remain retained.":""));setReport(null);}

@@ -43,7 +43,7 @@ for the bounded trial is already recorded; do not ask for the same limits again.
 | Lilthe layout, chat controls, model connection and conversation sync | Deployed; real text/image model requests previously passed. |
 | Mainnet connection and Unified balance | Authenticated read previously passed; production account read recovered after the client deadline correction; latest visible balance 40.92 USD. |
 | Manual live Spot orders | Enabled in production with 6 USDT/order, 10 USDT exposure, 1 USDT daily realized loss, one position and no borrowing. |
-| Prepared real-money trial | 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; fresh production preview passed again; previews expire after two minutes. No submission/fill evidence yet. |
+| First real-money trial | Submitted 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; production approval records provider order ID 2321863677537774336 (Oct 8, 22:27:05 displayed). Do not submit a duplicate. Fill/exit still require exchange verification. |
 | Read-only background order observer | Deployed; bounded 15-minute observation, no financial retry. Actual production run still unverified. |
 | Real fill, protective exit and recovery | OPEN. Exchange acknowledgement alone must not count as fill or verified protection. |
 | Lilthe unattended live strategy worker | OPEN. Read-only observer and paper worker must not be described as an autonomous live trader. |
@@ -60,14 +60,33 @@ Validation: full lint and production build passed (22 pages, 21 workflow steps,
 3 workflows). These checks do not prove real-money fills or profit. Release and
 browser verification are recorded separately after publication.
 
-Owner action: Markets → existing order details → renew the preview → type its
-exact confirmation phrase and current Lucian login password → Submit to Bybit
-once. The browser tool requires the owner to perform the final financial click;
-chat approval does not remove this handoff requirement. Keep the 6 USDT cap.
-Do not automatically replace the trial with another instrument or a larger order.
-If price/balance checks reject the preview, record the reason before changing it.
-Then inspect exchange order/fill records, fees, protective child orders and exit
-records, and test recovery without resubmitting a financial request.
+Current action: inspect the existing submitted order in Markets → Orders/Approvals
+and reconcile its exchange status. Do not renew a preview and submit a duplicate.
+A limit buy below the current market can remain open; acknowledgement does not
+prove a fill, fees, protective exit or recovery. Financial controls and test caps
+remain unchanged.
+
+## Pending-order pagination and account refresh correction — 2026-10-08
+
+- Production UI showed a submitted BTCUSDT Spot limit buy, provider order ID
+  `2321863677537774336`, not zero successful submissions. Subsequent preview
+  failed because code rejected any nonempty Bybit cursor instead of following it.
+- Snapshot and pre-order exposure reads now traverse opaque cursors with bounds
+  (20 pages/4,000 rows). Malformed or repeated cursors and failed later pages
+  reject complete risk data; no partial result is certified as safe.
+- Markets header and trading panel share one account snapshot hook instead of
+  independently polling the same full snapshot twice every five seconds.
+  Bybit configuration uses one owner-scoped encrypted credential query instead
+  of three; existing trading profiles are read without an upsert on every poll.
+  Decrypted secrets are not cached globally. This reduces duplicate work;
+  cold starts, database and exchange latency can still affect wall-clock time.
+- Read-only reconciliation-list deadline aligns with the 120-second account
+  deadline; no financial submission timeout/retry behavior was changed.
+- Validation passed: typecheck through production build, full lint, 11/12/52
+  architecture assertions, pagination/terminal reads, credential scope/binding,
+  fresh review UI and live execution fixtures. A second-page pending exposure
+  blocks an otherwise valid trial. No exchange financial writes in these tests.
+- GitHub-first production publication and real order status verification pending.
 
 ## Real model verification and connection hardening — 2026-10-07
 

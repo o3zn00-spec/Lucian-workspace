@@ -7,6 +7,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { bybitPublicRequest, bybitRequest, getBybitConfig, type BybitEnvironment } from "@/lib/bybit/client";
 import { getTradingProfile } from "@/lib/bybit/trading";
 import { accountExposure } from "@/lib/bybit/exposure";
+import { readCompleteBybitList } from "@/lib/bybit/pagination";
 import { readSpotRisk } from "@/lib/bybit/spot-risk";
 
 export type TradingMode = "bybit_testnet" | "bybit_live";
@@ -93,20 +94,22 @@ export async function terminalSnapshot(userId: string, input: { mode: unknown; s
   // Reuse this request's authenticated credentials across its read-only snapshot.
   // Never keep decrypted credentials in a process-global cache.
   const request = <T>(path: string, options: Parameters<typeof bybitRequest>[2]) => bybitRequest<T>(userId, path, options, config);
+  const pages = (path: string, query: NonNullable<Parameters<typeof bybitRequest>[2]>["query"], label: string) =>
+    readCompleteBybitList(cursor => request<BybitList>(path, { query: { ...query, cursor } }), label);
 
   const [walletResult, funding, positions, spotOrders, linearOrders, spotHistory, linearHistory, executions, closedPnl, transactions, ticker, audits, approvals] = await Promise.all([
     request<{ list?: Array<Record<string, unknown>> }>( "/v5/account/wallet-balance", { query: { accountType: "UNIFIED" } }),
     request<{ balance?: Array<Record<string,string>> }>("/v5/asset/transfer/query-account-coins-balance", { query: { accountType: "FUND" } })
       .then(result => { if (!Array.isArray(result.balance)) throw Error("Funding wallet response is unavailable."); return result.balance; })
       .catch(error => { readErrors.funding = error instanceof Error ? error.message : "Funding wallet unavailable."; return []; }),
-    readList("positions",request<BybitList>( "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    readList("spotOrders",request<BybitList>( "/v5/order/realtime", { query: { category: "spot", openOnly: 0, limit: 50 } })),
-    readList("linearOrders",request<BybitList>( "/v5/order/realtime", { query: { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 } })),
-    readList("spotHistory",request<BybitList>( "/v5/order/history", { query: { category: "spot", limit: 50 } })),
-    readList("linearHistory",request<BybitList>( "/v5/order/history", { query: { category: "linear", settleCoin: "USDT", limit: 50 } })),
-    readList("executions",request<BybitList>( "/v5/execution/list", { query: { category, symbol, limit: 100 } })),
-    readList("closedPnl",request<BybitList>( "/v5/position/closed-pnl", { query: { category: "linear", symbol, limit: 50 } })),
-    readList("transactions",request<BybitList>( "/v5/account/transaction-log", { query: { accountType: "UNIFIED", limit: 50 } })),
+    readList("positions",pages("/v5/position/list", { category: "linear", settleCoin: "USDT", limit: 50 }, "positions")),
+    readList("spotOrders",pages("/v5/order/realtime", { category: "spot", openOnly: 0, limit: 50 }, "spotOrders")),
+    readList("linearOrders",pages("/v5/order/realtime", { category: "linear", settleCoin: "USDT", openOnly: 0, limit: 50 }, "linearOrders")),
+    readList("spotHistory",pages("/v5/order/history", { category: "spot", limit: 50 }, "spotHistory")),
+    readList("linearHistory",pages("/v5/order/history", { category: "linear", settleCoin: "USDT", limit: 50 }, "linearHistory")),
+    readList("executions",pages("/v5/execution/list", { category, symbol, limit: 100 }, "executions")),
+    readList("closedPnl",pages("/v5/position/closed-pnl", { category: "linear", symbol, limit: 50 }, "closedPnl")),
+    readList("transactions",pages("/v5/account/transaction-log", { accountType: "UNIFIED", limit: 50 }, "transactions")),
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     db.tradingAuditEvent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
     db.liveTradeIntent.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 100 }),
@@ -205,15 +208,18 @@ async function validateTerminalOrder(userId: string, input: Record<string, unkno
   if (category === "spot" && orderType === "Market" && (stopLoss || takeProfit)) throw new Error("Bybit Spot Market cannot attach these protective exits. Choose a Spot Limit order with protection or remove the fields for an explicitly unprotected manual order.");
   if (reduceOnly && (stopLoss || takeProfit)) throw new Error("Reduce-only orders cannot also attach take profit or stop loss.");
 
+  const pages = (path: string, query: NonNullable<Parameters<typeof bybitRequest>[2]>["query"], label: string) =>
+    readCompleteBybitList(cursor => bybitRequest<BybitList>(userId, path, { query: { ...query, cursor } }, config), label)
+      .then(result => completeRiskRows(result, label));
   const [ticker, instruments, currentPositions, closedPnl, walletResult, feeResult, spotOrders, linearOrders] = await Promise.all([
     bybitPublicRequest<{ list?: Array<Record<string, string>> }>(config.environment, "/v5/market/tickers", { category, symbol }),
     bybitPublicRequest<{ list?: Array<Record<string, unknown>> }>(config.environment, "/v5/market/instruments-info", { category, symbol }),
-    bybitRequest<BybitList>(userId, "/v5/position/list", { query: { category: "linear", settleCoin: "USDT", limit: 200 } }, config).then(r=>completeRiskRows(r,"Position risk data")),
-    bybitRequest<BybitList>(userId, "/v5/position/closed-pnl", { query: { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 } }, config).then(r=>completeRiskRows(r,"Daily risk data")),
+    pages("/v5/position/list", { category: "linear", settleCoin: "USDT", limit: 200 }, "Position risk data"),
+    pages("/v5/position/closed-pnl", { category: "linear", startTime: Date.now() - 86_400_000, limit: 100 }, "Daily risk data"),
     bybitRequest<{ list?: Array<{accountType: string; coin?: Array<Record<string,string>>}> }>(userId, "/v5/account/wallet-balance", {query:{accountType:"UNIFIED"}}, config),
     bybitRequest<BybitList>(userId, "/v5/account/fee-rate", {query:{category,symbol}}, config),
-    bybitRequest<BybitList>(userId, "/v5/order/realtime", {query:{category:"spot",openOnly:0,limit:50}}, config).then(r=>completeRiskRows(r,"Spot pending orders")),
-    bybitRequest<BybitList>(userId, "/v5/order/realtime", {query:{category:"linear",settleCoin:"USDT",openOnly:0,limit:50}}, config).then(r=>completeRiskRows(r,"Linear pending orders")),
+    pages("/v5/order/realtime", {category:"spot",openOnly:0,limit:50}, "Spot pending orders"),
+    pages("/v5/order/realtime", {category:"linear",settleCoin:"USDT",openOnly:0,limit:50}, "Linear pending orders"),
   ]);
   if (ticker.list?.length !== 1 || ticker.list[0].symbol !== symbol || instruments.list?.length !== 1 || instruments.list[0].symbol !== symbol) throw new Error("Exchange instrument/quote identity is unavailable or mismatched.");
   if (instruments.list[0].quoteCoin !== "USDT" || (category === "linear" && instruments.list[0].settleCoin !== "USDT")) throw new Error("This terminal risk policy supports USDT-quoted Spot and USDT-settled Linear only.");

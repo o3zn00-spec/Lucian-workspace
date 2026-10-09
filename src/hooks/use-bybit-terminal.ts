@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import type { TradingMode } from "@/lib/bybit/terminal";
 
 export interface BybitTerminalSnapshot {
@@ -58,4 +58,12 @@ export function useBybitTerminal(mode: TradingMode | null, symbol: string, categ
     return () => { window.clearTimeout(initial); window.clearInterval(timer); cancelRequests(); };
   }, [mode, refresh, cancelRequests]);
   return { data, error, loading, refresh };
+}
+
+export const BybitTerminalContext = createContext<ReturnType<typeof useBybitTerminal> | null>(null);
+
+export function useSharedBybitTerminal() {
+  const terminal = useContext(BybitTerminalContext);
+  if (!terminal) throw new Error("Bybit terminal requires the Markets account provider.");
+  return terminal;
 }

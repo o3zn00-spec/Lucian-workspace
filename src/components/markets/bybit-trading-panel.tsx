@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertOctagon, ChevronDown, ChevronUp, Loader2, Maximize2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useMarketsStore } from "@/store/markets";
 import { getLucianBase } from "@/lib/markets/symbol-mapping";
-import { useBybitTerminal } from "@/hooks/use-bybit-terminal";
+import { useSharedBybitTerminal } from "@/hooks/use-bybit-terminal";
 
 type Tab = "positions" | "orders" | "pnl" | "portfolio" | "history" | "orderbook" | "risk" | "approvals" | "audit";
 type Row = Record<string, string>;
@@ -46,7 +46,7 @@ export function BybitTradingPanel({ expanded, onToggleExpand, onMaximize, isMaxi
   const active = useMarketsStore((state) => state.activePaneIndex);
   const symbol = `${getLucianBase(panes[active]?.symbol ?? "BTCUSD")}USDT`;
   const [tab, setTab] = useState<Tab>("positions");
-  const { data, error, loading, refresh } = useBybitTerminal(mode, symbol, "linear");
+  const { data, error, loading, refresh } = useSharedBybitTerminal();
   const book = useOrderBook(mode, symbol);
   const [riskDraft, setRiskDraft] = useState<Record<string, string>>({});
   const [riskDirty, setRiskDirty] = useState(false);

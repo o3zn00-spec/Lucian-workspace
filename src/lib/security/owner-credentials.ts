@@ -37,6 +37,19 @@ export async function readOwnerCredential(ownerUserId: string, service: string, 
   return decryptOwnerCredential(row.encryptedValue, binding(ownerUserId, service, keyName));
 }
 
+/** One owner-scoped read per connection; decrypted values remain request-local. */
+export async function readOwnerCredentials(ownerUserId: string, service: string, keys: string[]): Promise<Record<string, string | null>> {
+  if (keys.some(key => !isAllowedOwnerCredential(service, key))) throw new Error("Unsupported owner credential.");
+  const values: Record<string, string | null> = Object.fromEntries(keys.map(key => [key, null]));
+  if (!process.env.DATABASE_URL) return values;
+  const rows = await db.ownerCredential.findMany({
+    where: { ownerUserId, service, keyName: { in: keys } },
+    select: { keyName: true, encryptedValue: true },
+  });
+  for (const row of rows) values[row.keyName] = decryptOwnerCredential(row.encryptedValue, binding(ownerUserId, service, row.keyName));
+  return values;
+}
+
 export async function writeOwnerCredential(ownerUserId: string, service: string, keyName: string, value: string): Promise<void> {
   if (!isAllowedOwnerCredential(service, keyName)) throw new Error("Unsupported owner credential.");
   if (!value.trim()) throw new Error("Credential value cannot be empty.");
