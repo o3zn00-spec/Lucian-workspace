@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+const states=[], refs=[], cleanups=[];
+globalThis.__voiceHarness={useRef:(value)=>{const r={current:value};refs.push(r);return r;},useState:(value)=>{const index=states.push(value)-1;return [value,(next)=>{states[index]=next;}];},useCallback:(fn)=>fn,useEffect:(fn)=>{cleanups.push(fn());}};
+const bundled=await build({entryPoints:['src/hooks/use-lilith-voice.ts'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'hooks',setup(b){b.onResolve({filter:/^react$/},()=>({path:'hooks',namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const {useRef,useState,useCallback,useEffect}=globalThis.__voiceHarness;'}));}}]});
+const {useLilithVoice:runVoiceFixture}=await import('data:text/javascript;base64,'+Buffer.from(bundled.outputFiles[0].text).toString('base64'));
+const recognitions=[];let speech,ends=0;
+class Recognition { constructor(){recognitions.push(this);} start(){} stop(){} abort(){this.onend?.();} }
+globalThis.window={SpeechRecognition:Recognition,speechSynthesis:{cancel(){speech?.onend?.();},speak(u){speech=u;u.onstart();}}};
+globalThis.SpeechSynthesisUtterance=class {constructor(text){this.text=text;}};
+const voice=runVoiceFixture();let text;
+voice.startListening({onTranscript:t=>{text=t;}});
+recognitions[0].onresult({resultIndex:1,results:[{0:{transcript:'First phrase '},isFinal:true},{0:{transcript:'second phrase'},isFinal:false}]});
+assert.equal(text,'First phrase second phrase');
+voice.startListening({onTranscript:t=>{text=t;}});
+recognitions[0].onerror({error:'aborted'});
+assert.equal(states[0],true,'old microphone events must not stop replacement');
+voice.speak('one',{onEnd:()=>ends++});const old=speech;
+voice.speak('two',{onEnd:()=>ends++});old.onend();assert.equal(ends,0);
+voice.stopSpeaking();assert.equal(ends,0,'interrupted speech must not complete a newer turn');
+voice.speak('three',{onEnd:()=>ends++});speech.onend();assert.equal(ends,1);
+for(const cleanup of cleanups)cleanup?.();
+console.log('PASS cumulative dictation, replacement microphone isolation, speech interruption and cleanup. Browser fixtures; no real microphone round trip claimed.');

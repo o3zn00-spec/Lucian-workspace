@@ -30,11 +30,12 @@ import { Input } from "@/components/ui-devspace/input";
 import { Label } from "@/components/ui-devspace/label";
 import { Textarea } from "@/components/ui-devspace/textarea";
 import { toast } from "@/hooks/use-toast";
+import { InvestmentCanvas } from "@/components/investing/investment-canvas";
 import { cn } from "@/lib/utils";
 
 
 
-type Tab = "overview" | "holdings" | "watchlist" | "activity" | "research";
+type Tab = "canvas" | "overview" | "holdings" | "watchlist" | "activity" | "research";
 type DetailTab = "overview" | "thesis" | "performance" | "activity" | "notes";
 
 const TIME_RANGES = ["1D", "1W", "1M", "3M", "YTD", "1Y", "3Y", "ALL"] as const;
@@ -153,16 +154,14 @@ export function InvestingPage() {
 
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {selectedInv ? (
-          <InvestmentDetail id={selectedInv} onBack={() => setSelectedInv(null)} />
-        ) : (
-          <>
+        {selectedInv && <InvestmentDetail id={selectedInv} onBack={() => setSelectedInv(null)} />}
+          <div hidden={!!selectedInv}>
             <PortfolioSummary />
             <div className="border-b border-line-muted px-4 sm:px-6">
-              <div className="flex gap-1">
+              <div className="flex gap-1 overflow-x-auto">
                 {([
                   ["overview", "Overview"], ["holdings", "Holdings"],
-                  ["watchlist", "Watchlist"], ["activity", "Activity"], ["research", "Research"],
+                  ["watchlist", "Watchlist"], ["activity", "Activity"], ["research", "Research"], ["canvas", "Canvas"],
                 ] as [Tab, string][]).map(([id, label]) => (
                   <button key={id} onClick={() => setTab(id)}
                     className={cn("border-b-2 px-3 py-1.5 text-[12px] font-medium transition-colors",
@@ -173,14 +172,14 @@ export function InvestingPage() {
               </div>
             </div>
             <div className="p-4 sm:p-6">
+              {tab === "canvas" && <InvestmentCanvas onOpenInvestment={setSelectedInv} />}
               {tab === "overview" && <OverviewTab onOpenInv={setSelectedInv} />}
               {tab === "holdings" && <HoldingsTab onOpenInv={setSelectedInv} />}
               {tab === "watchlist" && <WatchlistTab />}
               {tab === "activity" && <ActivityTab />}
               {tab === "research" && <ResearchTab />}
             </div>
-          </>
-        )}
+          </div>
       </div>
 
       {addOpen && <AddInvestmentDialog onClose={() => setAddOpen(false)} />}

@@ -362,6 +362,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
     if (!settings.voiceEnabled) updateSettings({ voiceEnabled: true });
     voiceBaseTextRef.current = inputText.trim();
     const started = voice.startListening({
+      onEnd: () => setStatus("idle"),
       onTranscript: (transcript) => setInputText(`${voiceBaseTextRef.current}${voiceBaseTextRef.current ? " " : ""}${transcript}`),
       onError: (message) => { setError({ type: "unknown", message }); setStatus("idle"); },
     });

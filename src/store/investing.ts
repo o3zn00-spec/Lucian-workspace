@@ -13,6 +13,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { syncSavedItem, deleteSavedItemByRef } from "@/lib/auth/live-sync";
 
+import { validateConnection, type InvestmentConnection } from "@/lib/investing/canvas";
+
 export type AssetType = "stock" | "etf" | "crypto" | "fund" | "bond" | "cash" | "other";
 export type PositionSource = "manual" | "connected";
 
@@ -114,6 +116,9 @@ interface InvestingState {
   dividends: DividendRecord[];
   activities: InvestingActivity[];
   activePortfolioId: string;
+  connections: InvestmentConnection[];
+  addConnection: (from: string, to: string, label: string) => string | null;
+  removeConnection: (id: string) => void;
 
   // Portfolio
   setActivePortfolio: (id: string) => void;
@@ -180,6 +185,15 @@ export const useInvestingStore = create<InvestingState>()(
       dividends: [],
       activities: [],
       activePortfolioId: "main",
+      connections: [],
+      addConnection: (from, to, label) => {
+        const state = get();
+        const error = validateConnection(state.investments.map((i) => i.id), state.connections, from, to, label);
+        if (error) return error;
+        set({ connections: [...state.connections, { id: genId("link"), from, to, label: label.trim() }] });
+        return null;
+      },
+      removeConnection: (id) => set((s) => ({ connections: s.connections.filter((c) => c.id !== id) })),
 
       setActivePortfolio: (id) => set({ activePortfolioId: id }),
 
@@ -204,6 +218,7 @@ export const useInvestingStore = create<InvestingState>()(
       deleteInvestment: (id) => {
         set((s) => ({
           investments: s.investments.filter((i) => i.id !== id),
+          connections: s.connections.filter((c) => c.from !== id && c.to !== id),
           transactions: s.transactions.filter((t) => t.investmentId !== id),
           theses: s.theses.filter((t) => t.investmentId !== id),
           dividends: s.dividends.filter((d) => d.investmentId !== id),

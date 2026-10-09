@@ -48,7 +48,7 @@ for the bounded trial is already recorded; do not ask for the same limits again.
 | Real fill, protective exit and recovery | OPEN. Exchange acknowledgement alone must not count as fill or verified protection. |
 | Lilthe unattended live strategy worker | OPEN. Read-only observer and paper worker must not be described as an autonomous live trader. |
 | Strategy readiness | OPEN. Four-hour forward trial held throughout; historical reference strategies lost after costs. |
-| Broader app tools, voice, Investing canvas, stability/recovery | OPEN under C04/C07, C13, C14 and C15. |
+| Broader app tools, voice, Investing canvas, stability/recovery | OPEN under C04/C07, C13, C14 and C15. Canvas initial hierarchy/relationship controls and voice lifecycle fixes implemented; see latest evidence. |
 
 Current UI hardening: expired previews disable confirmation/submission and offer
 **Review again** without placing an order; a successful fresh review clears the
@@ -1744,3 +1744,37 @@ UI fixture tests also pass for stale-check removal, explicit failures and timeou
 recovery with zero financial submissions. Database contention test used only
 SELECTs against the isolated development database. Real submission is still
 owner handoff; production fill/exit/recovery remains unverified.
+
+## Investing canvas and voice lifecycle — 2026-10-08
+
+- C14 now has a Canvas tab alongside the preserved Overview, Holdings,
+  Watchlist, Activity and Research tabs. Portfolio → asset group → investment
+  drilldown uses existing record IDs; back from detail preserves the group and
+  viewport. Separate watchlist groups expose target-entry/notes without treating
+  ideas as owned assets. Pan, bounded zoom, reset and group navigation are present.
+- Owner-entered relationship labels connect existing investment records and
+  persist in the existing browser Investing store. Invalid/deleted/self/duplicate
+  references are rejected or cleaned up. Relationships create no transactions.
+  Cross-group links remain visible in the relationship list; lines render when
+  both endpoints are in the current group. Custom nested groups and cloud-backed
+  investment/relationship persistence remain OPEN; this is an initial hierarchy,
+  not completion of the full canvas scope.
+- C13 voice fixes retain accumulated dictation rather than replacing earlier
+  phrases with the latest recognition segment. Old microphone events cannot end
+  a replacement session. Speech cancellation/replacement ignores stale completion
+  callbacks; beginning dictation interrupts playback. Natural recognition end
+  returns the assistant status to idle. Real microphone/provider round trip still
+  requires actual audio verification and remains OPEN.
+- Focused canvas tests passed for invalid references, duplicates, deletion cleanup
+  and no financial mutation. Voice fixtures passed for cumulative transcript,
+  stale events, interruption and cleanup. Lint, production build and architecture
+  checks passed before the final detail-navigation adjustment; final build and
+  production browser verification are recorded after release.
+- Read-only Markets check this turn still showed one BTCUSDT Spot limit buy at
+  81,750 USDT, quantity 0.00007, status New. No duplicate or financial action was
+  performed. Real fill/fee/protection/exit evidence and unattended live worker
+  remain OPEN. Existing caps and owner-confirmed submission remain unchanged.
+
+Final local validation for the canvas/voice batch: full lint and completed production
+build passed after detail-back preservation and watchlist detail changes;
+architecture 11/12/52 and assistant tool permission regressions passed.

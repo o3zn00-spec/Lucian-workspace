@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+const bundled = await build({entryPoints:['src/store/investing.ts'], bundle:true, write:false, platform:'node', format:'esm', plugins:[{name:'sync',setup(b){b.onResolve({filter:/auth\/live-sync$/},()=>({path:'sync',namespace:'mock'})); b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const syncSavedItem=async()=>{}; export const deleteSavedItemByRef=async()=>{};'}));}}]});
+const {useInvestingStore:s}=await import('data:text/javascript;base64,'+Buffer.from(bundled.outputFiles[0].text).toString('base64'));
+const a=s.getState().addInvestment({symbol:'BTC'}), b=s.getState().addInvestment({symbol:'ETH'});
+assert.match(s.getState().addConnection(a,a,'same'),/different/);
+assert.match(s.getState().addConnection(a,'missing','related'),/existing/);
+assert.match(s.getState().addConnection(a,b,' '),/Describe/);
+assert.equal(s.getState().addConnection(a,b,' related sector '),null);
+assert.equal(s.getState().connections[0].label,'related sector');
+assert.match(s.getState().addConnection(a,b,'related sector'),/already/);
+assert.equal(s.getState().transactions.length,0,'relationships must not create financial transactions');
+s.getState().deleteInvestment(a);
+assert.equal(s.getState().connections.length,0,'deleted investment cannot leave a stale relationship');
+assert.equal(s.getState().investments[0].id,b);
+console.log('PASS canvas existing-record references, duplicate/self/invalid rejection, no financial mutation and deletion cleanup.');
