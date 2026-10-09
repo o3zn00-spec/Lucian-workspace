@@ -3,7 +3,7 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C07 bounded coding proposals/reviewed apply and conflict preservation validated locally and released to production; evidence follows below.
+Current batch: C08–C12 bounded durable read-only order monitoring and C13 foreground voice conversation implemented and validated locally; publication/production verification is recorded below. C07 coding proposals/reviewed apply were released previously.
 Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
@@ -35,6 +35,51 @@ C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
+
+## Durable exchange monitoring and conversational voice — 2026-10-09
+
+- Recovery email sender configuration is explicitly deferred at the owner's request.
+- Rechecked the real BTCUSDT Spot limit order against Bybit at 2026-10-09
+  13:34:35 UTC: New, cumulative fills 0, remaining 0.00007 BTC, reservation
+  exchange_open. Matched order/execution records; no submission, amendment,
+  cancellation, exit, transfer or withdrawal performed. This is real order-read
+  evidence, not a completed fill/exit/protection validation.
+- Added an owner-authenticated same-origin Monitor control for recent unresolved
+  reservations. Durable Workflow checks approximately every minute, continues
+  through bounded hourly child runs, and has a fixed 24-hour server deadline.
+  Protected generations prevent duplicate requests and stale recovery writes;
+  disabled owners and expired watches stop. Failed dispatch can be recovered
+  without resubmitting financial actions. Status, heartbeat and deadline are
+  owner-visible after refreshing reconciliation.
+- This is read-only order monitoring, not the unimplemented autonomous live
+  strategy/execution worker. Unknown and mismatched data retain reservations.
+  Added exact reserved quantity and filled/remaining consistency checks.
+  No protective exit is certified by monitoring. A Filled entry stops the
+  order watch; exit/protection review remains a separate requirement.
+- Added explicit Start/End voice conversation in Lilthe's floating chat.
+  Final speech settles for 1.2 seconds before sending once; the reply is spoken,
+  then listening resumes. Interrupt and talk cancels playback. Closing the panel,
+  switching context/conversation, microphone/provider/playback errors and the
+  fifteen-minute deadline stop the session. Typed drafts must be sent/cleared
+  first; ordinary dictation and push-to-talk remain available. Spoken requests
+  retain normal conversation history and existing tool permissions.
+- Voice uses browser recognition and speech synthesis. It does not reproduce
+  Sesame Maya's speech model, voice quality or acoustic barge-in. Real browser
+  Talk control entered listening successfully; no actual human transcript or
+  audible reply has yet been observed/confirmed. Do not mark a physical spoken
+  round trip complete based on fixtures or the owner's permission to test.
+- Validation: order reconciliation/observer/private-state fixtures; monitoring
+  auth/origin/body/dispatch tests; bounded workflow/lease/owner/deadline fixtures;
+  actual isolated PostgreSQL with eight concurrent watch claims, stale-generation
+  replacement and disabled-owner stopping; voice final-turn/follow-up/interruption,
+  stale response, microphone/speaker failure and session expiry fixtures.
+  Lint/typecheck/build, phase12 architecture/control audit, consolidation 5/5 and
+  desktop host 10/10 passed. PostgreSQL tests used only the named local disposable
+  owner; no real exchange network mutations.
+- Still open: real entry fill, real exit/protection and recovery validation;
+  a properly authorized autonomous live strategy/execution worker; physical
+  spoken multi-turn verification. The existing test order remains unfilled.
+  Recovery email is later, not silently included in this batch.
 
 ## Lilthe coding proposals and reviewed apply — 2026-10-09
 

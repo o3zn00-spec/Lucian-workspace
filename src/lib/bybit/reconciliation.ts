@@ -47,6 +47,10 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const matches=(row:Row)=>row.symbol===symbol && row.side===side && row.orderLinkId===orderLinkId && typeof row.orderId==="string" && !!row.orderId && (!intent.providerOrderId || row.orderId===intent.providerOrderId);
   if(!matches(order) || typeof order.orderStatus!=="string") throw Error("Exchange order identity mismatch. Reservation retained.");
   const cumulative=decimal(order.cumExecQty),leaves=decimal(order.leavesQty);
+  const requested=decimal(intent.baseSize?.toString(),true);
+  const tolerance=Math.max(1e-12,requested*1e-9);
+  if(Math.abs(decimal(order.qty,true)-requested)>tolerance || cumulative>requested+tolerance || leaves>requested+tolerance) throw Error("Exchange quantity does not match the owner reservation. Reservation retained.");
+  if(["New","Untriggered","Triggered","PartiallyFilled","Filled"].includes(order.orderStatus) && Math.abs(cumulative+leaves-requested)>tolerance) throw Error("Exchange filled and remaining quantities do not match the reservation. Reservation retained.");
   const updated=Number(order.updatedTime);
   if(!Number.isSafeInteger(updated) || updated<startTime || updated>now+30000) throw Error("Invalid exchange order timestamp.");
   const previous=intent.execution && typeof intent.execution==="object" && !Array.isArray(intent.execution)?intent.execution:{};

@@ -35,6 +35,7 @@ import {
 import { attachmentLabel, attachmentsToContext, attachmentPreviews } from "@/lib/chat/attachments";
 import { isAbortError, streamChatResponse } from "@/lib/chat/stream-response";
 import { resolvePageContext } from "@/lib/context-resolver";
+import { VoiceConversation, type VoicePhase } from "@/lib/voice/conversation";
 import { useLilithVoice } from "@/hooks/use-lilith-voice";
 
 interface Props {
@@ -123,6 +124,10 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const voiceBaseTextRef = useRef("");
   const voice = useLilithVoice();
+  const { startListening, stopListening, speak, stopSpeaking } = voice;
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>("off");
+  const voiceConversationRef = useRef<VoiceConversation | null>(null);
+  const voiceSendRef = useRef<(text: string) => Promise<string | undefined>>(async () => undefined);
 
   useEffect(() => {
     const imported = importLegacyConversation(legacyMessages.map((message) => ({ ...message, capability: "general" as const })));
@@ -209,15 +214,15 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
   }, [settings.name, settings.responseStyle]);
 
   // Phase 7: send multi-turn conversation history (last 20 messages).
-  const handleSend = useCallback(async (attachments: LilithChatAttachment[] = []) => {
-    const text = inputText.trim();
-    if ((!text && attachments.length === 0) || busy) return;
+  const handleSend = useCallback(async (attachments: LilithChatAttachment[] = [], spokenText?: string) => {
+    const text = (spokenText ?? inputText).trim();
+    if ((!text && attachments.length === 0) || useLilithStore.getState().busy) return;
 
     setBusy(true);
     let previews: Awaited<ReturnType<typeof attachmentPreviews>>;
     let attachmentContext: Awaited<ReturnType<typeof attachmentsToContext>>;
     try { previews = await attachmentPreviews(attachments); attachmentContext = await attachmentsToContext(attachments); }
-    catch (error) { setBusy(false); setError({type:"attachment-failed",message:error instanceof Error ? error.message : "Unable to prepare attachments. Please reattach them."}); return false; }
+    catch (error) { setBusy(false); setError({type:"attachment-failed",message:error instanceof Error ? error.message : "Unable to prepare attachments. Please reattach them."}); return; }
     setBusy(true);
     setError(null);
     const visibleUserText = `${text || "Please review the attached files."}${attachmentLabel(attachments)}`;
@@ -247,7 +252,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
           provider: resolved.provider,
           model: resolved.model,
           reasoningEffort: useSharedAIConfig.getState().reasoningEffort,
-          systemPrompt: buildSystemPrompt(),
+          systemPrompt: buildSystemPrompt() + (spokenText === undefined ? "" : "\nThis is a spoken conversation. Respond naturally in short conversational sentences, acknowledge the latest thought, and use the conversation history for follow-ups. Avoid markdown tables and long lists unless requested. Never pretend to hear emotion or sounds that were not provided."),
           contextItems: [...(history.summaryContext ? [{ type: "conversation-summary", label: "Earlier conversation", description: "Rolling summary of older turns", data: history.summaryContext }] : []), ...pageContext, ...resolvedCtx.map((c: { type: string; label: string; description: string; data: string }) => ({
             type: c.type, label: c.label, description: c.description, data: c.data,
           })), ...attachmentContext],
@@ -255,12 +260,13 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
         },
       });
       updateMessage(streamingId, { content: result.content, status: "complete" });
-      if (settings.voiceEnabled && settings.autoSpeak) {
+      if (spokenText === undefined && settings.voiceEnabled && settings.autoSpeak) {
         setStatus("speaking");
         if (!voice.speak(result.content, { rate: settings.speechSpeed, volume: settings.volume, onEnd: () => setStatus("idle") })) setStatus("idle");
       } else {
         setStatus("idle");
       }
+      return result.content;
     } catch (requestError) {
       if (isAbortError(requestError)) {
         const partial = useLilithConversationStore.getState().conversations
@@ -289,7 +295,21 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       abortRef.current = null;
       setBusy(false);
     }
-  }, [inputText, busy, addMessage, updateMessage, removeMessage, setInputText, setStatus, setBusy, setError, resolved, buildSystemPrompt, resolveHandoffContext, pathname, settings.voiceEnabled, settings.autoSpeak, settings.speechSpeed, settings.volume, voice]);
+  }, [inputText, addMessage, updateMessage, removeMessage, setInputText, setStatus, setBusy, setError, resolved, buildSystemPrompt, resolveHandoffContext, pathname, settings.voiceEnabled, settings.autoSpeak, settings.speechSpeed, settings.volume, voice]);
+
+  useEffect(() => { voiceSendRef.current = text => handleSend([], text); }, [handleSend]);
+  useEffect(() => {
+    const session = new VoiceConversation({
+      listen: startListening, stopListening,
+      speak: (text, onEnd, onError) => speak(text, { rate: settings.speechSpeed, volume: settings.volume, onEnd, onError }),
+      stopSpeaking, cancelSend: () => abortRef.current?.abort(),
+      send: text => voiceSendRef.current(text), transcript: setInputText,
+      phase: value => { setVoicePhase(value); setStatus(value === "off" ? "idle" : value); },
+      error: message => setError({ type: "unknown", message }),
+    });
+    voiceConversationRef.current = session;
+    return () => { session.stop(); if (voiceConversationRef.current === session) voiceConversationRef.current = null; };
+  }, [activeId, pathname, settings.speechSpeed, settings.volume, startListening, stopListening, speak, stopSpeaking, setInputText, setStatus, setError]);
 
   // Phase 7: retry the last failed request.
   const handleRetry = useCallback(async () => {
@@ -489,11 +509,19 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
         {busy && messages[messages.length - 1]?.status !== "streaming" && <LilithActivity label={`${settings.name} is thinking`} />}
       </div>
 
+      <div className="flex items-center gap-2 px-3 py-1 text-[10px] text-fg-muted">
+        <button type="button" disabled={voicePhase === "off" && (busy || !!inputText.trim())} title={inputText.trim() ? "Send or clear your draft before starting voice conversation" : "Spoken turns send automatically; browser speech processing applies"} onClick={() => {
+          if (voicePhase !== "off") voiceConversationRef.current?.stop();
+          else { setError(null); voiceConversationRef.current?.start(); }
+        }} className="focus-ring rounded border border-line px-2 py-1 disabled:opacity-50">{voicePhase === "off" ? "Start voice conversation" : "End voice conversation"}</button>
+        {voicePhase === "speaking" && <button type="button" onClick={() => voiceConversationRef.current?.interrupt()} className="focus-ring rounded border border-line px-2 py-1">Interrupt and talk</button>}
+        {voicePhase !== "off" && <span role="status">{voicePhase} · spoken turns send automatically</span>}
+      </div>
       {/* Composer */}
       <LilithComposer
         value={inputText}
         onChange={setInputText}
-        onSend={handleSend}
+        onSend={async attachments => { voiceConversationRef.current?.stop(); await handleSend(attachments); }}
         busy={busy}
         onStop={() => abortRef.current?.abort()}
         compact
@@ -503,8 +531,8 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
             <button
               type="button"
               title={voice.supported ? (voice.listening ? "Stop listening" : "Talk to Lilthe") : "Voice recognition is not supported in this browser"}
-              onClick={() => { if (!settings.pushToTalk) handleVoiceToggle(); }}
-              onPointerDown={() => { if (settings.pushToTalk && !voice.listening) handleVoiceToggle(); }}
+              onClick={() => { if (!settings.pushToTalk) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
+              onPointerDown={() => { if (settings.pushToTalk && !voice.listening) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
               onPointerUp={() => { if (settings.pushToTalk) { voice.stopListening(); setStatus("idle"); } }}
               className={cn("focus-ring flex h-7 w-7 items-center justify-center rounded-md transition-colors opacity-60 hover:bg-hover hover:opacity-100",
                 voice.listening ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "text-fg-muted")}

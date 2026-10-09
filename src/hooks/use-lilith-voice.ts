@@ -100,7 +100,7 @@ export function useLilithVoice() {
     setSpeaking(false);
   }, []);
 
-  const speak = useCallback((text: string, options?: { rate?: number; volume?: number; onEnd?: () => void }) => {
+  const speak = useCallback((text: string, options?: { rate?: number; volume?: number; onEnd?: () => void; onError?: () => void }) => {
     if (typeof window === "undefined" || !window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined" || !text.trim()) return false;
     // Do not transcribe the assistant's own speaker output into the next message.
     const recognition = recognitionRef.current;
@@ -121,7 +121,11 @@ export function useLilithVoice() {
       options?.onEnd?.();
     };
     utterance.onend = end;
-    utterance.onerror = end;
+    utterance.onerror = () => {
+      if (utteranceRef.current !== utterance) return;
+      utteranceRef.current = null; setSpeaking(false);
+      if (options?.onError) options.onError(); else options?.onEnd?.();
+    };
     try { window.speechSynthesis.speak(utterance); } catch {
       utteranceRef.current = null;
       setSpeaking(false);
