@@ -30,6 +30,7 @@ import { signIn } from "next-auth/react";
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, ArrowLeft, Mail, Lock, User as UserIcon } from "lucide-react";
 import { BrandMark } from "@/components/branding/BrandMark";
 import { useAuthLayout } from "@/components/auth/cinematic-auth-layout";
+import { credentialSignIn } from "@/lib/auth/credential-sign-in";
 import { sanitizeCallbackUrl } from "@/lib/auth/safe-redirect";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -97,16 +98,7 @@ export function AuthCard({ initialState = "signin" }: AuthCardProps) {
     if (!siIdentity || !siPassword) { setError("Please enter your username or email and your password."); return; }
     setStatus("submitting");
     try {
-      const res = await signIn("credentials", {
-        username: siIdentity,
-        password: siPassword,
-        redirect: false,
-      });
-      if (res?.error) {
-        setStatus("error");
-        setError("Invalid username/email or password.");
-        return;
-      }
+      await credentialSignIn(siIdentity, siPassword, searchParams.get("callbackUrl"));
       // Real success — trigger cinematic transition, then navigate.
       setStatus("success");
       onSuccess();

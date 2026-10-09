@@ -1,3 +1,10 @@
+## Login response repair — 2026-10-09
+
+- Fixed the screenshot's undefined-URL failure path: Auth.js client signIn parsed data.url unconditionally when middleware returned a rate-limit or unavailable JSON response. The credential client now validates CSRF and callback responses, shows meaningful throttle/service/credential errors, and verifies a real server session before success/navigation. Password verification, server limits, cookies and owner checks are preserved. Google OAuth is unchanged.
+- Added regression checks for 429 with Retry-After, 503, missing redirect data, rejected credentials, missing CSRF, unverified sessions and successful owner sessions. Tests, typecheck, lint, architecture, consolidation, full build and desktop 10/10 passed.
+- Publication follows GitHub then Vercel. Production owner login verification remains pending until the deployed flow is exercised. This repair does not assert that a transient database outage or expired session is resolved.
+- Trading and voice scope is unchanged: unattended execution/protective exits remain unimplemented; real fill/exit/recovery and physical microphone/speaker evidence remain open; recovery sender deferred.
+
 ## Fill review and reconciliation integrity — 2026-10-09
 
 - Matched filled, partially filled and cancelled-with-fills transitions now persist an owner-scoped actionable notification atomically with the reconciliation and audit records. Stable deduplication preserves dismissals on replay. Observer audit status explicitly requires fill review; Markets explains that an existing open order must not be submitted again.

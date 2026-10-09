@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const built=await build({entryPoints:['src/lib/auth/credential-sign-in.ts'],bundle:true,write:false,format:'esm',platform:'node'});
+const {credentialSignIn}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+const json=(data,status=200,headers={})=>Response.json(data,{status,headers});
+const run=async(responses)=>{const calls=[];await credentialSignIn('owner','fixture-password','//foreign.test',async(url,options)=>{calls.push({url,options});return responses.shift();});return calls;};
+const csrf=()=>json({csrfToken:'fixture-csrf'});
+await assert.rejects(run([csrf(),json({code:'rate_limited'},429,{'Retry-After':'900'})]),/15 minute/);
+await assert.rejects(run([csrf(),json({code:'auth_unavailable'},503)]),/protection is temporarily unavailable/);
+await assert.rejects(run([csrf(),json({})]),/could not complete/);
+await assert.rejects(run([csrf(),json({url:'https://app.test/login?error=CredentialsSignin'})]),/Invalid username/);
+await assert.rejects(run([json({})]),/protection could not load/);
+await assert.rejects(run([csrf(),json({url:'https://app.test/'}),json({user:{}})]),/session could not be verified/);
+const calls=await run([csrf(),json({url:'https://app.test/'}),json({user:{id:'owner'}})]);
+assert.equal(calls.length,3);assert.equal(calls[1].options.body.get('callbackUrl'),'/');assert.equal(calls[1].options.body.get('csrfToken'),'fixture-csrf');assert.equal(calls[1].options.headers['X-Auth-Return-Redirect'],'1');assert.equal(calls[2].options.cache,'no-store');
+console.log('PASS credential sign-in: throttled/unavailable/malformed responses, credential rejection, CSRF, safe callback and verified session; no real credentials/network.');
