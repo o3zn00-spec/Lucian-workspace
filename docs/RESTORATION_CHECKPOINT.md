@@ -1778,3 +1778,14 @@ owner handoff; production fill/exit/recovery remains unverified.
 Final local validation for the canvas/voice batch: full lint and completed production
 build passed after detail-back preservation and watchlist detail changes;
 architecture 11/12/52 and assistant tool permission regressions passed.
+
+Canvas/voice release evidence: GitHub `5109bb258bd7fb5ecf7d3008ec3899cd470746b1`
+(tree `ce1cff2daad7c8b9528ec770c18d27cb51844975`) published first. Vercel
+`DFRse1jeLm8yo9vxZyhRJdU5Xc7j` is Ready Production (1m10s), assigned to
+lucian-workspace.vercel.app. Authenticated production Investing displays all
+original tabs plus Canvas. Canvas opens, Portfolio/Watchlist switch correctly,
+zoom changes to 120%, Reset returns 100%, and empty records disable relationship
+creation. Screenshot retained outside source as investing-canvas-production.jpg.
+Populated canvas browser testing remains unverified: no fictional holdings were
+added to the owner's production portfolio. This release did not enable a live
+strategy, move funds, submit a duplicate order or claim a completed fill.
