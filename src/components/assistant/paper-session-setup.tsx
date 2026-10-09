@@ -31,24 +31,28 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    void fetch("/api/assistant/paper-plan", { cache: "no-store", signal: controller.signal }).then(async response => {
+    void fetch("/api/assistant/paper-plan", { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) }).then(async response => {
       const data = await response.json();
       if (!response.ok || !data.ok) throw Error(data.error ?? "Plan unavailable.");
       if (controller.signal.aborted) return;
       setRevision(data.revision);
       const plan = data.plan as PaperPlan | null;
       setFields(plan ? { ...Object.fromEntries([...amountFields, ...numberFields].map(([key]) => [key, String(plan[key])])), symbols: plan.symbols.join(", "), strategy: plan.strategy, additionalRules: plan.additionalRules } : { ...emptyFields, symbols: "", strategy: "", additionalRules: "" });
-      setSaved(Boolean(plan)); setError(null);
-    }).catch(error => { if (!controller.signal.aborted) setError(error.message); })
+      setSaved(Boolean(plan)); setLoaded(true); setError(null);
+    }).catch(() => { if (!controller.signal.aborted) setError("The saved plan could not load. Retry to fetch the latest rules before editing or starting a session."); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
-  }, [open]);
-  const changeOpen = (value: boolean) => { setBusy(true); setError(null); setOpen(value); };
+  }, [open, loadAttempt]);
+  const changeOpen = (value: boolean) => { setLoaded(false); setSaved(false); setBusy(true); setError(null); setOpen(value); };
+  const retryLoad = () => { setBusy(true); setError(null); setLoadAttempt(previous => previous + 1); };
   const update = (key: string, value: string) => { setFields(previous => ({ ...previous, [key]: value })); setSaved(false); };
   const save = async (event: React.FormEvent) => {
+    if (!loaded || busy) { event.preventDefault(); return; }
     event.preventDefault(); setBusy(true); setError(null);
     try {
       const plan = { mode: "paper", exchange: "bybit", category: "spot", currency: "USDT", leverage: 1,
@@ -74,9 +78,9 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
         <Dialog.Description className="mt-2 text-sm text-fg-muted">Choose the rules before a session can run. Save the plan, review it, then explicitly authorize background paper execution below.</Dialog.Description>
         <Dialog.Close asChild><button aria-label="Close paper setup" className="focus-ring absolute right-3 top-3 rounded p-1"><X size={18} /></button></Dialog.Close>
         {busy && <p role="status" className="mt-3 text-sm">Loading or saving plan…</p>}
-        {error && <p role="alert" className="my-3 text-sm">{error} Close and reopen to reload the latest saved plan.</p>}
+        {error && <div className="my-3 space-y-2 text-sm"><p role="alert">{error}</p>{!loaded && <button type="button" onClick={retryLoad} disabled={busy} className="focus-ring rounded-lg border border-line px-3 py-2">Retry loading plan</button>}</div>}
         <form onSubmit={save} className="mt-4 space-y-4">
-          <fieldset disabled={busy} className="space-y-4">
+          <fieldset disabled={busy || !loaded} className="space-y-4">
             <div className="rounded-lg bg-surface-2 p-3 text-sm">Mode: Paper · Bybit market data · USDT spot · no leverage. Simulated capital is separate from your exchange balance. Live session setup is unavailable.</div>
             <h3 className="font-medium">Capital and risk limits</h3>
             <div className="grid gap-3 sm:grid-cols-2">{amountFields.map(([key,label]) => <label key={key} className="text-sm">{label}<input required inputMode="decimal" type="text" pattern="[0-9]+(\.[0-9]{1,2})?" value={fields[key]} onChange={e => update(key,e.target.value)} className={inputClass} /></label>)}</div>
@@ -93,7 +97,7 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
           </fieldset>
           {saved && <p role="status" className="rounded-lg border border-line p-3 text-sm">Draft saved. Saving does not start or change an active session.</p>}
         </form>
-        <PaperSessionControls planRevision={revision} ready={saved && !busy} />
+        <PaperSessionControls planRevision={revision} ready={loaded && saved && !busy} />
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>;

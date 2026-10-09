@@ -14,7 +14,20 @@ const decimal = (value: unknown, positive = false) => {
 
 export async function reconciliationCandidates(userId: string) {
   const intents = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:"user",state:{in:eligible}},orderBy:{createdAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true}});
-  return {intents:intents.slice(0,20),hasMore:intents.length>20,message:intents.length?"Check each reservation against exchange records. This never submits or cancels an order.":"No unresolved owner order reservations. No exchange fill or recovery has been proven by this empty list."};
+  // Completed orders must not disappear when the background watcher resolves
+  // their reservation. Keep these separate so history cannot crowd out pending
+  // risk reservations. Never expose the surrounding execution/error payload.
+  const recent = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:"user",state:{in:["filled","cancelled","rejected"]},updatedAt:{gte:new Date(Date.now()-7*86400000)}},orderBy:{updatedAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true,execution:true}});
+  const completed = recent.slice(0,20).flatMap(({execution,...intent})=>{
+    if(!execution || typeof execution!=="object" || Array.isArray(execution)) return [];
+    const report=execution.reconciliation;
+    if(!report || typeof report!=="object" || Array.isArray(report) || typeof report.observedAt!=="string" || typeof report.status!=="string" || typeof report.cumExecQty!=="string" || typeof report.leavesQty!=="string" || !Array.isArray(report.fills)) return [];
+    return [{...intent,report:{observedAt:report.observedAt,status:report.status,cumExecQty:report.cumExecQty,leavesQty:report.leavesQty,fills:report.fills.map(fill=>{
+      if(!fill || typeof fill!=="object" || Array.isArray(fill)) return null;
+      return {execId:fill.execId,execQty:fill.execQty,execPrice:fill.execPrice,execFee:fill.execFee,feeCurrency:fill.feeCurrency,execTime:fill.execTime};
+    }).filter(fill=>fill!==null),protectionVerified:false}}];
+  });
+  return {intents:intents.slice(0,20),completed,hasMore:intents.length>20,hasMoreCompleted:recent.length>20,message:intents.length?"Check each reservation against exchange records. This never submits or cancels an order.":"No unresolved owner order reservations. Review matched completed records below; an empty list does not prove a fill or recovery."};
 }
 
 export async function reconcileTerminalOrder(userId: string, intentId: string) {

@@ -11,15 +11,22 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
   const [observedAt,setObservedAt]=useState(0);
   const [runtimeCheck,setRuntimeCheck]=useState<{status:string;message:string}|null>(null);
   const requestVersion=useRef(0);
+  const refreshPending=useRef(false),actionPending=useRef(false);
+  const [readError,setReadError]=useState<string|null>(null);
   const [verified,setVerified]=useState(false);
   const provider=useSharedAIConfig(state=>state.overrides["economic-agent"]?.provider??state.globalProvider);
   const model=useSharedAIConfig(state=>state.overrides["economic-agent"]?.model??state.globalModel);
   const config={provider,model};
   const effort=useSharedAIConfig(state=>state.reasoningEffort);
-  const refresh=useCallback(async(signal?:AbortSignal)=>{
+  const refresh=useCallback(async(signal?:AbortSignal,afterAction=false)=>{
+    if(refreshPending.current || (actionPending.current && !afterAction))return;
+    refreshPending.current=true;
     const version=++requestVersion.current;
-    const response=await fetch("/api/assistant/paper-session",{cache:"no-store",signal});const data=await response.json();
-    if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);}
+    try {
+      const response=await fetch("/api/assistant/paper-session",{cache:"no-store",signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});const data=await response.json();
+      if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setReadError(null);setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);}
+    }catch{if(version===requestVersion.current && !signal?.aborted)setReadError("Session refresh is unavailable. Showing the last loaded state; retry with Refresh session. No control was repeated.");}
+    finally{refreshPending.current=false;}
   },[]);
   useEffect(()=>{
     const controller=new AbortController();
@@ -28,12 +35,14 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
     return()=>{controller.abort();clearInterval(timer);};
   },[refresh]);
   const action=async(action:string)=>{
+    if(actionPending.current)return;
+    actionPending.current=true;
     ++requestVersion.current;setBusy(true);setError(null);
     try {
       const body=action==="verify"?{action}:action==="start"?{action,revision:planRevision,confirmation,provider:config.provider,model:config.model,effort}:{action,id:s?.id,revision:s?.revision};
       const response=await fetch("/api/assistant/paper-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});const data=await response.json();
-      if(!response.ok || !data.ok)throw Error(response.status===409?`${data.error??"Session changed."} The current state has been refreshed. Review it and retry your control.`:data.error??"Control failed.");setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);setConfirmation("");
-    }catch(e){await refresh().catch(()=>{});setError((e as Error).message);}finally{setBusy(false);}
+      if(!response.ok || !data.ok)throw Error(response.status===409?`${data.error??"Session changed."} Review the refreshed state before retrying your control.`:data.error??"Control failed.");setReadError(null);setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);setConfirmation("");
+    }catch(e){await refresh(undefined,true);setError((e as Error).message);}finally{actionPending.current=false;setBusy(false);}
   };
   return <section aria-label="Paper session runtime" className="mt-5 space-y-3 border-t border-line pt-4 text-sm">
     <h3 className="font-medium">Background paper session</h3>
@@ -41,6 +50,7 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
     <button disabled={busy} type="button" onClick={()=>void action("verify")} className="focus-ring rounded-lg border border-line px-3 py-2">Check runtime without trading</button>
     {runtimeCheck && <p role="status">Runtime check: {runtimeCheck.status} · {runtimeCheck.message}</p>}
     {error && <p role="alert">{error}</p>}
+    {readError && <p role="alert">{readError}</p>}
     {s && <>
       <p role="status">Status: <strong>{s.status}</strong> · Paper cash {amount(s.cashCents)} USDT · Equity {amount(s.equityCents)} USDT · P/L {amount(s.equityCents-Number(s.plan.capital)*100)} USDT</p>
       <p className="text-fg-muted">{s.lastMessage} Last successful check: {s.history.length?new Date(s.history[s.history.length-1].atMs).toLocaleString():"not yet"}. Model: {s.model} · {s.effort}. {s.runId?"Worker dispatched.":"Worker not dispatched; recover to retry."}</p>

@@ -3,7 +3,7 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C08–C12 automatic 24-hour read-only monitoring for owner-submitted and ambiguous orders. Earlier monitoring/voice release is deployed; remaining live execution and exchange outcomes are OPEN.
+Current batch: C08–C12 retain matched completed exchange results and recover paper-plan loading. Unattended live execution and actual fill/exit/recovery validation remain OPEN.
 Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
@@ -36,6 +36,15 @@ C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
 
+
+## Completed exchange results and plan-load recovery — 2026-10-09
+
+- Matched filled/cancelled/rejected owner orders now remain visible in a separate seven-day, newest-20 completed list after the read-only monitor resolves their reservations. Pending reservations retain their own independent newest-20 list, so completed history cannot displace unresolved risk. Partial cancellations remain unresolved and reserved.
+- Completed results expose only the matched reconciliation fields: status, filled/remaining quantity, timestamp and per-fill quantity/price/fee/currency. They exclude surrounding execution errors and provider payloads. A filled entry is explicitly not evidence of verified protection, an exit or profit. Results refresh after a manual read-only reconciliation.
+- A stale paper-runtime “Failed to fetch” alert was persisting after later successful refreshes. Read failures now have their own recoverable status, clear only on a current successful read, retain the last loaded state and cannot overwrite a control result. Overlapping polls and duplicate controls are suppressed; reads time out after twenty seconds.
+- Paper-plan loading now has a twenty-second deadline and an in-place retry. Failed loading disables edits/session start and clears stale ready state when reopening. The owner no longer has to close/reopen to recover a load failure; the latest saved revision must load first.
+- Validation: completed-record retention/privacy/owner-scoped query fixtures, existing exchange reconciliation/observer/watch/route/live execution/Spot risk fixtures, typecheck, lint, production build, phase12 audit (700 controls, zero unguarded direct async), 12 architecture checks, consolidation 5/5 and desktop 10/10. Tests use fixtures or isolated local processes; no new financial exchange action.
+- Trading remains IN PROGRESS: autonomous live strategy/execution worker is unimplemented; actual entry fill, protective exit and controlled exchange recovery remain unverified. Prior Bybit evidence is New with zero fills, not a completed cycle. These are required acceptance items, not optional future enhancements. No blanket production-readiness or profitability claim. Recovery email remains deferred.
 
 ## Automatic monitoring after owner submission — 2026-10-09
 
