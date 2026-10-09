@@ -1700,3 +1700,13 @@ Production evidence, 2026-10-08:
   workspace and Vault architecture checks pass. No order was placed by this
   turn. Real fill/exit/recovery and unattended trading remain OPEN.
 - Publication/browser evidence is recorded after the release is verified.
+
+Release verified: GitHub 120da59 → Vercel F14ryqQfQVcvdyLPJ5RfT9B6MYMw
+(Ready, production, 53 seconds). Production alias showed the new guidance.
+Fresh 5.7225 USDT protected Spot preview passed; balance 40.92 USD, Orders 0.
+The owner's populated confirmation/password enabled Submit to Bybit; this agent
+did not click it. Screenshot: outputs/review-fixed-production.png outside source.
+UI fixture tests also pass for stale-check removal, explicit failures and timeout
+recovery with zero financial submissions. Database contention test used only
+SELECTs against the isolated development database. Real submission is still
+owner handoff; production fill/exit/recovery remains unverified.

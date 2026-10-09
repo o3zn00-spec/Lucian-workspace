@@ -53,3 +53,6 @@ above the long check list. Order reservation now waits up to 20 seconds for a
 database connection with Serializable isolation retained. Errors sit beside
 confirmation controls. Preview refreshes have a 120-second timeout and do not
 retry or place trades. Actual financial recovery remains unverified.
+
+Release 120da59 verified on production: fresh preview passed and Submit became
+enabled after owner entry. No financial submission performed by this agent.
