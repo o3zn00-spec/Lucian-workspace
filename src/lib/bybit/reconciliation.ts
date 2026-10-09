@@ -69,6 +69,7 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const previous=intent.execution && typeof intent.execution==="object" && !Array.isArray(intent.execution)?intent.execution:{};
   const last=previous.reconciliation;
   if(last && typeof last==="object" && !Array.isArray(last) && typeof last.updatedTime==="string" && updated<Number(last.updatedTime)) throw Error("Exchange order snapshot regressed. Reservation retained.");
+  if(last && typeof last === "object" && !Array.isArray(last) && typeof last.cumExecQty === "string" && cumulative + tolerance < decimal(last.cumExecQty)) throw Error("Exchange filled quantity regressed. Reservation retained.");
   const fills:Row[]=[],seen=new Map<string,string>(),cursors=new Set<string>();let cursor="";
   for(let i=0;i<4;i++){
     const page=await read("/v5/execution/list",{orderId:order.orderId as string,startTime,endTime:now,limit:100,...(cursor?{cursor}:{})});
@@ -99,6 +100,17 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
     const changed=await tx.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:intent.state,updatedAt:intent.updatedAt},data:{state,providerOrderId:order.orderId as string,execution:{...previous,reconciliation:report} as Prisma.InputJsonValue}});
     if(changed.count!==1) throw Error("Reservation changed during reconciliation. Refresh and review before retrying.");
     await tx.tradingAuditEvent.create({data:{userId,action:"order.reconcile",tradingMode:intent.tradingMode,status:state,symbol,intentId:intent.id,details:report as Prisma.InputJsonValue}});
+    // Persist the handoff atomically with the matched fill. A retry/replay of
+    // the same state cannot duplicate or re-open a dismissed notification.
+    if (state !== intent.state && ["filled", "partially_filled", "cancelled_with_fills"].includes(state)) {
+      const title = state === "filled" ? `${symbol} order filled — review exposure and exits` : `${symbol} partial fill needs review`;
+      const message = `Exchange matched ${order.cumExecQty} filled and ${order.leavesQty} remaining. Fees are recorded in their exchange currencies. A fill does not verify protective orders, an exit or profit. Review Orders, Portfolio and matched records before another submission. No financial action was performed by this check.`;
+      await tx.userNotification.upsert({
+        where: { userId_dedupeKey: { userId, dedupeKey: `order-fill-review:${intent.id}:${state}` } },
+        create: { userId, source: "markets", title, message, level: "warning", actionable: true, dedupeKey: `order-fill-review:${intent.id}:${state}`, entityRef: intent.id, deepLink: "/markets" },
+        update: {},
+      });
+    }
   });
   return {intentId,state,resolved:["filled","cancelled","rejected"].includes(state),report,message:state==="cancelled_with_fills"?"The order was cancelled after partial fills. Its reservation remains blocked for exposure and protection review; you can recheck the exchange records. No order was submitted or cancelled by this check.":"Exchange records matched. No order submitted/cancelled, no wallet credited, and no protective exits certified."};
 }

@@ -22,7 +22,7 @@ export async function observeOrder(userId: string, intentId: string, final = fal
   const done = resolved || state === "cancelled_with_fills" || final;
   await db.tradingAuditEvent.create({ data: {
     userId, intentId, symbol: intent.productId, tradingMode: intent.tradingMode,
-    action: "order.observer", status: resolved ? "resolved" : done ? "review_required" : checked ? "watching" : "read_unavailable",
+    action: "order.observer", status: ["filled", "partially_filled", "cancelled_with_fills"].includes(state) ? "fill_review_required" : resolved ? "resolved" : done ? "review_required" : checked ? "watching" : "read_unavailable",
     details: { state, checked, protectionVerified: false, final, financialWrites: 0 },
   } });
   return { done };

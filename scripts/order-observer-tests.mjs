@@ -18,8 +18,9 @@ assert.deepEqual(await observeOrder('other', 'intent'), { done: true });assert.e
 assert.deepEqual(await observeOrder('owner', 'intent'), { done: false });assert.equal(fixture.audits.at(-1).status, 'watching');
 fixture.fail = true;assert.deepEqual(await observeOrder('owner', 'intent'), { done: false });assert.equal(fixture.audits.at(-1).status, 'read_unavailable');assert.ok(!JSON.stringify(fixture.audits).includes('sensitive'));
 assert.deepEqual(await observeOrder('owner', 'intent', true), { done: true });assert.equal(fixture.audits.at(-1).status, 'review_required');
-fixture.fail = false;fixture.state = 'cancelled_with_fills';assert.deepEqual(await observeOrder('owner', 'intent'), { done: true });assert.equal(fixture.audits.at(-1).status, 'review_required');
+fixture.fail = false;fixture.state = 'cancelled_with_fills';assert.deepEqual(await observeOrder('owner', 'intent'), { done: true });assert.equal(fixture.audits.at(-1).status, 'fill_review_required');
 fixture.state = 'submitted';fixture.resolved = true;assert.deepEqual(await observeOrder('owner', 'intent'), { done: true });assert.equal(fixture.audits.at(-1).status, 'resolved');
+fixture.state='submitted';fixture.resolved=true;const originalState=fixture.state;fixture.state='partially_filled';fixture.resolved=false;await observeOrder('owner','intent');assert.equal(fixture.audits.at(-1).status,'fill_review_required');fixture.state=originalState;
 fixture.state = 'filled';const before = fixture.reads;await observeOrder('owner', 'intent');assert.equal(fixture.reads, before);
 assert.ok(fixture.audits.every(a => a.details.financialWrites === 0 && a.details.protectionVerified === false));
 const execution = { startFailure: true, dbFailure: false, executeFailure: false, calls: 0, starts: 0, claimed: true, claimFailure: false, records: [], args: null, state: 'submitted' };

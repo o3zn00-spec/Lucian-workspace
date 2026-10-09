@@ -1,3 +1,10 @@
+## Fill review and reconciliation integrity — 2026-10-09
+
+- Matched filled, partially filled and cancelled-with-fills transitions now persist an owner-scoped actionable notification atomically with the reconciliation and audit records. Stable deduplication preserves dismissals on replay. Observer audit status explicitly requires fill review; Markets explains that an existing open order must not be submitted again.
+- A newer exchange snapshot cannot decrease previously matched cumulative filled quantity. Such regression retains the reservation instead of understating exposure.
+- Validation passed: reconciliation, execution, observer/watch, voice, Investing canvas, assistant tools, private risk and recovery-delivery fixtures; actual isolated Postgres concurrency, replay, rollback/retry and ownership checks with mocked exchange reads; typecheck, lint, architecture, consolidation, full production build and desktop 10/10. Control audit found 153 explicitly unavailable controls and zero unguarded direct async handlers; this does not mean all app capabilities are implemented.
+- No financial exchange mutation was performed in this batch. Existing order last observed open/unfilled; real fill/protection/exit/recovery outcomes remain unverified. Automatic live strategy execution and protective exit management remain unimplemented. Physical microphone/speaker conversation remains unverified. Recovery sender remains deferred.
+
 # LUCIAN restoration checkpoint
 
 Updated: 2026-10-09 (America/Los_Angeles)
@@ -36,6 +43,12 @@ C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
 
+
+## Owner review handoff — 2026-10-09
+
+- Owner directed: finish implementation/checks independently and load any required submissions here for their review. Preserve prior authorization; do not re-ask general permission. Prepare an exact reviewable financial action with refreshed checks, open the relevant app page and leave final financial submission to the owner. No automatic execution is implied by this handoff agreement.
+- Authenticated production Markets Orders panel checked this turn: BTCUSDT Spot Buy Limit, 0.000070 BTC at 81,750 USDT, status New. Equity displayed 40.91 USD, free balance 35.20 USD, Orders 1, Positions 0. Positions count is not a Spot wallet inventory check. No new financial action; no duplicate order prepared. Existing open limit order still does not prove a fill, protection, exit or recovery.
+- Current exact review note is saved locally as outputs/OWNER_TRADING_REVIEW.md in the task workspace. Automatic execution/protection management and actual exchange cycle validation remain OPEN. Recovery sender remains deferred.
 
 ## Bounded live research supervisor — 2026-10-09
 
