@@ -43,7 +43,7 @@ for the bounded trial is already recorded; do not ask for the same limits again.
 | Lilthe layout, chat controls, model connection and conversation sync | Deployed; real text/image model requests previously passed. |
 | Mainnet connection and Unified balance | Authenticated read previously passed; production account read recovered after the client deadline correction; latest visible balance 40.92 USD. |
 | Manual live Spot orders | Enabled in production with 6 USDT/order, 10 USDT exposure, 1 USDT daily realized loss, one position and no borrowing. |
-| First real-money trial | Submitted 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; production approval records provider order ID 2321863677537774336 (Oct 8, 22:27:05 displayed). Do not submit a duplicate. Fill/exit still require exchange verification. |
+| First real-money trial | Exchange verified OPEN (`New`), zero fills, 0.00007 BTC remaining at 81,750 USDT; provider order ID 2321863677537774336. Do not submit a duplicate. Fill/exit still unverified. |
 | Read-only background order observer | Deployed; bounded 15-minute observation, no financial retry. Actual production run still unverified. |
 | Real fill, protective exit and recovery | OPEN. Exchange acknowledgement alone must not count as fill or verified protection. |
 | Lilthe unattended live strategy worker | OPEN. Read-only observer and paper worker must not be described as an autonomous live trader. |
@@ -86,8 +86,22 @@ remain unchanged.
   architecture assertions, pagination/terminal reads, credential scope/binding,
   fresh review UI and live execution fixtures. A second-page pending exposure
   blocks an otherwise valid trial. No exchange financial writes in these tests.
-- First GitHub publication: `2e5f35c`, tree `ea8f6e5`; recovery cursor follow-up
-  is included in the subsequent release. Production order status verification pending.
+- GitHub-first publications: `2e5f35c` (initial cursor/performance fix), then
+  `b4876fd` (recovery follow-up), tree `3f9698ce`. Vercel deployment
+  `EtFSFjaYh74zRNZ88eZXDHFvD3FY` Ready Production in 46 seconds;
+  `lucian-workspace.vercel.app` domain assignment verified in dashboard.
+- Reloaded production shows Orders 1, equity 40.92 USD and available balance
+  35.20 USD, without the pagination warning. Shared refresh architecture is
+  verified in source; no precise before/after latency benchmark was collected.
+- Actual read-only production reconciliation succeeded: state `exchange_open`,
+  provider status `New`, `cumExecQty: "0"`, `leavesQty: "0.00007"`, empty fills,
+  `protectionVerified: false`, order ID `2321863677537774336`. Order table confirms
+  Limit Buy 0.000070 BTC at 81750.0 USDT. The displayed market remains above entry.
+  No duplicate, cancellation or new exchange financial write was performed.
+- Screenshot proof (outside repository): outputs/bybit-open-order-verified.jpg.
+  Fill/exit/recovery validation after actual fills, profitable strategy evidence
+  and unattended live worker remain OPEN. Do not label the open limit order a fill.
+
 
 ## Real model verification and connection hardening — 2026-10-07
 
