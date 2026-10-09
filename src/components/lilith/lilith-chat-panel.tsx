@@ -257,7 +257,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       updateMessage(streamingId, { content: result.content, status: "complete" });
       if (settings.voiceEnabled && settings.autoSpeak) {
         setStatus("speaking");
-        voice.speak(result.content, { rate: settings.speechSpeed, volume: settings.volume, onEnd: () => setStatus("idle") });
+        if (!voice.speak(result.content, { rate: settings.speechSpeed, volume: settings.volume, onEnd: () => setStatus("idle") })) setStatus("idle");
       } else {
         setStatus("idle");
       }
@@ -330,7 +330,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       updateMessage(streamingId, { content: result.content, status: "complete" });
       if (settings.voiceEnabled && settings.autoSpeak) {
         setStatus("speaking");
-        voice.speak(result.content, { rate: settings.speechSpeed, volume: settings.volume, onEnd: () => setStatus("idle") });
+        if (!voice.speak(result.content, { rate: settings.speechSpeed, volume: settings.volume, onEnd: () => setStatus("idle") })) setStatus("idle");
       } else {
         setStatus("idle");
       }

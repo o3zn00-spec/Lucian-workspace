@@ -3,7 +3,8 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C04/C07 bounded record adapters and C15 recovery hardening released;
+Current batch: C07 project-save concurrency and C13 voice failure/echo hardening validated locally; publication verification follows below.
+Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
 funding is complete: last authenticated check showed 40.94851553 USDT. The owner
 has authorized bounded real-money tests and delegated test sizing. Do not ask for
@@ -33,6 +34,41 @@ C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
+
+## Project-save concurrency and voice checks — 2026-10-09
+
+- Replaced cloud project read-then-upsert with owner-scoped atomic revision updates.
+  Two tabs saving the same revision cannot overwrite one another. Existing projects
+  require a revision; stale/missing revisions return 409. Concurrent creation also
+  returns a conflict rather than replacing a new snapshot, and a deleted project
+  cannot be silently resurrected by an old revision.
+- Actual isolated PostgreSQL tests passed for concurrent saves and creation,
+  cross-owner denial, missing/stale revision and deleted-project protection.
+  Disposable users/projects were removed; no production project was changed.
+- Voice now disconnects recognition before speaker playback, ignores late echo
+  events, catches microphone construction/stop/cleanup failures, and returns to
+  idle if speech synthesis cannot start. Both normal and regenerated replies handle
+  failed playback without leaving Lilthe marked as speaking.
+- Browser fixture tests passed for cumulative dictation, stale events, speaker echo,
+  unsupported/denied recognition, synthesis failure and lifecycle cleanup.
+- Actual production browser: floating Lilthe → Talk to Lilthe changed to Listening /
+  Stop listening; Stop returned to idle / Talk to Lilthe. No audio transcript or
+  audible reply was verified. Full spoken input → model reply → spoken output
+  remains OPEN; browser startup alone must not close C13.
+- Authenticated Markets refresh still displayed one BTCUSDT Spot Buy Limit order,
+  quantity 0.00007 at 81,750, status New, Positions 0. No order was placed, amended,
+  cancelled or duplicated. Real fill, protective exit and exchange recovery proof
+  remain OPEN; unattended live strategy worker remains unimplemented.
+- Full lint and production build passed (22 pages / 21 workflow steps / 3 workflows).
+  Controls audit: 694 inspected, zero unguarded direct async controls; 12 interaction
+  architecture checks passed. Desktop host tests: 10/10. Consolidation tests: 5/5.
+  The old direct execution-name assertion was corrected to check the current
+  observed wrapper calls executeTerminalOrder and preserves confirmation guards.
+- Remaining coding scope: Lilthe-reviewed edit proposals and owner-reviewed apply
+  flow remain OPEN; this save correction is data-preservation infrastructure.
+  Recovery email still needs real SMTP host, port, sender and server-side credentials;
+  delivery is unverified. No credentials were guessed and no email was sent.
+- Publication: pending GitHub-first commit and Vercel production verification.
 
 ## Current handoff and remaining work — 2026-10-08
 

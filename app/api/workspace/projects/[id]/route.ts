@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUserId } from "@/lib/auth/session";
 import { validateCloudSnapshot } from "@/lib/workspace/cloud-validation";
-import type { Prisma } from "@prisma/client";
+import { saveCloudSnapshot } from "@/lib/workspace/cloud-save";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,20 +28,13 @@ export async function PUT(req: Request, { params }: Context) {
     const body = await req.json();
     const snapshot = validateCloudSnapshot(body);
     if (snapshot.project.id !== id) return NextResponse.json({ error: "Project id mismatch." }, { status: 400 });
-    const expected = Number(req.headers.get("if-match"));
-    const existing = await db.cloudWorkspaceProject.findUnique({ where: { id } });
-    if (existing && existing.userId !== userId) {
-      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    const match = req.headers.get("if-match");
+    const expected = match === null ? null : Number(match);
+    if (expected !== null && (!Number.isSafeInteger(expected) || expected < 1)) {
+      return NextResponse.json({ error: "Invalid project revision." }, { status: 400 });
     }
-    if (existing && Number.isInteger(expected) && expected > 0 && existing.revision !== expected) {
-      return NextResponse.json({ error: "Project changed in another tab or device.", current: existing }, { status: 409 });
-    }
-    const row = await db.cloudWorkspaceProject.upsert({
-      where: { id },
-      create: { id, userId, project: snapshot.project as unknown as Prisma.InputJsonValue, contents: snapshot.contents },
-      update: { project: snapshot.project as unknown as Prisma.InputJsonValue, contents: snapshot.contents, revision: { increment: 1 } },
-    });
-    return NextResponse.json(row);
+    const result = await saveCloudSnapshot(db, userId, id, expected, snapshot);
+    return result.status === 200 ? NextResponse.json(result.row) : NextResponse.json(result, { status: result.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save project.";
     const status = message === "Authentication required." ? 401 : 400;

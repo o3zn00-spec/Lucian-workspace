@@ -85,7 +85,11 @@ test('historical data is archival-only; manual trading retains confirmed-owner p
     assert(schema.includes(`@@map("${table}")`), `Existing physical table mapping lost: ${table}`);
   }
   const orders = read('app/api/trading/orders/route.ts');
-  assert.match(orders, /executeTerminalOrder/);
+  assert.match(orders, /body\.confirmed === true && typeof body\.intentId === "string"/);
+  assert.match(orders, /executeObservedOrder\(userId, body\)/);
+  const observed = read('src/lib/bybit/observed-execution.ts');
+  assert.match(observed, /await executeTerminalOrder\(userId, input\)/);
+  assert.match(observed, /await launchObserver\(userId, result\.intentId\)/);
   assert.doesNotMatch(orders, /executeLiveTrade|previewLiveTrade/);
   const terminal = read('src/lib/bybit/terminal.ts');
   assert.match(terminal, /intent\.initiatedBy !== "user"/);

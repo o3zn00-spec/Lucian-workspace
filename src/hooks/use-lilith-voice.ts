@@ -36,7 +36,7 @@ export function useLilithVoice() {
   const supported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
+    try { recognitionRef.current?.stop(); } catch { recognitionRef.current = null; }
     setListening(false);
   }, []);
 
@@ -53,11 +53,16 @@ export function useLilithVoice() {
     }
     const previous = recognitionRef.current;
     recognitionRef.current = null;
-    previous?.abort();
+    try { previous?.abort(); } catch { /* Some browsers throw after recognition has already ended. */ }
     utteranceRef.current = null;
     window.speechSynthesis?.cancel();
     setSpeaking(false);
-    const recognition = new Constructor();
+    let recognition: RecognitionInstance;
+    try { recognition = new Constructor(); } catch {
+      setListening(false);
+      options.onError?.("Microphone could not start. Check browser permissions.");
+      return false;
+    }
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = options.language ?? navigator.language ?? "en-US";
@@ -96,7 +101,12 @@ export function useLilithVoice() {
   }, []);
 
   const speak = useCallback((text: string, options?: { rate?: number; volume?: number; onEnd?: () => void }) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window) || !text.trim()) return false;
+    if (typeof window === "undefined" || !window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined" || !text.trim()) return false;
+    // Do not transcribe the assistant's own speaker output into the next message.
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    try { recognition?.abort(); } catch { /* Already stopped. */ }
+    setListening(false);
     utteranceRef.current = null;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.replace(/[`#*_>|]/g, " "));
@@ -112,7 +122,11 @@ export function useLilithVoice() {
     };
     utterance.onend = end;
     utterance.onerror = end;
-    window.speechSynthesis.speak(utterance);
+    try { window.speechSynthesis.speak(utterance); } catch {
+      utteranceRef.current = null;
+      setSpeaking(false);
+      return false;
+    }
     return true;
   }, []);
 
@@ -120,7 +134,7 @@ export function useLilithVoice() {
     const previous = recognitionRef.current;
     recognitionRef.current = null;
     utteranceRef.current = null;
-    previous?.abort();
+    try { previous?.abort(); } catch { /* Cleanup must finish even when recognition has ended. */ }
     window.speechSynthesis?.cancel();
   }, []);
 
