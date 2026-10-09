@@ -39,6 +39,11 @@ let explicitUnavailableCount = 0;
 for (const file of sourceFiles) {
   const code = readFileSync(file, "utf8");
   const ast = parse(code, { sourceType: "module", plugins: ["jsx", "typescript"] });
+  const dialogNamespaces = new Set(ast.program.body.flatMap(node =>
+    node.type === "ImportDeclaration" && node.source.value === "@radix-ui/react-dialog"
+      ? node.specifiers.filter(specifier => specifier.type === "ImportNamespaceSpecifier").map(specifier => specifier.local.name)
+      : [],
+  ));
   traverse(ast, {
     JSXOpeningElement(path) {
       const nameNode = path.node.name;
@@ -55,7 +60,17 @@ for (const file of sourceFiles) {
         if (explicitUnavailable) explicitUnavailableCount += 1;
         const inheritedAction = Boolean(path.findParent((parent) => {
           if (!parent.isJSXElement()) return false;
-          const parentName = jsxName(parent.node.openingElement.name);
+          const opening = parent.node.openingElement;
+          const member = opening.name;
+          const delegatedDialogAction = member.type === "JSXMemberExpression"
+            && member.object.type === "JSXIdentifier" && dialogNamespaces.has(member.object.name)
+            && ["Trigger", "Close"].includes(member.property.name)
+            && opening.attributes.some(attribute => attribute.type === "JSXAttribute"
+              && attribute.name.type === "JSXIdentifier" && attribute.name.name === "asChild"
+              && (attribute.value === null || (attribute.value.type === "JSXExpressionContainer"
+                && attribute.value.expression.type === "BooleanLiteral" && attribute.value.expression.value)));
+          if (delegatedDialogAction) return true;
+          const parentName = jsxName(opening.name);
           return parentName === "Link" || parentName.endsWith("Trigger");
         }));
         const hasSpreadProps = path.node.attributes.some((attribute) => attribute.type === "JSXSpreadAttribute");

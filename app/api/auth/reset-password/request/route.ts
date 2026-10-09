@@ -76,6 +76,11 @@ export async function POST(req: Request) {
     process.env.SMTP_USER &&
     process.env.SMTP_PASS
   );
+  if (!smtpConfigured) {
+    // No deliverable link can be issued: do not invalidate existing tokens or
+    // create inaccessible hashes when delivery is unavailable.
+    return NextResponse.json({ ok: true, message: "Owner recovery email is not configured on this server.", emailDelivery: "not_configured" });
+  }
   const resetBaseUrl = resolveResetBaseUrl(req);
   if (smtpConfigured && !resetBaseUrl) {
     return NextResponse.json(
@@ -133,9 +138,7 @@ export async function POST(req: Request) {
         emailDelivery: "configured",
       });
     }
-    // Email delivery is NOT configured — the user explicitly needs to
-    // know this. The reset token IS in the DB (and could be retrieved
-    // by the deployment operator), but no email was sent.
+    // Unconfigured delivery returns before any token operation above.
     return NextResponse.json({
       ok: true,
       message: "Owner recovery email is not configured on this server.",
@@ -190,6 +193,9 @@ async function sendResetEmail(to: string, resetUrl: string, displayName: string)
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
     // Reset emails are fully constructed by LUCIAN. Never let Nodemailer
     // resolve file paths or remote URLs from message content.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     disableFileAccess: true,
     disableUrlAccess: true,
   });

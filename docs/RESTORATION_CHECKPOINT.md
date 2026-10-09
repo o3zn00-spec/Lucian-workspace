@@ -1789,3 +1789,42 @@ creation. Screenshot retained outside source as investing-canvas-production.jpg.
 Populated canvas browser testing remains unverified: no fictional holdings were
 added to the owner's production portfolio. This release did not enable a live
 strategy, move funds, submit a duplicate order or claim a completed fill.
+
+## Bounded module/project tools and recovery delivery — 2026-10-08
+
+- C04/C07: `records.read` reads at most six owner-scoped cloud-saved Investing,
+  Research or News records. Only declared scalar fields/notes are returned;
+  arbitrary credential fields are excluded. It does not claim access to local
+  holdings, local notes or a complete portfolio.
+- `workspace.list` lists up to eight cloud projects with at most 40 indexed text
+  paths. `workspace.read` reads one exact existing indexed text file (16,000
+  character cap), identifies its revision/truncation, and never returns project
+  environment settings. Traversal, absolute paths, credential/private-key paths,
+  binary files and foreign/trashed projects are unavailable. These tools enable
+  coding discussion; applying edits/running code remains OPEN.
+- Both access categories have independent default-off owner permissions in the
+  existing Lilthe tools dialog/API. Unknown arguments and owner spoofing are
+  denied. Audit precedes reads; permission is checked again before delivery.
+  Saved bookmark title reads now also suppress results after in-flight revocation.
+  No new permission was enabled automatically in production.
+- Focused record-tool tests cover field bounds, secret-path exclusion, exact
+  indexed-file selection, owner isolation, truncation, revocation and failures.
+  Existing tool tests now cover both new permission toggles and invalid values.
+  Full local production build passed (22 pages, 21 workflow steps, 3 workflows).
+- C15 concrete infrastructure blocker: public production email-status returned
+  configured=false. Actual recovery email cannot complete without a sender/SMTP
+  service. Requested sender details from owner; continue independent work while
+  waiting. The request endpoint now returns before token/database mutations when
+  email is unconfigured. SMTP connections/greetings/socket waits are bounded.
+  Fixture tests cover no tokens without delivery, hashed tokens, trusted reset
+  origin, identical unknown-account response, no file/URL resolution and timeouts.
+  No real reset message or password change was performed.
+
+### Release checks — 2026-10-09
+
+Record-tool, chat-tool and recovery-delivery fixtures passed; lint passed. The
+control audit inspected 694 controls and passed after recognizing imported Radix
+Dialog Trigger/Close delegates with asChild. No fake click handlers were added.
+The 12 interaction/performance architecture checks passed. Actual SMTP delivery,
+real microphone roundtrip, live fill/exit recovery and unattended execution remain
+unverified or unfinished as specified above; these checks do not certify them.

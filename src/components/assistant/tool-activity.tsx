@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Activity, X } from "lucide-react";
 
-type ToolState = { savedRead: boolean; tradingRead: boolean; tradingActivityRead: boolean; activity: { id: string; tool: string; module: string; status: string; reason: string; createdAt: string }[] };
+type ToolState = { recordsRead: boolean; workspaceRead: boolean; savedRead: boolean; tradingRead: boolean; tradingActivityRead: boolean; activity: { id: string; tool: string; module: string; status: string; reason: string; createdAt: string }[] };
 export function ToolActivity() {
   const { data: session } = useSession();
   return <ToolActivityState key={session?.user?.id ?? "anonymous"} />;
@@ -15,7 +15,7 @@ function ToolActivityState() {
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const [busy, setBusy] = useState(false);
-  const request = useCallback(async (permission?: { savedRead: boolean } | { tradingRead: boolean } | { tradingActivityRead: boolean }, signal?: AbortSignal) => {
+  const request = useCallback(async (permission?: { savedRead: boolean } | { tradingRead: boolean } | { tradingActivityRead: boolean } | { recordsRead: boolean } | { workspaceRead: boolean }, signal?: AbortSignal) => {
     setBusy(true); setError(null);
     try {
       const response = await fetch("/api/assistant/tools", { method: permission === undefined ? "GET" : "PUT", cache: "no-store", signal,
@@ -64,6 +64,18 @@ function ToolActivityState() {
               <input type="checkbox" checked={data.tradingActivityRead} disabled={busy || Boolean(error)} onChange={event => void request({ tradingActivityRead: event.target.checked })} />
             </label>
             <p className="mt-2 text-xs text-fg-muted">Allow bounded snapshots of spot open orders and USDT-settled linear open orders/positions. Other products and history are excluded; partial or failed reads are labelled. Results enter chat and may reach your selected model in later turns. This does not authorize placing, changing or cancelling orders.</p>
+          </div>
+          <div className="my-4 rounded-lg border border-line p-3">
+            <label className="flex items-center justify-between gap-3 text-sm font-medium">Saved research and investment details
+              <input type="checkbox" checked={data.recordsRead} disabled={busy || Boolean(error)} onChange={event => void request({ recordsRead: event.target.checked })} />
+            </label>
+            <p className="mt-2 text-xs text-fg-muted">Read up to six cloud-saved research, news, watchlist or thesis records, including bounded notes. Local holdings and local notes are excluded. Results enter chat and may reach your selected model in later turns. No records are changed.</p>
+          </div>
+          <div className="my-4 rounded-lg border border-line p-3">
+            <label className="flex items-center justify-between gap-3 text-sm font-medium">Cloud project text files
+              <input type="checkbox" checked={data.workspaceRead} disabled={busy || Boolean(error)} onChange={event => void request({ workspaceRead: event.target.checked })} />
+            </label>
+            <p className="mt-2 text-xs text-fg-muted">List up to eight synced projects and read one indexed text file at a time (up to 16,000 characters). Environment settings, credential paths, binary files and browser-only projects are excluded. File text enters chat and may reach your model in later turns; keep secrets out of source files. This does not permit edits or running code.</p>
           </div>
           <h3 className="mb-2 font-medium">Recent tool activity</h3>
           {!data.activity.length && <p className="text-sm text-fg-muted">No tool activity recorded.</p>}

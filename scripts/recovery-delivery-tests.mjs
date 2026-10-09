@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+let reads=0,writes=0,sends=0;
+globalThis.recoveryFixture={read:()=>reads++,write:()=>writes++,send:()=>sends++,transport:null,message:null};
+const mocks={'next/server':'export const NextResponse={json:(body,init)=>Response.json(body,init)};', '@/lib/db':`const f=globalThis.recoveryFixture;export const db={user:{findUnique:async()=>{f.read();return {id:'owner',name:'Owner',status:'active'};}},passwordResetToken:{deleteMany:async()=>f.write(),create:async({data})=>{f.write();if(data.token.length!==64)throw Error('Raw token stored');}}};`, '@/lib/auth/owner-identity':'export const configuredOwnerEmail=()=>"owner@fixture.test";',nodemailer:`export const createTransport=options=>{const f=globalThis.recoveryFixture;f.transport=options;return {sendMail:async message=>{f.message=message;f.send();}};};`};
+const r=await build({entryPoints:['app/api/auth/reset-password/request/route.ts'],bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path],resolveDir:process.cwd()}));}}]});
+const {POST}=await import('data:text/javascript;base64,'+Buffer.from(r.outputFiles[0].text).toString('base64'));
+process.env.DATABASE_URL='fixture';for(const key of ['SMTP_HOST','SMTP_USER','SMTP_PASS'])delete process.env[key];
+const request=email=>new Request('https://spoofed.test/api/auth/reset-password/request',{method:'POST',body:JSON.stringify({email})});
+const missing=await (await POST(request('owner@fixture.test'))).json();assert.equal(missing.emailDelivery,'not_configured');assert.equal(reads,0);assert.equal(writes,0);assert.equal(sends,0);
+Object.assign(process.env,{SMTP_HOST:'smtp.fixture.test',SMTP_USER:'sender@fixture.test',SMTP_PASS:'FIXTURE',AUTH_APP_URL:'https://app.fixture.test',NODE_ENV:'production'});
+const result=await (await POST(request('owner@fixture.test'))).json();assert.equal(result.emailDelivery,'configured');assert.equal(sends,1);assert.equal(writes,2);assert.match(globalThis.recoveryFixture.message.text,/https:\/\/app.fixture.test\/reset-password\?token=/);assert.doesNotMatch(globalThis.recoveryFixture.message.text,/spoofed.test/);
+assert.equal(globalThis.recoveryFixture.transport.disableFileAccess,true);assert.equal(globalThis.recoveryFixture.transport.disableUrlAccess,true);assert.equal(globalThis.recoveryFixture.transport.socketTimeout,20000);
+const foreign=await (await POST(request('other@fixture.test'))).json();assert.deepEqual(foreign,result);assert.equal(sends,1);assert.equal(writes,2);
+process.env.AUTH_APP_URL='http://unsafe.test';assert.equal((await POST(request('owner@fixture.test'))).status,503);assert.equal(sends,1);
+console.log('PASS unconfigured delivery creates no tokens, hashed token only, trusted reset origin, anti-enumeration response and bounded SMTP. No real email/password changes.');

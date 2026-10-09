@@ -1,6 +1,6 @@
 import { requireOwnerId } from "@/lib/auth/owner";
 import { AuthError } from "@/lib/auth/errors";
-import { setSavedRead, setTradingRead, setTradingActivityRead, toolAccessSnapshot } from "@/lib/assistant/tool-access";
+import { setRecordToolRead, setSavedRead, setTradingRead, setTradingActivityRead, toolAccessSnapshot } from "@/lib/assistant/tool-access";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 function failure(error: unknown) {
@@ -19,10 +19,12 @@ export async function PUT(req: Request) {
     if (raw.length > 1000) return Response.json({ ok: false }, { status: 413 });
     let body;
     try { body = JSON.parse(raw); } catch { return Response.json({ ok: false }, { status: 400 }); }
-    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 || !(["savedRead", "tradingRead", "tradingActivityRead"].includes(Object.keys(body)[0]) && typeof body[Object.keys(body)[0]] === "boolean")) return Response.json({ ok: false }, { status: 400 });
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 || !(["savedRead", "tradingRead", "tradingActivityRead", "recordsRead", "workspaceRead"].includes(Object.keys(body)[0]) && typeof body[Object.keys(body)[0]] === "boolean")) return Response.json({ ok: false }, { status: 400 });
     if (typeof body.savedRead === "boolean") await setSavedRead(userId, body.savedRead);
     else if (typeof body.tradingRead === "boolean") await setTradingRead(userId, body.tradingRead);
-    else await setTradingActivityRead(userId, body.tradingActivityRead);
+    else if (typeof body.tradingActivityRead === "boolean") await setTradingActivityRead(userId, body.tradingActivityRead);
+    else if (typeof body.recordsRead === "boolean") await setRecordToolRead(userId, "records.read", body.recordsRead);
+    else await setRecordToolRead(userId, "workspace.read", body.workspaceRead);
     return Response.json({ ok: true, ...await toolAccessSnapshot(userId) });
   } catch (error) { return failure(error); }
 }

@@ -74,6 +74,12 @@ assert.equal((await accessAPI.PUT(permissionRequest({tradingRead:true}))).status
 assert.equal((await (await accessAPI.GET()).json()).tradingRead,true);
 assert.equal((await accessAPI.PUT(permissionRequest({tradingRead:false}))).status,200);
 assert.equal((await (await accessAPI.GET()).json()).tradingRead,false);
+for(const permission of ['recordsRead','workspaceRead']) {
+ assert.equal((await accessAPI.PUT(permissionRequest({[permission]:true}))).status,200);
+ assert.equal((await (await accessAPI.GET()).json())[permission],true);
+ assert.equal((await accessAPI.PUT(permissionRequest({[permission]:false}))).status,200);
+ assert.equal((await accessAPI.PUT(permissionRequest({[permission]:'true'}))).status,400);
+}
 const tradingEnvelope=JSON.stringify({lucian_tool:'trading.read',arguments:{}});
 assert.match(await resolveChatTool('owner-A',tradingEnvelope),/access is off/);
 assert.equal(globalThis.bybitCalls.length,0);
@@ -154,4 +160,4 @@ reply='{"lucian_tool":"trading.execute","arguments":{}}';
 res=await POST(request('https://fixture.test',true));const stream=await res.text();assert.match(stream,/unavailable/);assert.doesNotMatch(stream,/lucian_tool/);
 assert.equal((await POST(request('https://evil.test'))).status,403);
 globalThis.chatToolOwner=null;assert.equal((await POST(request())).status,403);assert.equal((await accessAPI.PUT(permissionRequest({savedRead:true}))).status,403);
-console.log('PASS: Independent bounded spot/USDT linear order/position reads, partial pagination, invalid rows, per-query failure, revocation and audit checks.  model chat invokes audited app utilities; validated navigation; unknown/financial/file tools denied; owner spoofing and arbitrary URLs rejected; audit failure closes access; normal replies preserved; streaming resolves tool envelopes; auth/origin checked. Saved reads require owner grant, revoke immediately, select bounded metadata only, isolate owners and report failures; permission API enforces owner/origin/schema; memory cannot grant tool access. Bybit balances require separate owner permission, bounded fixed GET, owner isolation, distinguish unavailable from zero, redact unexpected fields/errors, reject missing accounts and suppress in-flight revoked results. No network or paid inference.');
+console.log('PASS: Independent bounded spot/USDT linear order/position reads, partial pagination, invalid rows, per-query failure, revocation and audit checks.  model chat invokes audited app utilities; validated navigation; unknown/financial/edit tools denied; owner spoofing and arbitrary URLs rejected; audit failure closes access; normal replies preserved; streaming resolves tool envelopes; auth/origin checked. Saved reads require owner grant, revoke immediately, select bounded metadata only, isolate owners and report failures; permission API enforces owner/origin/schema; memory cannot grant tool access. Bybit balances require separate owner permission, bounded fixed GET, owner isolation, distinguish unavailable from zero, redact unexpected fields/errors, reject missing accounts and suppress in-flight revoked results. No network or paid inference.');

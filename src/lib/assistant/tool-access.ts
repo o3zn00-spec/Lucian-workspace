@@ -17,14 +17,16 @@ export async function savedReadAllowed(userId: string) {
   return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key } } }))?.value === "allow";
 }
 export async function toolAccessSnapshot(userId: string) {
-  const [savedRead, tradingRead, tradingActivityRead, activity] = await Promise.all([
+  const [savedRead, tradingRead, tradingActivityRead, recordsRead, workspaceRead, activity] = await Promise.all([
     savedReadAllowed(userId),
     tradingReadAllowed(userId),
     tradingActivityReadAllowed(userId),
+    recordsReadAllowed(userId),
+    workspaceReadAllowed(userId),
     db.assistantActivity.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30,
       select: { id: true, tool: true, module: true, status: true, reason: true, createdAt: true } }),
   ]);
-  return { savedRead, tradingRead, tradingActivityRead, activity };
+  return { savedRead, tradingRead, tradingActivityRead, recordsRead, workspaceRead, activity };
 }
 export async function setSavedRead(userId: string, allow: boolean) {
   await db.$transaction(async tx => {
@@ -50,5 +52,15 @@ export async function setTradingActivityRead(userId: string, allow: boolean) {
       create: { userId, key: activityKey, value: allow ? "allow" : "deny" }, update: { value: allow ? "allow" : "deny" } });
     await tx.assistantActivity.create({ data: { userId, tool: "permission.trading.activity.read", module: "markets", status: "completed",
       reason: allow ? "Owner enabled bounded Bybit order/position reads." : "Owner revoked Bybit order/position reads." } });
+  });
+}
+
+export async function recordsReadAllowed(userId: string) { return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key: `${TOOL_PERMISSION_PREFIX}records.read` } } }))?.value === "allow"; }
+export async function workspaceReadAllowed(userId: string) { return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key: `${TOOL_PERMISSION_PREFIX}workspace.read` } } }))?.value === "allow"; }
+export async function setRecordToolRead(userId: string, tool: "records.read" | "workspace.read", allow: boolean) {
+  const key = `${TOOL_PERMISSION_PREFIX}${tool}`;
+  await db.$transaction(async tx => {
+    await tx.assistantMemory.upsert({ where: { userId_key: { userId, key } }, create: { userId, key, value: allow ? "allow" : "deny" }, update: { value: allow ? "allow" : "deny" } });
+    await tx.assistantActivity.create({ data: { userId, tool: `permission.${tool}`, module: tool === "workspace.read" ? "dev-workspace" : "economic-agent", status: "completed", reason: `Owner ${allow ? "enabled" : "revoked"} bounded ${tool} access.` } });
   });
 }
