@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { PaperSessionControls } from "./paper-session-controls";
+import { LiveReviewControls } from "./live-review-controls";
 import { X } from "lucide-react";
 import type { PaperPlan } from "@/lib/assistant/paper-policy";
 const amountFields = [
@@ -69,7 +70,8 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
   const inputClass = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus-ring";
   return <Dialog.Root open={open} onOpenChange={changeOpen}>
     <div className="themed flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 text-sm text-fg">
-      <span>Lilthe paper session</span>
+      <span>Lilthe sessions</span>
+      <LiveReviewControls />
       <Dialog.Trigger asChild><button className="focus-ring rounded-lg border border-line px-3 py-1.5" type="button">Set up paper session</button></Dialog.Trigger>
     </div>
     <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[180] bg-black/50" />

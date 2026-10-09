@@ -5,5 +5,6 @@ export const PRIVATE_MEMORY_FILTER = { NOT: { OR: [
   { key: { startsWith: "_spot_risk:" } },
   { key: { startsWith: "_workspace_edit:" } },
   { key: { startsWith: "_order_watch:" } },
+  { key: { startsWith: "_live_review:" } },
 ] } };
-export const isPrivateAssistantKey = (key: string) => key.startsWith("_tool_permission:") || key.startsWith("_paper_session:") || key.startsWith("_spot_risk:") || key.startsWith("_workspace_edit:") || key.startsWith("_order_watch:");
+export const isPrivateAssistantKey = (key: string) => key.startsWith("_tool_permission:") || key.startsWith("_paper_session:") || key.startsWith("_spot_risk:") || key.startsWith("_workspace_edit:") || key.startsWith("_order_watch:") || key.startsWith("_live_review:");

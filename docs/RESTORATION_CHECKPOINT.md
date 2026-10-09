@@ -3,7 +3,7 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C08–C12 retain matched completed exchange results and recover paper-plan loading. Unattended live execution and actual fill/exit/recovery validation remain OPEN.
+Current batch: C08–C12 bounded browser-independent live research and read-only exchange supervision. Automatic real execution and actual fill/exit/recovery validation remain OPEN; the new supervisor has no financial-write path.
 Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
@@ -36,6 +36,16 @@ C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
 
+
+## Bounded live research supervisor — 2026-10-09
+
+- Added a separate Live research control directly on the Markets session bar. It freezes up to two USDT Spot symbols, strategy, selected model/effort, a 5–1440 minute review interval, 1–24 hour hard duration and maximum 1–30 paid model reviews. This is live-account research/observation, not simulated execution or automatic real-money trading.
+- The durable Workflow runs independently of the browser, uses bounded hourly continuations and checks its original deadline. PostgreSQL owner locks, generation replacement and expiring per-cycle leases suppress duplicate starts/cycles and stale worker commits. Recovery preserves the original deadline, paid-call counter and review history; it cannot renew permission or reset budget. Pausing/stopping never closes or cancels exchange orders. Disabled owners stop their workers.
+- Each due cycle first reads and reconciles the owner's current reservations, then gathers closed Bybit candles and independent context using the existing validated research sources. The model sees a limited projection of order states and risk limits, never credentials or raw provider errors. Calls consume their budget before inference, including ambiguous failures. Unavailable/incomplete data produces a retained error and no financial action. More than four reservations exceeds this supervisor's bounded read budget and fails closed.
+- Open/unresolved reservations, emergency stop, or a recent filled entry without verified protection/exit force Hold after the model response. A filled entry is not treated as a completed profitable cycle. The supervisor cannot submit, amend, cancel, close, transfer or withdraw: it imports no financial execution adapter. Ordinary model memory tools cannot read/edit/delete its protected `_live_review:` active/archive state.
+- UI provides current status, heartbeat, deadline, budget, frozen strategy/model and sourced review history, plus Pause/Resume/Recover/Stop and bounded refresh/retry. These controls act on research only. Current manual live confirmation/password/emergency stop/risk/reservation checks are unchanged. Builds do not start any session.
+- Validation: rules/strict response schema, eight competing starts/cycles, paid-call cap, in-flight pause, stale generations, owner isolation/disable, fixed expiry, unknown exchange data, emergency Hold, private-state filters and same-origin owner route fixtures; actual isolated PostgreSQL proves one start and one paid review under eight concurrent requests, preserved recovery deadline/budget and zero trade intents. Exchange/model adapters in tests are fixtures, with no network or financial writes. Typecheck, lint, 707-control audit (zero unguarded direct async), all 12 architecture checks, consolidation 5/5, completed build (24 steps / 4 workflows), desktop 10/10 and existing paper/live/Spot/reconciliation/observer/watch/route tests passed. Native source unchanged.
+- STILL OPEN: unattended real-money strategy/execution and protection/exit management; actual fill, exit and controlled real exchange recovery validation; profitable-strategy evidence. This implementation does not finish those acceptance items and must not be described as production-ready autonomous trading. Real exchange submissions require the owner's final action under the browser tool's financial handoff rule; prior general authorization is retained. Recovery email sender remains deferred; physical spoken voice verification and other app scope remain tracked.
 
 ## Completed exchange results and plan-load recovery — 2026-10-09
 
