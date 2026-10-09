@@ -39,14 +39,16 @@ export function useBybitTerminal(mode: TradingMode | null, symbol: string, categ
     request.current = controller;
     if (!mode) { setData(null); setError(null); setLoading(false); return; }
     setLoading(true);
+    let timedOut = false;
+    const deadline = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45000);
     try {
       const response = await fetch(`/api/bybit/terminal?mode=${mode}&symbol=${encodeURIComponent(symbol)}&category=${category}`, { cache: "no-store", signal: controller.signal });
       const payload = await response.json() as BybitTerminalSnapshot & { error?: string };
       if (currentGeneration !== generation.current) return;
       if (!response.ok) throw new Error(payload.error || "Bybit terminal synchronization failed.");
       setData(payload); setError(null);
-    } catch (reason) { if (currentGeneration === generation.current && !controller.signal.aborted) { setError(reason instanceof Error ? reason.message : "Bybit terminal synchronization failed."); setData(null); } }
-    finally { if (currentGeneration === generation.current) { setLoading(false); request.current = null; } }
+    } catch (reason) { if (currentGeneration === generation.current && (!controller.signal.aborted || timedOut)) { setError(timedOut ? "Exchange synchronization timed out. Balances are unavailable until the next successful refresh." : reason instanceof Error ? reason.message : "Bybit terminal synchronization failed."); setData(null); } }
+    finally { window.clearTimeout(deadline); if (currentGeneration === generation.current) { setLoading(false); request.current = null; } }
   }, [mode, symbol, category]);
 
   useEffect(() => {

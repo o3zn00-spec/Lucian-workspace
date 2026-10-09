@@ -33,6 +33,42 @@ C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
 
+## Current handoff and remaining work — 2026-10-08
+
+This section supersedes historical lock/funding statements below. Owner approval
+for the bounded trial is already recorded; do not ask for the same limits again.
+
+| Item | Current evidence/status |
+| --- | --- |
+| Lilthe layout, chat controls, model connection and conversation sync | Deployed; real text/image model requests previously passed. |
+| Mainnet connection and Unified balance | Authenticated read previously passed; latest visible balance 40.92 USD, not a new independent account refresh. |
+| Manual live Spot orders | Enabled in production with 6 USDT/order, 10 USDT exposure, 1 USDT daily realized loss, one position and no borrowing. |
+| Prepared real-money trial | 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; preview passed but has expired. No submission/fill evidence yet. |
+| Read-only background order observer | Deployed; bounded 15-minute observation, no financial retry. Actual production run still unverified. |
+| Real fill, protective exit and recovery | OPEN. Exchange acknowledgement alone must not count as fill or verified protection. |
+| Lilthe unattended live strategy worker | OPEN. Read-only observer and paper worker must not be described as an autonomous live trader. |
+| Strategy readiness | OPEN. Four-hour forward trial held throughout; historical reference strategies lost after costs. |
+| Broader app tools, voice, Investing canvas, stability/recovery | OPEN under C04/C07, C13, C14 and C15. |
+
+Current UI hardening: expired previews disable confirmation/submission and offer
+**Review again** without placing an order; a successful fresh review clears the
+old password/phrase. Submission acknowledgement now directs the owner to Orders
+and Approvals and explicitly distinguishes acknowledgement from fill. The live
+trial UI disables derivatives. Terminal reads stop waiting after 45 seconds,
+show balances as unavailable, and allow subsequent polling to recover.
+Validation: full lint and production build passed (22 pages, 21 workflow steps,
+3 workflows). These checks do not prove real-money fills or profit. Release and
+browser verification are recorded separately after publication.
+
+Owner action: Markets → existing order details → renew the preview → type its
+exact confirmation phrase and current Lucian login password → Submit to Bybit
+once. The browser tool requires the owner to perform the final financial click;
+chat approval does not remove this handoff requirement. Keep the 6 USDT cap.
+Do not automatically replace the trial with another instrument or a larger order.
+If price/balance checks reject the preview, record the reason before changing it.
+Then inspect exchange order/fill records, fees, protective child orders and exit
+records, and test recovery without resubmitting a financial request.
+
 ## Real model verification and connection hardening — 2026-10-07
 
 - Owner authorized paid model testing, superseding the earlier no-inference-spend
