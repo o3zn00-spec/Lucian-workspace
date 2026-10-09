@@ -3,7 +3,7 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C07 bounded coding proposals/reviewed apply and conflict preservation validated locally; publication verification follows below.
+Current batch: C07 bounded coding proposals/reviewed apply and conflict preservation validated locally and released to production; evidence follows below.
 Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
@@ -77,7 +77,7 @@ bounded manual live submission; production activation is verified below.
   execution, local-folder changes and publishing through Lilthe are still OPEN.
   C08–C12 unattended live strategy, real fill/exit/recovery remain OPEN. C13 full
   spoken round trip and C15 real SMTP sender/delivery remain OPEN.
-- Publication: pending GitHub-first commit and Vercel verification for this batch.
+- Publication: GitHub 27206961c1e16f965715250062477119c1d39e32, exact tree 4f75b57844e0ea2401eacaf3023d5ec29e54db52; Vercel Frs3T6zro1KaG2RCdbvRi2EePCdX Ready Production (1 minute 3 seconds), assigned lucian-workspace.vercel.app. The review/apply browser proof was performed in the isolated local test database, not against owner production files.
 
 ## Project-save concurrency and voice checks — 2026-10-09
 
