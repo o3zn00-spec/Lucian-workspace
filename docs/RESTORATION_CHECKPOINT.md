@@ -71,7 +71,7 @@ remain unchanged.
 - Production UI showed a submitted BTCUSDT Spot limit buy, provider order ID
   `2321863677537774336`, not zero successful submissions. Subsequent preview
   failed because code rejected any nonempty Bybit cursor instead of following it.
-- Snapshot and pre-order exposure reads now traverse opaque cursors with bounds
+- Snapshot, pre-order exposure and order reconciliation reads now traverse opaque cursors with bounds
   (20 pages/4,000 rows). Malformed or repeated cursors and failed later pages
   reject complete risk data; no partial result is certified as safe.
 - Markets header and trading panel share one account snapshot hook instead of
@@ -86,7 +86,8 @@ remain unchanged.
   architecture assertions, pagination/terminal reads, credential scope/binding,
   fresh review UI and live execution fixtures. A second-page pending exposure
   blocks an otherwise valid trial. No exchange financial writes in these tests.
-- GitHub-first production publication and real order status verification pending.
+- First GitHub publication: `2e5f35c`, tree `ea8f6e5`; recovery cursor follow-up
+  is included in the subsequent release. Production order status verification pending.
 
 ## Real model verification and connection hardening — 2026-10-07
 

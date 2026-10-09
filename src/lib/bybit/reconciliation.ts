@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { readCompleteBybitList } from "./pagination";
 import { bybitRequest, getBybitConfig } from "./client";
 
 const eligible = ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open", "cancelled_with_fills"];
@@ -29,9 +30,16 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const read = (path:string,query:Record<string,string|number>)=>bybitRequest<Page>(userId,path,{query:{category,symbol,orderLinkId,...query}},config);
   const pageRows=(page:Page)=>{if(page.category!==category || !Array.isArray(page.list) || page.list.length>100 || (page.nextPageCursor!==undefined && typeof page.nextPageCursor!=="string")) throw Error("Malformed exchange records.");return page.list;};
   // Order history is the fallback when Bybit's recent closed-order cache is cleared.
-  const orderPageRows=(page:Page)=>{const rows=pageRows(page);if(page.nextPageCursor) throw Error("Order history is incomplete. Reservation retained.");return rows;};
-  let source="realtime",orderRows=orderPageRows(await read("/v5/order/realtime",{limit:50}));
-  if(!orderRows.length){source="history";orderRows=orderPageRows(await read("/v5/order/history",{limit:50,startTime,endTime:now}));}
+  const orderPages=async(path:string,query:Record<string,string|number>)=>{
+    const result=await readCompleteBybitList<Row>(async cursor=>{
+      const page=await read(path,{...query,...(cursor?{cursor}:{})});
+      pageRows(page); // Preserve category and per-page size validation.
+      return page;
+    },"Order history");
+    return result.list!;
+  };
+  let source="realtime",orderRows=await orderPages("/v5/order/realtime",{limit:50});
+  if(!orderRows.length){source="history";orderRows=await orderPages("/v5/order/history",{limit:50,startTime,endTime:now});}
   if(!orderRows.length) return {intentId,state:intent.state,resolved:false,message:"No matching exchange order yet. Reservation retained; no resubmission is permitted."};
   if(orderRows.length!==1) throw Error("Ambiguous exchange order identity. Reservation retained.");
   const order=orderRows[0];

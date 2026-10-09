@@ -1,10 +1,10 @@
 import "server-only";
 
-export type BybitPage = { list?: Array<Record<string, string>>; nextPageCursor?: string };
+export type BybitPage<T extends Record<string, unknown> = Record<string, string>> = { list?: T[]; nextPageCursor?: string };
 
 // Only return complete lists. A failed later page must never become usable risk data.
-export async function readCompleteBybitList(readPage: (cursor?: string) => Promise<BybitPage>, label: string): Promise<BybitPage> {
-  const rows: Array<Record<string, string>> = [];
+export async function readCompleteBybitList<T extends Record<string, unknown>>(readPage: (cursor?: string) => Promise<BybitPage<T>>, label: string): Promise<BybitPage<T>> {
+  const rows: T[] = [];
   const cursors = new Set<string>();
   let cursor: string | undefined;
   for (let page = 0; page < 20; page++) {
