@@ -7,6 +7,7 @@ globalThis.chatToolReply=()=>reply;
 globalThis.chatToolOwner='owner-fixture';
 globalThis.chatToolAuditFail=false;
 globalThis.toolPermissions=new Map();
+globalThis.permissionQueries=[];
 globalThis.savedQueries=[];
 globalThis.savedReadFail=false;
 globalThis.bybitCalls=[];
@@ -20,7 +21,7 @@ globalThis.activityRevoke=false;
 const mocks={
  'server-only':'',
  'next/server':'export const NextResponse={json:(body,init)=>Response.json(body,init)};',
- '@/lib/db':`const memory={findMany:async()=>[],findUnique:async({where})=>({value:globalThis.toolPermissions.get(where.userId_key.userId+':'+where.userId_key.key)??(where.userId_key.key.endsWith('saved.read')?globalThis.toolPermissions.get(where.userId_key.userId):null)??'deny'}),upsert:async({where,update})=>{globalThis.toolPermissions.set(where.userId_key.userId+':'+where.userId_key.key,update.value);return update;}};const activity={create:async({data})=>{if(globalThis.chatToolAuditFail)throw Error('Audit unavailable');globalThis.chatToolEvents.push(data);return data;},findMany:async({where})=>globalThis.chatToolEvents.filter(e=>e.userId===where.userId)};export const db={assistantMemory:memory,assistantActivity:activity,savedItem:{findMany:async(query)=>{globalThis.savedQueries.push(query);if(globalThis.savedReadFail)throw Error('Read unavailable');return [{title:'Example saved favorite',source:'news',type:'article',createdAt:new Date('2026-10-07')}] }},$transaction:async(fn)=>fn({assistantMemory:memory,assistantActivity:activity})};`,
+ '@/lib/db':`const memory={findMany:async(query)=>{if(!query?.where?.key?.in)return [];globalThis.permissionQueries.push(query);return query.where.key.in.map(key=>({key,value:globalThis.toolPermissions.get(query.where.userId+':'+key)??'deny'}));},findUnique:async({where})=>({value:globalThis.toolPermissions.get(where.userId_key.userId+':'+where.userId_key.key)??(where.userId_key.key.endsWith('saved.read')?globalThis.toolPermissions.get(where.userId_key.userId):null)??'deny'}),upsert:async({where,update})=>{globalThis.toolPermissions.set(where.userId_key.userId+':'+where.userId_key.key,update.value);return update;}};const activity={create:async({data})=>{if(globalThis.chatToolAuditFail)throw Error('Audit unavailable');globalThis.chatToolEvents.push(data);return data;},findMany:async({where})=>globalThis.chatToolEvents.filter(e=>e.userId===where.userId)};export const db={assistantMemory:memory,assistantActivity:activity,savedItem:{findMany:async(query)=>{globalThis.savedQueries.push(query);if(globalThis.savedReadFail)throw Error('Read unavailable');return [{title:'Example saved favorite',source:'news',type:'article',createdAt:new Date('2026-10-07')}] }},$transaction:async(fn)=>fn({assistantMemory:memory,assistantActivity:activity})};`,
  '@/lib/bybit/client':`export class BybitApiError extends Error {} export const getBybitConfig=async()=>({environment:'mainnet',configured:globalThis.bybitConfigured,apiKey:'SECRET-KEY',apiSecret:'SECRET-VALUE'});export const bybitRequest=async(...args)=>{globalThis.bybitCalls.push(args);if(globalThis.bybitRevoke)globalThis.toolPermissions.set(args[0]+':_tool_permission:trading.read','deny');if(globalThis.bybitFailure)throw Error('SECRET-VALUE');if(globalThis.activityFixtures&&args[1]!=='/v5/account/wallet-balance'){const key=args[1]+':'+args[2].query.category;if(globalThis.activityRevoke)globalThis.toolPermissions.set(args[0]+':_tool_permission:trading.activity.read','deny');if(globalThis.activityFailure===key)throw Error('SECRET-VALUE');return globalThis.activityFixtures[key];}return globalThis.bybitFixture;};`,
  '@/lib/auth/owner':`import {AuthError} from '@/lib/auth/errors';export const requireOwnerId=async()=>{if(!globalThis.chatToolOwner)throw new AuthError('unauthorized','Owner required',403);return globalThis.chatToolOwner;};`,
  '@/lib/agent/providers':`export const isProviderConfigured=async()=>true;export const getProvider=async()=>({chat:async(params)=>{globalThis.lastChatParameters=params;return {content:globalThis.chatToolReply(),fromModel:true};}});`,
@@ -80,6 +81,13 @@ for(const permission of ['recordsRead','workspaceRead']) {
  assert.equal((await accessAPI.PUT(permissionRequest({[permission]:false}))).status,200);
  assert.equal((await accessAPI.PUT(permissionRequest({[permission]:'true'}))).status,400);
 }
+const beforeSnapshot=globalThis.permissionQueries.length;
+assert.equal((await accessAPI.GET()).status,200);
+assert.equal(globalThis.permissionQueries.length,beforeSnapshot+1);
+assert.equal(globalThis.permissionQueries.at(-1).where.userId,'owner-fixture');
+assert.equal(globalThis.permissionQueries.at(-1).take,5);
+assert.deepEqual(globalThis.permissionQueries.at(-1).select,{key:true,value:true});
+assert.equal(globalThis.permissionQueries.at(-1).where.key.in.length,5);
 const tradingEnvelope=JSON.stringify({lucian_tool:'trading.read',arguments:{}});
 assert.match(await resolveChatTool('owner-A',tradingEnvelope),/access is off/);
 assert.equal(globalThis.bybitCalls.length,0);

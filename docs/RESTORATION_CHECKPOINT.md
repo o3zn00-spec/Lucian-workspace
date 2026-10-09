@@ -1,9 +1,10 @@
 # LUCIAN restoration checkpoint
 
-Updated: 2026-10-08 (America/Los_Angeles)
+Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C08–C12 live loss-accounting and execution/recovery gates. Unified
+Current batch: C04/C07 bounded record adapters and C15 recovery hardening released;
+C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
 funding is complete: last authenticated check showed 40.94851553 USDT. The owner
 has authorized bounded real-money tests and delegated test sizing. Do not ask for
 that same general authorization again. Live entry now also requires a proven
@@ -375,7 +376,7 @@ specific dependency. Record evidence before changing Verified to Complete.
 | C01 | Checkpoint and read-only source comparison | Complete | Original/current commits, comparison and agreed scope recorded here |
 | C02 | Theme crash, navigation/loading and broader stability audit | In progress | Reproduction, cause, before/after behavior and regression checks |
 | C03 | Gold logo and Settings navigation cleanup | Complete — production verified | Original emblem reused at /icon.png; lower Settings removed; top menu opens Settings; animation assets/source unchanged |
-| C04 | Shared assistant foundation and app tool registry | In progress — app utilities verified in production | Owner-scoped persistent state and audited app map/navigation connected to shared model chat; first cloud saved-item metadata read and activity/permission UI locally verified; full module record adapters remain |
+| C04 | Shared assistant foundation and app tool registry | In progress — app utilities and bounded cloud adapters deployed | Owner-scoped persistent state, audited app map/navigation, bookmarks, research/investment/news details and cloud project reads; separate permissions, revocation and activity UI verified; local record adapters and controlled project edits remain |
 | C05 | Provider connections and model discovery | In progress — catalog/checks locally verified | Six adapters; authenticated discovery; bounded pagination; read-only checks; image/reasoning labels. Owner OpenRouter text/image inference verified; other providers/custom compatibility remain unverified |
 | C06 | Chat UI, history, memory and attachments | In progress — controls/sync and first real image reply production verified | Portal menus, screenshot viewer and saved shared history deployed; actual OpenRouter screenshot understanding and three replies passed. Wider visual quality, full permissions and native provider streaming remain open |
 | C07 | Module handoffs and coding tools | In progress — original context/handoff code restored | Relevant modules exercised; project changes reviewed; no unintended access |
@@ -1828,3 +1829,26 @@ Dialog Trigger/Close delegates with asChild. No fake click handlers were added.
 The 12 interaction/performance architecture checks passed. Actual SMTP delivery,
 real microphone roundtrip, live fill/exit recovery and unattended execution remain
 unverified or unfinished as specified above; these checks do not certify them.
+
+### Production verification — 2026-10-09
+
+- GitHub app commit `682f64a1c420476d7a3cd581578c68dd3bfe9c59`, exact
+  local/remote tree `edb4ccf94d34adc12274138c6e2358ad760d7483`. GitHub updated
+  before deployment. Vercel `3pXU5U9Sco7EQBUxx2Jxt7PzuqaW` Ready Production
+  in 57 seconds; production domain assignment verified in dashboard.
+- Production Lilthe tool dialog opens and closes, shows both new independent
+  access categories unchecked and loads audit activity. No permissions enabled.
+  Screenshot: outputs/lilthe-record-tools-production.jpg outside repository.
+- Refreshed authenticated Markets shows original order still New, Buy Limit
+  0.000070 BTC at 81750.0, Orders 1, Positions 0, equity 40.91 USD/free 35.20 USD.
+  This is an open-order snapshot, not a verified fill/protective exit.
+- Conversation and tool-permission loading still visibly take time on cold
+  production requests. No measured latency improvement is claimed in this batch.
+- Production chat capability-map request completed and lists the new bounded
+  permission-controlled record/project text reads. No private record read or
+  financial action was requested in this verification.
+- Tool permission snapshot now selects the five exact owner permission keys in
+  one bounded database query instead of five individual reads; activity remains
+  separate. Tests verify one query, owner filter, key whitelist and field bounds,
+  plus toggle/revocation behavior. Chat/record fixtures, lint and full production
+  build passed again. This reduces query overhead, not a measured latency claim.

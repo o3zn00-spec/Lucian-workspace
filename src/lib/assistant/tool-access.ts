@@ -17,16 +17,16 @@ export async function savedReadAllowed(userId: string) {
   return (await db.assistantMemory.findUnique({ where: { userId_key: { userId, key } } }))?.value === "allow";
 }
 export async function toolAccessSnapshot(userId: string) {
-  const [savedRead, tradingRead, tradingActivityRead, recordsRead, workspaceRead, activity] = await Promise.all([
-    savedReadAllowed(userId),
-    tradingReadAllowed(userId),
-    tradingActivityReadAllowed(userId),
-    recordsReadAllowed(userId),
-    workspaceReadAllowed(userId),
+  const permissionKeys = ["saved.read", "trading.read", "trading.activity.read", "records.read", "workspace.read"];
+  const [permissions, activity] = await Promise.all([
+    db.assistantMemory.findMany({ where: { userId, key: { in: permissionKeys.map(tool => `${TOOL_PERMISSION_PREFIX}${tool}`) } },
+      take: 5, select: { key: true, value: true } }),
     db.assistantActivity.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30,
       select: { id: true, tool: true, module: true, status: true, reason: true, createdAt: true } }),
   ]);
-  return { savedRead, tradingRead, tradingActivityRead, recordsRead, workspaceRead, activity };
+  const allowed = (tool: string) => permissions.some(permission => permission.key === `${TOOL_PERMISSION_PREFIX}${tool}` && permission.value === "allow");
+  return { savedRead: allowed("saved.read"), tradingRead: allowed("trading.read"), tradingActivityRead: allowed("trading.activity.read"),
+    recordsRead: allowed("records.read"), workspaceRead: allowed("workspace.read"), activity };
 }
 export async function setSavedRead(userId: string, allow: boolean) {
   await db.$transaction(async tx => {
