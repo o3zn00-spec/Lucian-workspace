@@ -41,9 +41,9 @@ for the bounded trial is already recorded; do not ask for the same limits again.
 | Item | Current evidence/status |
 | --- | --- |
 | Lilthe layout, chat controls, model connection and conversation sync | Deployed; real text/image model requests previously passed. |
-| Mainnet connection and Unified balance | Authenticated read previously passed; latest visible balance 40.92 USD, not a new independent account refresh. |
+| Mainnet connection and Unified balance | Authenticated read previously passed; production account read recovered after the client deadline correction; latest visible balance 40.92 USD. |
 | Manual live Spot orders | Enabled in production with 6 USDT/order, 10 USDT exposure, 1 USDT daily realized loss, one position and no borrowing. |
-| Prepared real-money trial | 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; preview passed but has expired. No submission/fill evidence yet. |
+| Prepared real-money trial | 0.00007 BTCUSDT Limit Buy, 5.7225 USDT; fresh production preview passed again; previews expire after two minutes. No submission/fill evidence yet. |
 | Read-only background order observer | Deployed; bounded 15-minute observation, no financial retry. Actual production run still unverified. |
 | Real fill, protective exit and recovery | OPEN. Exchange acknowledgement alone must not count as fill or verified protection. |
 | Lilthe unattended live strategy worker | OPEN. Read-only observer and paper worker must not be described as an autonomous live trader. |
@@ -1658,3 +1658,23 @@ Production evidence, 2026-10-08:
   No new order was submitted. Fresh market/risk review is required before the
   final owner financial click; automatic price sizing must stay within approved
   limits and actual current exchange checks.
+
+## Corrected production read and fresh trial handoff — 2026-10-08
+
+- Corrected app release `ca6c489dc09f35d159cf71c8dcdca62f03777098` is
+  Vercel `BdXeR88WnjRivFwBf9fnJLW3Rq9D`: Ready/Production/Current,
+  49 seconds. Runtime logs verify cpt1 for the prior slow successful read.
+- After reloading corrected client, account synchronization recovered in the
+  production browser: 40.92 USD equity/free margin, zero displayed orders and
+  positions. Charts recovered and show DELAYED; do not label them fresh realtime.
+- Restored the same approved draft and ran a fresh server preview: 0.00007
+  BTCUSDT Spot Limit Buy at 81750, stop 81330, target 82170, 5.7225 USDT.
+  Current server risk checks passed for balance/fee reserve, increments, minimum
+  notional, exposure/count/leverage and reconciled daily loss. No actual order
+  was sent. Exact phrase is prepared; password is empty. Preview expiry is
+  displayed; owner must use Review again when expired before confirming.
+- Screenshot outside source: outputs/trading-owner-next-step.jpg.
+- Still open: server latency optimization (two consumers currently poll the same
+  terminal snapshot), actual exchange fill/exit/protection/recovery evidence,
+  production observer run proof, autonomous live strategy execution and all
+  previously tracked app tools/voice/canvas/stability items.
