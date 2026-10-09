@@ -3,7 +3,7 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C08–C12 bounded durable read-only order monitoring and C13 foreground voice conversation implemented and validated locally; publication/production verification is recorded below. C07 coding proposals/reviewed apply were released previously.
+Current batch: C08–C12 automatic 24-hour read-only monitoring for owner-submitted and ambiguous orders. Earlier monitoring/voice release is deployed; remaining live execution and exchange outcomes are OPEN.
 Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
@@ -35,6 +35,16 @@ C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
+
+
+## Automatic monitoring after owner submission — 2026-10-09
+
+- Replaced the old fifteen-minute post-submission observer with the existing fixed-deadline 24-hour monitor. Both acknowledged submissions and ambiguous submission failures dispatch read-only observation, including an executing reservation whose post-submit database write may have failed.
+- Generation claims suppress duplicate workers. Queue dispatch failure marks monitoring recoverable; database/claim/queue/audit failures never retry the financial order or replace its acknowledged result/original error. Rejected, foreign-owner and non-user reservations do not dispatch.
+- Tested exact workflow generation arguments, duplicate lease suppression, dispatch failure recovery, database/claim failures, executing ambiguity and rejected/foreign owner exclusions. Existing observer, watch/route, reconciliation, live execution and Spot risk suites passed. Full typecheck/lint/build, 699-control audit, 12 architecture checks, consolidation 5/5 and desktop 10/10 passed. Build has 22 steps / 3 reachable workflows.
+- Production read-only reconciliation at 2026-10-09 14:39:27.856 UTC returned New, zero cumulative fills, remaining 0.00007 BTC, state exchange_open. Monitor heartbeat 14:38:33 UTC shows continued independent checks. No new submission, amendment, cancellation, transfer or exit was performed.
+- Remaining C08–C12: real entry fill; verified protective orders and actual exit; controlled actual exchange recovery; autonomous live strategy/execution implementation and validation. No profitable strategy or live readiness is certified. The current limit order is unfilled; changing/submitting financial orders through browser requires the owner to take the final action under the computer-use tool's financial handoff rule. General owner authorization already exists and is not being requested again.
+- Recovery email remains deferred. Physical spoken voice verification remains unverified and is separate from trading. Release evidence is recorded in the conversation after GitHub-first publication and Vercel readiness.
 
 ## Durable exchange monitoring and conversational voice — 2026-10-09
 

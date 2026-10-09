@@ -22,17 +22,23 @@ fixture.fail = false;fixture.state = 'cancelled_with_fills';assert.deepEqual(awa
 fixture.state = 'submitted';fixture.resolved = true;assert.deepEqual(await observeOrder('owner', 'intent'), { done: true });assert.equal(fixture.audits.at(-1).status, 'resolved');
 fixture.state = 'filled';const before = fixture.reads;await observeOrder('owner', 'intent');assert.equal(fixture.reads, before);
 assert.ok(fixture.audits.every(a => a.details.financialWrites === 0 && a.details.protectionVerified === false));
-const execution = { startFailure: true, dbFailure: false, executeFailure: false, calls: 0, starts: 0 };
+const execution = { startFailure: true, dbFailure: false, executeFailure: false, calls: 0, starts: 0, claimed: true, claimFailure: false, records: [], args: null, state: 'submitted' };
 globalThis.executionFixture = execution;
 const { executeObservedOrder } = await bundle('src/lib/bybit/observed-execution.ts', {
   'server-only': '',
-  'workflow/api': `export async function start(){let f=globalThis.executionFixture;f.starts++;if(f.startFailure)throw Error('queue unavailable');return {runId:'run'};}`,
-  '@/workflows/order-observer': 'export const orderObserverWorkflow=async()=>{};',
-  '@/lib/db': `export const db={liveTradeIntent:{findFirst:async()=>{if(globalThis.executionFixture.dbFailure)throw Error('db unavailable');return {productId:'BTCUSDT',tradingMode:'bybit_live'};}},tradingAuditEvent:{create:async()=>{}}};`,
+  'workflow/api': `export async function start(){let f=globalThis.executionFixture;f.starts++;f.args=arguments[1];if(f.startFailure)throw Error('queue unavailable');return {runId:'run'};}`,
+  '@/workflows/order-watch': 'export const orderWatchWorkflow=async()=>{};',
+  './order-watch': `export async function claimOrderWatch(){let f=globalThis.executionFixture;if(f.claimFailure)throw Error('private claim error');return {claimed:f.claimed,state:{generation:'generation'}};}export async function recordOrderWatch(_u,_i,_g,run){globalThis.executionFixture.records.push(run);}`,
+  '@/lib/db': `export const db={liveTradeIntent:{findFirst:async({where})=>{const f=globalThis.executionFixture;if(f.dbFailure)throw Error('db unavailable');if(where.userId!=='owner'||where.initiatedBy!=='user'||!where.state.in.includes(f.state))return null;return {productId:'BTCUSDT',tradingMode:'bybit_live'};}},tradingAuditEvent:{create:async()=>{}}};`,
   './terminal': `export async function executeTerminalOrder(){let f=globalThis.executionFixture;f.calls++;if(f.executeFailure)throw Error('ambiguous submission');return {status:'submitted',intentId:'intent',orderId:'order'};}`,
 });
 assert.equal((await executeObservedOrder('owner', { intentId: 'intent' })).status, 'submitted');assert.equal(execution.calls, 1);
 execution.dbFailure = true;assert.equal((await executeObservedOrder('owner', { intentId: 'intent' })).status, 'submitted');assert.equal(execution.calls, 2);
 execution.dbFailure = false;execution.startFailure = false;execution.executeFailure = true;
-await assert.rejects(executeObservedOrder('owner', { intentId: 'intent' }), /ambiguous submission/);assert.equal(execution.calls, 3);assert.equal(execution.starts, 2);
-console.log('PASS observer ownership, unresolved retention, bounded review, partial-cancel review, resolved stopping, error redaction, no protection claims, and queue/database failures never retry or obscure acknowledged financial submissions. Fixtures only.');
+await assert.rejects(executeObservedOrder('owner', { intentId: 'intent' }), /ambiguous submission/);assert.equal(execution.calls, 3);assert.equal(execution.starts, 2);assert.deepEqual(execution.args,['owner','intent','generation']);assert.deepEqual(execution.records,[null,'run']);
+execution.executeFailure=false;execution.claimed=false;await executeObservedOrder('owner',{intentId:'intent'});assert.equal(execution.starts,2);assert.equal(execution.calls,4);
+execution.claimed=true;execution.claimFailure=true;await executeObservedOrder('owner',{intentId:'intent'});assert.equal(execution.starts,2);assert.equal(execution.calls,5);
+execution.claimFailure=false;execution.state='rejected';await executeObservedOrder('owner',{intentId:'intent'});assert.equal(execution.starts,2);
+await executeObservedOrder('other',{intentId:'intent'});assert.equal(execution.starts,2);
+execution.state='executing';execution.executeFailure=true;await assert.rejects(executeObservedOrder('owner',{intentId:'intent'}),/ambiguous submission/);assert.equal(execution.starts,3);assert.equal(execution.records.at(-1),'run');
+console.log('PASS observer ownership, unresolved retention, bounded review, partial-cancel review, resolved stopping, error redaction, no protection claims, and 24-hour generation dispatch, duplicate lease suppression, and queue/database/claim failures never retry or obscure acknowledged financial submissions. Fixtures only.');
