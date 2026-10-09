@@ -1986,3 +1986,13 @@ unverified or unfinished as specified above; these checks do not certify them.
   resolved to the tool, returned access-off instead of invented records, and
   recorded records.read denied with reason Owner record-read permission is off.
   The default-off setting was preserved. No private record or file was read.
+
+
+### Monitoring and conversational voice release — 2026-10-09
+
+- GitHub application commit `778d5cc627294afb2e3f44617773770412d5bce8`, exact local/remote tree `eb0130f243399ec5d0cd45305c14ed7f12e4996c`. GitHub updated before Vercel deployment `4c4u71DQSq3uzMuFoQZ4iAzUa3VV`, verified Ready Production in 1m 4s and assigned to lucian-workspace.vercel.app.
+- Owner-scoped read-only monitoring was started for the existing BTCUSDT reservation. Production displayed a fixed deadline of 2026-10-10 13:43:48 UTC. Its heartbeat advanced from 2026-10-09 13:43:48 UTC to 13:48:58 UTC, verifying background ticks beyond dispatch. No order was submitted, amended, cancelled, closed or retried. Monitor status remains exchange_open; this worker observes orders and does not execute a strategy or manage exits.
+- Production reconciliation at 2026-10-09 13:34:35.625 UTC returned the original limit order New, cumulative fills zero, remaining quantity 0.00007 BTC, matching the saved reservation. Fill, exit, protective-order and actual exchange recovery validation remain OPEN because the order is unfilled.
+- Production floating chat exposes Start voice conversation; activation entered listening successfully, and End voice conversation stopped it. The microphone was stopped after control verification. Final-turn debounce, spoken response then follow-up listening, interruption, stale callbacks, failures and session bounds passed automated fixtures. A real microphone-to-audible-answer round trip remains UNVERIFIED: owner responses authorize the test but do not report transcribed/audio results. Browser-native speech is used; Sesame-quality voice and acoustic barge-in are not claimed.
+- Evidence screenshots outside source: outputs/exchange-monitor-live.png and outputs/lilthe-voice-conversation.png. Checkpoint distinguishes implemented/tested controls, observed production worker activity and unverified physical/exchange outcomes.
+- Unattended live strategy/execution remains OPEN. The 24-hour observer does not unlock it. Recovery-email sender configuration remains deferred at the owner's request.
