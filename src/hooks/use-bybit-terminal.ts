@@ -40,7 +40,7 @@ export function useBybitTerminal(mode: TradingMode | null, symbol: string, categ
     if (!mode) { setData(null); setError(null); setLoading(false); return; }
     setLoading(true);
     let timedOut = false;
-    const deadline = window.setTimeout(() => { timedOut = true; controller.abort(); }, 45000);
+    const deadline = window.setTimeout(() => { timedOut = true; controller.abort(); }, 120000);
     try {
       const response = await fetch(`/api/bybit/terminal?mode=${mode}&symbol=${encodeURIComponent(symbol)}&category=${category}`, { cache: "no-store", signal: controller.signal });
       const payload = await response.json() as BybitTerminalSnapshot & { error?: string };

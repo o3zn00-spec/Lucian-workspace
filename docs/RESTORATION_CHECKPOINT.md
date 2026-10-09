@@ -54,7 +54,7 @@ Current UI hardening: expired previews disable confirmation/submission and offer
 **Review again** without placing an order; a successful fresh review clears the
 old password/phrase. Submission acknowledgement now directs the owner to Orders
 and Approvals and explicitly distinguishes acknowledgement from fill. The live
-trial UI disables derivatives. Terminal reads stop waiting after 45 seconds,
+trial UI disables derivatives. Terminal reads stop waiting after 120 seconds,
 show balances as unavailable, and allow subsequent polling to recover.
 Validation: full lint and production build passed (22 pages, 21 workflow steps,
 3 workflows). These checks do not prove real-money fills or profit. Release and
@@ -1640,3 +1640,21 @@ Production evidence, 2026-10-08:
 - Evidence: outputs/trading-live-approved-preview.jpg outside source. Actual fill,
   attached protective order activation/exit, recovery, and the observer's real
   production run are still unverified. Unattended strategy execution stays open.
+
+## Live handoff UI release verification — 2026-10-08
+
+- GitHub app release `6885fb66210bf39be7538c606dae8e671fd77371`
+  deployed as Vercel `CzqzE5pEnA2A7PpafwXuzeSCgZpG`, Ready/Production/Current,
+  45-second build. Production browser shows the new three-step order guidance
+  and disabled derivatives option. Lint, build and architecture checks passed;
+  observer fixtures passed without real financial writes.
+- Browser account refresh hit the first 45-second client deadline. Vercel logs
+  show a successful `/api/bybit/terminal` response completed in 48.0 seconds
+  (46.84-second function invocation, cpt1). Corrected the overly short deadline
+  to 120 seconds; no credentials changed. Server latency remains a stability
+  concern and is not falsely declared solved by extending the client deadline.
+- Reloading the release reset the unsaved order draft. Old 81750/81330/82170
+  prices are historical trial values, not a current submission instruction.
+  No new order was submitted. Fresh market/risk review is required before the
+  final owner financial click; automatic price sizing must stay within approved
+  limits and actual current exchange checks.
