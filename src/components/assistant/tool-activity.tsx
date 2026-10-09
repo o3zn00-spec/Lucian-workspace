@@ -75,7 +75,7 @@ function ToolActivityState() {
             <label className="flex items-center justify-between gap-3 text-sm font-medium">Cloud project text files
               <input type="checkbox" checked={data.workspaceRead} disabled={busy || Boolean(error)} onChange={event => void request({ workspaceRead: event.target.checked })} />
             </label>
-            <p className="mt-2 text-xs text-fg-muted">List up to eight synced projects and read one indexed text file at a time (up to 16,000 characters). Environment settings, credential paths, binary files and browser-only projects are excluded. File text enters chat and may reach your model in later turns; keep secrets out of source files. This does not permit edits or running code.</p>
+            <p className="mt-2 text-xs text-fg-muted">List up to eight synced projects and read one indexed text file at a time (up to 16,000 characters). Environment settings, credential paths, binary files and browser-only projects are excluded. File text enters chat and may reach your model in later turns; keep secrets out of source files. Lilthe can prepare a single-file edit proposal, but only you can apply its reviewed before/after change. No automatic edits or code execution.</p>
           </div>
           <h3 className="mb-2 font-medium">Recent tool activity</h3>
           {!data.activity.length && <p className="text-sm text-fg-muted">No tool activity recorded.</p>}

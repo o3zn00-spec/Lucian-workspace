@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DevWorkspaceModule } from "@/components/devspace/dev-workspace";
 import { DevWorkspaceDeepLinkReceiver } from "@/components/devspace/dev-workspace-deep-link-receiver";
+import { WorkspaceEditReview } from "@/components/devspace/workspace-edit-review";
 import { cn } from "@/lib/utils";
 import { X, FileText } from "lucide-react";
 
@@ -28,6 +29,7 @@ export default function DevWorkspacePage() {
         <DevWorkspaceDeepLinkReceiver />
       </Suspense>
       <DevWorkspaceModule />
+      <Suspense fallback={null}><WorkspaceEditReview /></Suspense>
     </>
   );
 }

@@ -36,8 +36,9 @@ export const ASSISTANT_CAPABILITIES = [
   { id: "trading.setup", available: true, description: "Open owner-reviewed simulated spot plan setup; saving does not authorize or start trading." },
   { id: "records.read", available: true, description: "Read bounded cloud-saved investing, research and news details after separate owner permission; excludes local holdings and notes." },
   { id: "workspace.read", available: true, description: "List cloud projects and read one indexed text file after separate owner permission; excludes environment settings and private credential paths." },
+  { id: "workspace.propose", available: true, description: "Propose one existing cloud text-file change under project-read permission. Owner reviews before/after and applies the exact revision; no code runs or publishes." },
   { id: "research.run", available: false, description: "Sourced research awaits provider and research adapters." },
-  { id: "workspace.edit", available: false, description: "Controlled project changes await coding tool integration." },
+  { id: "workspace.edit", available: false, description: "Direct model writes are unavailable. Use workspace.propose and the owner-reviewed apply form for cloud text files." },
   { id: "trading.execute", available: false, description: "Requires implemented and authorized trading-session policy." },
   { id: "voice.talk", available: false, description: "Two-way voice awaits provider integration." },
 ] as const;

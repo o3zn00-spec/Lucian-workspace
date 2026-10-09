@@ -38,6 +38,7 @@ interface WorkspaceDB extends DBSchema {
 
 let dbPromise: Promise<IDBPDatabase<WorkspaceDB>> | null = null;
 const cloudRevisions = new Map<string, number>();
+const cloudConflicts = new Set<string>();
 const cloudTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let cloudHydration: Promise<void> | null = null;
 
@@ -47,6 +48,14 @@ function cloudSyncEnabled(): boolean {
 
 function announceProjectChange() {
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("lucian:workspace-projects-changed"));
+}
+function reportCloudConflict(projectId: string) {
+  const pending = cloudTimers.get(projectId);
+  if (pending) clearTimeout(pending);
+  cloudTimers.delete(projectId);
+  if (cloudConflicts.has(projectId)) return;
+  cloudConflicts.add(projectId);
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("lucian:workspace-cloud-conflict", { detail: { projectId } }));
 }
 
 function getDB() {
@@ -284,11 +293,13 @@ async function hydrateCloudProjects(): Promise<void> {
     const payload = await response.json() as { projects?: Array<{ id: string; project: Project; revision: number }> };
     const db = await getDB();
     for (const summary of payload.projects ?? []) {
-      cloudRevisions.set(summary.id, summary.revision);
       const local = await db.get(PROJECTS_STORE, summary.id);
       const remoteUpdated = Number(summary.project?.updatedAt ?? 0);
-      if (local && local.updatedAt > remoteUpdated) {
-        scheduleCloudUpload(summary.id);
+      if (local && (local.updatedAt > remoteUpdated || cloudTimers.has(summary.id))) {
+        // A newer server revision is not the base of a dirty local draft.
+        // Adopting it here would let the next upload overwrite another device.
+        if (cloudRevisions.get(summary.id) === summary.revision) scheduleCloudUpload(summary.id);
+        else reportCloudConflict(summary.id);
         continue;
       }
       const detailResponse = await fetch(`/api/workspace/projects/${encodeURIComponent(summary.id)}`, { cache: "no-store" });
@@ -306,6 +317,7 @@ async function hydrateCloudProjects(): Promise<void> {
       }
       await tx.done;
       cloudRevisions.set(summary.id, detail.revision);
+      cloudConflicts.delete(summary.id);
     }
   } catch {
     // Offline-first: cloud failure never prevents IndexedDB access.
@@ -313,7 +325,7 @@ async function hydrateCloudProjects(): Promise<void> {
 }
 
 function scheduleCloudUpload(projectId: string) {
-  if (!cloudSyncEnabled()) return;
+  if (!cloudSyncEnabled() || cloudConflicts.has(projectId)) return;
   const previous = cloudTimers.get(projectId);
   if (previous) clearTimeout(previous);
   cloudTimers.set(projectId, setTimeout(() => {
@@ -348,8 +360,7 @@ async function uploadCloudProject(projectId: string): Promise<void> {
     } else if (response.status === 409) {
       // Pull the newer snapshot on the next list refresh instead of silently
       // overwriting edits made in another tab/device.
-      cloudRevisions.delete(projectId);
-      announceProjectChange();
+      reportCloudConflict(projectId);
     }
   } catch {
     // Local data remains durable; a later mutation/load retries upload.

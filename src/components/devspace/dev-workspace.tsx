@@ -14,6 +14,7 @@ import { useWorkspaceStore } from "@/store/workspace";
 import { useSettingsStore } from "@/store/settings";
 import { ProjectLibraryView } from "@/components/devspace/library/project-library-view";
 import { TopNavigation } from "@/components/devspace/workspace/top-navigation";
+import { toast } from "sonner";
 
 function WorkspaceSectionLoading({ label }: { label: string }) {
   return (
@@ -64,11 +65,14 @@ export function DevWorkspaceModule() {
 
   useEffect(() => {
     const refresh = () => void refreshProjects();
+    const conflict = () => toast.error("Cloud project changed. Local edits are preserved; export a backup before resolving the two versions.");
     window.addEventListener("focus", refresh);
     window.addEventListener("lucian:workspace-projects-changed", refresh);
+    window.addEventListener("lucian:workspace-cloud-conflict", conflict);
     return () => {
       window.removeEventListener("focus", refresh);
       window.removeEventListener("lucian:workspace-projects-changed", refresh);
+      window.removeEventListener("lucian:workspace-cloud-conflict", conflict);
     };
   }, [refreshProjects]);
 

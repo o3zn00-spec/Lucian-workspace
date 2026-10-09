@@ -3,7 +3,8 @@
 Updated: 2026-10-09 (America/Los_Angeles)
 Owner: o3zn00
 State: Restored Lilthe layout, chat controls and conversation sync are deployed.
-Current batch: C07 project-save concurrency and C13 voice failure/echo hardening validated locally; publication verification follows below.
+Current batch: C07 bounded coding proposals/reviewed apply and conflict preservation validated locally; publication verification follows below.
+Project-save concurrency and C13 voice failure/echo hardening were released first.
 Previous batch: C04/C07 bounded record adapters and C15 recovery hardening released;
 C08–C12 fill/exit, recovery and unattended live execution remain open. Unified
 funding is complete: last authenticated check showed 40.94851553 USDT. The owner
@@ -34,6 +35,49 @@ C04/C07 broader app tools, C08–C12 remaining trading/research/live readiness,
 C13 voice, C14 Investing canvas and C15 recovery remain open. Profit and live
 readiness are not inferred from a build or operational trial. Owner approved enabling
 bounded manual live submission; production activation is verified below.
+
+## Lilthe coding proposals and reviewed apply — 2026-10-09
+
+- Added workspace.propose to the model tool envelope: one existing indexed,
+  nonbinary cloud file, exact project revision, complete before/after up to 16,000
+  characters each, and a bounded explanation. Secret paths, unsynced files, trashed
+  projects, incomplete/truncated files, missing permission and no-op changes are
+  rejected. Proposal creation does not change project source or execute code.
+- Added DevWorkspace review dialog with full before/after, explicit owner checkbox,
+  guarded Apply, cloud-only scope, and clear applied-revision result. It blocks apply
+  when this browser has newer local file/metadata or unsaved editor drafts. Local
+  drafts are not silently replaced. The existing project may be reopened to load
+  its synced cloud copy after review.
+- Owner-authenticated same-origin apply accepts only the proposal id and confirmation.
+  Server validates expiry, original file, exact revision and owner, atomically changes
+  one file and records the apply. Stale, conflicting and expired proposals fail;
+  duplicate or concurrent apply cannot increment the project revision twice.
+  Other files/environment metadata are preserved. No Git, deployment, filesystem
+  access, terminal execution, financial call or permission expansion is performed.
+- Proposals use protected _workspace_edit: state, excluded from ordinary model
+  memory and normal memory editing/deletion. Audit events contain status only,
+  not file source. Review API does not expose database error details.
+- Fixed client hydration adopting a newer remote revision for a dirty local draft.
+  Conflicts preserve local source, cancel the queued upload, suppress automatic
+  stale retries and show one conflict notice. Export a local backup before resolving
+  conflicting versions; this does not implement a three-way merge UI.
+- Actual isolated PostgreSQL + tool/API tests passed: envelope proposal path,
+  default-off permission, auth/origin/explicit confirmation, owner isolation,
+  reserved memory protection, bounds, secret paths, other-file preservation,
+  expiry, stale revision, idempotence and concurrent apply. Browser/IndexedDB
+  fixtures passed dirty-draft preservation and queued-upload cancellation.
+- Actual local browser review passed: visible greeting before/after, Apply disabled
+  before checkbox, owner-confirmed apply, cloud revision 2 and disabled replay button.
+  Database contents were checked independently and named disposable fixture removed.
+  Screenshot: outputs/lilthe-coding-review-applied.jpg (isolated test, not production).
+- Existing assistant chat/record/privacy fixture suites passed. Full lint, production
+  build and 12 interaction architecture checks passed; 696 controls inspected with
+  zero unguarded direct async controls. Build: 22 pages / 21 steps / 3 workflows.
+- C07 now has bounded synced-file coding proposal/apply support. Wider coding
+  execution, local-folder changes and publishing through Lilthe are still OPEN.
+  C08–C12 unattended live strategy, real fill/exit/recovery remain OPEN. C13 full
+  spoken round trip and C15 real SMTP sender/delivery remain OPEN.
+- Publication: pending GitHub-first commit and Vercel verification for this batch.
 
 ## Project-save concurrency and voice checks — 2026-10-09
 
@@ -68,7 +112,7 @@ bounded manual live submission; production activation is verified below.
   flow remain OPEN; this save correction is data-preservation infrastructure.
   Recovery email still needs real SMTP host, port, sender and server-side credentials;
   delivery is unverified. No credentials were guessed and no email was sent.
-- Publication: pending GitHub-first commit and Vercel production verification.
+- Publication: GitHub 2bcabc5ac993803c5ea62fa93ad23b768d83cf04, tree db19020b959037d3469b4c6bb18774fbbd7d6a00; Vercel 8c5LUibx8aUVQfqxDurds3L4f7CH Ready Production (47 seconds).
 
 ## Current handoff and remaining work — 2026-10-08
 
