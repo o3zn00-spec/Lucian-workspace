@@ -1678,3 +1678,25 @@ Production evidence, 2026-10-08:
   terminal snapshot), actual exchange fill/exit/protection/recovery evidence,
   production observer run proof, autonomous live strategy execution and all
   previously tracked app tools/voice/canvas/stability items.
+
+## Review-again loop and reservation timeout — 2026-10-08
+
+- Production UI exposed `Transaction API error: Unable to start a transaction
+  in the given time`. The message was above a long list of checks and easy to
+  miss at the confirmation controls. A read-only Review again subsequently
+  passed and created a fresh preview; it did not submit a financial order.
+- Reservation acquisition used Prisma's short defaults with a one-connection
+  runtime pool. An isolated PostgreSQL contention test reproduced P2028 with
+  the defaults and passed with explicit maxWait/timeout of 20 seconds. The
+  exact production competing request is not established. Serializable
+  isolation, owner/password/phrase, expiry, limits and single reservation stay.
+- Starting a review clears expired checks and credentials. Failed reviews no
+  longer display the old green approval. Preview-only requests have a bounded
+  120-second wait; financial submissions are not auto-aborted or retried.
+  Submission errors appear directly beside confirmation inputs. Guidance
+  distinguishes checking from Submit to Bybit.
+- Fixture tests cover acquisition failure making zero broker calls and no
+  reservation; concurrency and ambiguity checks pass. Lint/build and trading,
+  workspace and Vault architecture checks pass. No order was placed by this
+  turn. Real fill/exit/recovery and unattended trading remain OPEN.
+- Publication/browser evidence is recorded after the release is verified.

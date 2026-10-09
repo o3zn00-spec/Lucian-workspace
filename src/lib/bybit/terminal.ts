@@ -327,7 +327,7 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
     }, select: { id: true } });
     if (unresolved) throw new Error("An existing exchange reservation needs reconciliation and protection review before another order can execute.");
     return tx.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:"previewed",initiatedBy:"user",expiresAt:{gt:new Date()}},data:{state:"executing"}});
-  }, { isolationLevel: "Serializable" });
+  }, { isolationLevel: "Serializable", maxWait: 20_000, timeout: 20_000 });
   if(reserved.count!==1)throw new Error("Order already reserved, changed or expired. Refresh before acting.");
   let exchangeAttempted = false;
   try {

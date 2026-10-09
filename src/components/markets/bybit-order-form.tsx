@@ -44,17 +44,22 @@ export function BybitOrderForm({ symbol, marketPrice, initialSide = "Buy" }: { s
   const estimated = useMemo(() => Number(quantity || 0) * Number(orderType === "Limit" ? price || 0 : marketPrice || 0), [quantity, price, marketPrice, orderType]);
 
   async function request(body: Record<string, unknown>) {
+    const controller = new AbortController();
+    // Only previews are abortable here. A financial submission must never be retried
+    // on a client timeout: its exchange outcome could already be committed.
+    const timer = body.confirmed ? null : window.setTimeout(() => controller.abort(), 120_000);
     setBusy(true); setMessage(null);
     try {
-      const response = await fetch("/api/bybit/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const response = await fetch("/api/bybit/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
       const payload = await response.json() as Preview & { error?: string; orderId?: string };
       if (!response.ok) throw new Error(payload.error || "Bybit order action failed.");
       return payload;
-    } catch (error) { setMessage({ ok: false, text: error instanceof Error ? error.message : "Bybit order action failed." }); return null; }
-    finally { setBusy(false); }
+    } catch (error) { setMessage({ ok: false, text: controller.signal.aborted ? "Review timed out before fresh checks were available. No order was placed by this review. Try Review order once after account loading finishes." : error instanceof Error ? error.message : "Bybit order action failed." }); return null; }
+    finally { if (timer !== null) window.clearTimeout(timer); setBusy(false); }
   }
 
   async function review() {
+    setPreview(null); setPassword(""); setConfirmation("");
     const result = await request({ mode: bybitMode, symbol: bybitSymbol, category, side, orderType, quantity, price, leverage, stopLoss, takeProfit, reduceOnly, positionIdx });
     if (result?.intentId) { setNow(Date.now()); setPreview(result); setConfirmation(""); setPassword(""); setMessage({ ok: true, text: result.executionEnabled ? "Risk checks passed. Review and approve the exact order below." : "Risk checks passed for this preview. Exchange submission remains server-locked." }); }
   }
@@ -88,13 +93,15 @@ export function BybitOrderForm({ symbol, marketPrice, initialSide = "Buy" }: { s
     {(category === "linear" || orderType === "Limit") && <div className="grid grid-cols-2 gap-2"><label>Stop loss (USDT)<input className={inputClass} inputMode="decimal" value={stopLoss} onChange={(event) => { setStopLoss(event.target.value); setPreview(null); }} /></label><label>Take profit (USDT)<input className={inputClass} inputMode="decimal" value={takeProfit} onChange={(event) => { setTakeProfit(event.target.value); setPreview(null); }} /></label></div>}
     {category === "spot" && orderType === "Market" && <p className="text-fg-muted">Use Spot Limit to attach market-triggered stop loss and take profit. A Spot Market order has no attached protection.</p>}
     <div className="flex justify-between rounded bg-surface-2 px-2 py-2"><span className="text-fg-muted">Estimated exposure</span><span className="font-mono text-fg">{estimated.toFixed(2)} USDT</span></div>
-    {message && <div className={`rounded border px-2 py-2 ${message.ok ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}>{message.ok ? <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />}{message.text}</div>}
-    {!preview ? <button disabled={busy} onClick={() => void review()} className="flex w-full items-center justify-center gap-2 rounded bg-[var(--accent)] py-2 font-semibold text-[var(--accent-fg)] disabled:opacity-50">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Review order</button> : <div className="space-y-2 rounded border border-line-muted p-2">
+    {!preview && message && <div role="status" className={`rounded border px-2 py-2 ${message.ok ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}>{message.ok ? <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />}{message.text}</div>}
+    {!preview ? <button disabled={busy} onClick={() => void review()} className="flex w-full items-center justify-center gap-2 rounded bg-[var(--accent)] py-2 font-semibold text-[var(--accent-fg)] disabled:opacity-50">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}{busy ? "Checking fresh preview…" : "Review order · no order placed"}</button> : <div className="space-y-2 rounded border border-line-muted p-2">
       <div className="font-semibold text-fg">{previewExpired ? "Preview expired · review again" : preview.executionEnabled ? "Approval required" : "Preview only · execution locked"}</div>
       <div>{preview.preview.side} {preview.preview.quantity} {getLucianBase(symbol)} · {preview.preview.category} {preview.preview.orderType} · {preview.preview.notional.toFixed(2)} USDT</div>
       <div>Limit: {preview.preview.limitPrice ?? "Market"} · Stop: {preview.preview.stopLoss ?? "None"} · Target: {preview.preview.takeProfit ?? "None"}</div>
       <div className="text-fg-muted">Preview expires at {new Date(preview.expiresAt).toLocaleTimeString()}. Protective fields request exchange triggers; they do not certify that an exit has filled.</div>
+      <p className="text-fg-muted">Checks passed. Enter the phrase and password, then use Submit to Bybit. Review only refreshes these checks.</p>
       {preview.preview.checks.map((check) => <div key={check.id} className="flex gap-1 text-emerald-400"><CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />{check.message}</div>)}
+    {message && <div role="status" className={`rounded border px-2 py-2 ${message.ok ? "border-emerald-500/40 text-emerald-400" : "border-red-500/40 text-red-400"}`}>{message.ok ? <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> : <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />}{message.text}</div>}
       <div className="text-fg-muted">Type <strong className="select-all text-fg">{preview.confirmationPhrase}</strong></div>
       <input aria-label="Exact confirmation phrase" disabled={previewExpired || busy} className={inputClass} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder="Exact confirmation phrase" />
       {bybitMode === "bybit_live" && <input aria-label="Current LUCIAN password" disabled={previewExpired || busy} autoComplete="current-password" type="password" className={inputClass} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Current LUCIAN password" />}

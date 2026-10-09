@@ -33,8 +33,9 @@ must check current prices, inventory, fees and risk before any submission.
 1. Open Markets. The left order-details panel has the restored 5.72 USDT Spot
    draft and server checks. Account reads recovered (last display 40.92 USD).
    Keep the saved caps; do not submit historical prices without a fresh review.
-2. Use Review again (or Cancel the expired preview, then Review order on the
-   currently deployed older interface). Review does not place an exchange order.
+2. Use Review again to refresh expired checks. Review does not place an exchange
+   order. The form clears stale checks while loading; a failed review shows its
+   reason rather than retaining the old approval.
 3. Read the fresh checks and amount. If rejected, leave it unsubmitted and share
    the displayed reason. If passed, type the exact displayed confirmation phrase
    and your current Lucian login password.
@@ -46,3 +47,9 @@ must check current prices, inventory, fees and risk before any submission.
 
 You do not need to transfer funds again based on the last successful balance
 check. No new Bybit key permissions or withdrawals are part of this trial.
+
+Latest correction: a production transaction-acquisition timeout was visible
+above the long check list. Order reservation now waits up to 20 seconds for a
+database connection with Serializable isolation retained. Errors sit beside
+confirmation controls. Preview refreshes have a 120-second timeout and do not
+retry or place trades. Actual financial recovery remains unverified.
