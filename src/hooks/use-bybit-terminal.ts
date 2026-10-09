@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from "react";
 import type { TradingMode } from "@/lib/bybit/terminal";
+import { startVisiblePolling } from "@/lib/visible-polling";
 
 export interface BybitTerminalSnapshot {
   mode: TradingMode;
@@ -31,31 +32,49 @@ export function useBybitTerminal(mode: TradingMode | null, symbol: string, categ
   const [loading, setLoading] = useState(Boolean(mode));
   const generation = useRef(0);
   const request = useRef<AbortController | null>(null);
+  const pending = useRef<Promise<boolean> | null>(null);
+  const queued = useRef<Promise<boolean> | null>(null);
   const cancelRequests = useCallback(() => { ++generation.current; request.current?.abort(); request.current = null; }, []);
-  const refresh = useCallback(async () => {
-    const currentGeneration = ++generation.current;
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    if (!mode) { setData(null); setError(null); setLoading(false); return; }
-    setLoading(true);
-    let timedOut = false;
-    const deadline = window.setTimeout(() => { timedOut = true; controller.abort(); }, 120000);
-    try {
-      const response = await fetch(`/api/bybit/terminal?mode=${mode}&symbol=${encodeURIComponent(symbol)}&category=${category}`, { cache: "no-store", signal: controller.signal });
-      const payload = await response.json() as BybitTerminalSnapshot & { error?: string };
-      if (currentGeneration !== generation.current) return;
-      if (!response.ok) throw new Error(payload.error || "Bybit terminal synchronization failed.");
-      setData(payload); setError(null);
-    } catch (reason) { if (currentGeneration === generation.current && (!controller.signal.aborted || timedOut)) { setError(timedOut ? "Exchange synchronization timed out. Balances are unavailable until the next successful refresh." : reason instanceof Error ? reason.message : "Bybit terminal synchronization failed."); setData(null); } }
-    finally { window.clearTimeout(deadline); if (currentGeneration === generation.current) { setLoading(false); request.current = null; } }
+  const refresh = useCallback(function refresh(fresh = true): Promise<boolean> {
+    if (pending.current) {
+      if (!fresh) return pending.current;
+      if (queued.current) return queued.current;
+      const currentGeneration = generation.current;
+      const followup: Promise<boolean> = pending.current.then(() => currentGeneration === generation.current ? refresh(false) : false);
+      queued.current = followup;
+      void followup.finally(() => { if (queued.current === followup) queued.current = null; });
+      return followup;
+    }
+    const job = (async () => {
+      const currentGeneration = ++generation.current;
+      request.current?.abort();
+      const controller = new AbortController();
+      request.current = controller;
+      if (!mode) { setData(null); setError(null); setLoading(false); request.current = null; return true; }
+      setLoading(true);
+      let timedOut = false;
+      const deadline = window.setTimeout(() => { timedOut = true; controller.abort(); }, 120000);
+      try {
+        const response = await fetch(`/api/bybit/terminal?mode=${mode}&symbol=${encodeURIComponent(symbol)}&category=${category}`, { cache: "no-store", signal: controller.signal });
+        const payload = await response.json() as BybitTerminalSnapshot & { error?: string };
+        if (currentGeneration !== generation.current) return false;
+        if (!response.ok) throw new Error(payload.error || "Bybit terminal synchronization failed.");
+        setData(payload); setError(null);
+        return true;
+      } catch (reason) { if (currentGeneration === generation.current && (!controller.signal.aborted || timedOut)) { setError(timedOut ? "Exchange synchronization timed out. Balances are unavailable until the next successful refresh." : reason instanceof Error ? reason.message : "Bybit terminal synchronization failed."); setData(null); } }
+      finally { window.clearTimeout(deadline); if (currentGeneration === generation.current) { setLoading(false); request.current = null; } }
+      return false;
+    })();
+    pending.current = job;
+    void job.finally(() => { if (pending.current === job) pending.current = null; });
+    return job;
   }, [mode, symbol, category]);
 
   useEffect(() => {
-    const initial = window.setTimeout(() => void refresh(), 0);
-    if (!mode) return () => window.clearTimeout(initial);
-    const timer = window.setInterval(() => { if (!request.current) void refresh(); }, 5000);
-    return () => { window.clearTimeout(initial); window.clearInterval(timer); cancelRequests(); };
+    pending.current = null; queued.current = null;
+    if (!mode) { const initial = window.setTimeout(() => void refresh(), 0); return () => { window.clearTimeout(initial); cancelRequests(); }; }
+    const stop = startVisiblePolling(async () => { if (!await refresh(false)) throw Error("Account refresh unavailable"); }, 60_000);
+    return () => { stop(); cancelRequests(); pending.current = null; queued.current = null; };
   }, [mode, refresh, cancelRequests]);
   return { data, error, loading, refresh };
 }

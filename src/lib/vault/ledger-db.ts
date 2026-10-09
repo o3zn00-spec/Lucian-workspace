@@ -1,3 +1,4 @@
+import { configuredDatabaseUrl } from "@/lib/database-url";
 // LUCIAN Vault — Durable, database-backed ledger service.
 //
 // This is the AUTHORITATIVE financial ledger. It writes to Postgres via
@@ -840,7 +841,7 @@ export function getLedgerService(): VaultLedgerService {
  * SQLite is forbidden by the Vault architecture (Vercel/serverless).
  */
 export function isDatabaseAvailable(): boolean {
-  const url = process.env.DATABASE_URL;
+  const url = configuredDatabaseUrl();
   if (!url) return false;
   // Reject SQLite-style URLs — Postgres only.
   if (url.startsWith("file:")) return false;

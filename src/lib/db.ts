@@ -8,7 +8,7 @@
 // (see src/lib/vault/ledger.ts). No fake money is ever shown.
 
 import { PrismaClient } from "@prisma/client";
-import { runtimeDatabaseUrl } from "@/lib/database-url";
+import { configuredDatabaseUrl, runtimeDatabaseUrl } from "@/lib/database-url";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -17,7 +17,7 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    datasourceUrl: runtimeDatabaseUrl(process.env.DATABASE_URL),
+    datasourceUrl: runtimeDatabaseUrl(configuredDatabaseUrl()),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
@@ -25,5 +25,5 @@ globalForPrisma.prisma = db;
 
 /** Check if the database is configured. */
 export function isDatabaseConfigured(): boolean {
-  return !!process.env.DATABASE_URL;
+  return !!configuredDatabaseUrl();
 }

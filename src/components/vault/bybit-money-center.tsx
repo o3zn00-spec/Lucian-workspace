@@ -9,6 +9,7 @@ import { Input } from "@/components/ui-devspace/input";
 import { Label } from "@/components/ui-devspace/label";
 import { toast } from "@/hooks/use-toast";
 import { VaultCard, VaultCardBody, VaultCardHeader } from "@/components/vault/primitives";
+import { startVisiblePolling } from "@/lib/visible-polling";
 
 type Wallet = { id: string; name: string; asset: string; balance: string; available: string; convertedBalance: string; accountType: string; networks: Array<{ id: string; name: string; depositsEnabled: boolean; withdrawsEnabled: boolean }> };
 type Settings = { configured: boolean; environment: "testnet" | "mainnet"; transfersEnabled: boolean; maxSendUsd: number; allowedAssets: string[]; allowedNetworks: string[]; publicWebSocketBase: string };
@@ -61,7 +62,7 @@ export function BybitMoneyCenter() {
   const [working, setWorking] = useState(false);
   const [ticker, setTicker] = useState<{ symbol: string; price: string; connected: boolean }>({ symbol: "BTCUSDT", price: "—", connected: false });
   const socketRef = useRef<WebSocket | null>(null);
-  const tradingRefreshRef = useRef<Promise<void> | null>(null);
+  const tradingRefreshRef = useRef<Promise<boolean> | null>(null);
 
   const refreshTrading = useCallback(() => {
     if (tradingRefreshRef.current) return tradingRefreshRef.current;
@@ -76,6 +77,7 @@ export function BybitMoneyCenter() {
     if (tradeResult.status === "fulfilled") setTrades(tradeResult.value.trades);
     const failures = [orderResult, positionResult, tradeResult].flatMap((result) => result.status === "rejected" ? [result.reason instanceof Error ? result.reason.message : "Private activity unavailable"] : []);
     setActivityError(failures.length ? failures.join(" · ") : null);
+    return failures.length === 0;
     })();
     tradingRefreshRef.current = request;
     void request.finally(() => { tradingRefreshRef.current = null; });
@@ -115,8 +117,7 @@ export function BybitMoneyCenter() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (connection?.state !== "connected") return;
-    const timer = window.setInterval(() => { void refreshTrading().catch(() => undefined); }, 30000);
-    return () => window.clearInterval(timer);
+    return startVisiblePolling(async () => { if (!await refreshTrading()) throw Error("Private activity unavailable"); }, 60_000, false);
   }, [connection?.state, refreshTrading]);
 
   const tickerSymbol = useMemo(() => {

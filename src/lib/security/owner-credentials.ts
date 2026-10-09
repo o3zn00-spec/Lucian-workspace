@@ -1,3 +1,4 @@
+import { configuredDatabaseUrl } from "@/lib/database-url";
 import "server-only";
 
 import { db } from "@/lib/db";
@@ -28,7 +29,7 @@ function binding(ownerUserId: string, service: string, keyName: string): string 
 }
 
 export async function readOwnerCredential(ownerUserId: string, service: string, keyName: string): Promise<string | null> {
-  if (!process.env.DATABASE_URL || !isAllowedOwnerCredential(service, keyName)) return null;
+  if (!configuredDatabaseUrl() || !isAllowedOwnerCredential(service, keyName)) return null;
   const row = await db.ownerCredential.findUnique({
     where: { ownerUserId_service_keyName: { ownerUserId, service, keyName } },
     select: { encryptedValue: true },
@@ -41,7 +42,7 @@ export async function readOwnerCredential(ownerUserId: string, service: string, 
 export async function readOwnerCredentials(ownerUserId: string, service: string, keys: string[]): Promise<Record<string, string | null>> {
   if (keys.some(key => !isAllowedOwnerCredential(service, key))) throw new Error("Unsupported owner credential.");
   const values: Record<string, string | null> = Object.fromEntries(keys.map(key => [key, null]));
-  if (!process.env.DATABASE_URL) return values;
+  if (!configuredDatabaseUrl()) return values;
   const rows = await db.ownerCredential.findMany({
     where: { ownerUserId, service, keyName: { in: keys } },
     select: { keyName: true, encryptedValue: true },
@@ -67,7 +68,7 @@ export async function deleteOwnerCredential(ownerUserId: string, service: string
 }
 
 export async function listOwnerCredentialStatus(ownerUserId: string) {
-  const rows = process.env.DATABASE_URL
+  const rows = configuredDatabaseUrl()
     ? await db.ownerCredential.findMany({
         where: { ownerUserId },
         select: { service: true, keyName: true, updatedAt: true },

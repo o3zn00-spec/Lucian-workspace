@@ -1,3 +1,35 @@
+## Supabase data import and cutover preparation — 2026-10-09
+
+- Owner explicitly authorized switching all existing application data to Supabase. Activated Prisma's one-time free 24-hour recovery window and exported a consistent pg_dump SQL snapshot with original IDs, password hashes, encrypted credentials, history and trading records. Existing Prisma database was retained.
+- Export: 1,048,311 bytes; SHA-256 b6a7778e44d57bc2a42fa79afcbb51a4acf6b6a6d5d58ed46c60b8da27d4ad05. Private export resides in the new chat's work/migration directory; it must never be published in source.
+- Imported 41 application tables and 1,166 rows into zvceemzxaaxgvqmymjpe; every table count matches the export. Foreign keys applied successfully. RLS enabled and anon/authenticated table privileges revoked in the schema creation transaction. Supabase-managed schemas remain intact. Security advisor reports only informational no-policy notices, expected for server-only Prisma access; no permissive public policy added.
+- Runtime now selects the connected Supabase POSTGRES_PRISMA_URL instead of legacy Prisma DATABASE_URL; explicit local/other-provider DATABASE_URL keeps precedence. All auth, ledger and owner-credential availability checks use the same selection. Existing encryption/authentication secrets and trading controls are preserved. CLI migration targets remain explicitly configured separately.
+- Validation passed: database connection/provider-selection fixtures, connection integrity, owner credential reads, architecture/consolidation, typecheck, lint, full production build and desktop 10/10. GitHub publication and Vercel Ready/login/runtime verification remain pending at this checkpoint.
+
+## Provider connection verification — 2026-10-09
+
+- Supabase plugin now sees Lucian-workspace (zvceemzxaaxgvqmymjpe), eu-west-1, ACTIVE_HEALTHY, Postgres 17.11. Read-only SQL confirms public contains zero base tables; application schema/data are not migrated.
+- GitHub main remains 7cfa9bd33ecac92fd19d261e85af20e624b7e75e. Signed-in Vercel dashboard shows a Ready Production deployment of the same commit, confirming the GitHub-to-Vercel link.
+- Vercel Production now has Supabase/POSTGRES environment variable names from the new connection. The DATABASE_URL actually consumed by the current app remains integration-managed Prisma Postgres (Production and Preview, added three days ago). Integration attachment alone has not switched Lucian to Supabase.
+- Vercel plugin get_project for the existing o0-947e scope returned 403 forbidden. Vercel CLI is unavailable and no known CLI auth file exists; dashboard read access works. Secret variables are protected in the dashboard (copy unavailable for integration-managed secrets). Do not rotate credentials or discard source data to work around provider access.
+- Remaining migration: recover/export existing Prisma data, import and secure the application schema in Supabase, configure actual runtime connection, publish tested source GitHub first, redeploy and verify application login/data. No remote mutation or cutover performed during this connection check.
+
+## Supabase migration requested — 2026-10-09
+
+- Owner explicitly requested connecting the existing Lucian application to the current new Supabase project. This supersedes the earlier prohibition on replacing the database for this migration only; preserve existing records, secrets and financial controls.
+- Supabase plugin lists one connected organization but zero projects. Browser dashboard requires sign-in. Requested the intended project URL/ID and connector access. No project was created, no database was migrated and no production environment was switched.
+- Prepared runtime support for Supabase transaction poolers on port 6543: disable prepared statements with pgbouncer=true, retain TLS and encoded credentials, preserve session/direct behavior and the existing one-connection limit. Offline connection regression fixtures passed. Typecheck, lint, full production build and desktop host 10/10 passed for the combined local source. Actual target SQL verification remains pending until project access is available.
+- Migration must export and verify existing application data before cutover; import only the application schema without replacing Supabase-managed auth/storage schemas. Keep Lucian's existing authentication and encryption keys; enable RLS and restrict public Data API access for private app records. Verify source/destination counts and owner login before changing production DATABASE_URL. Preserve the old database for rollback.
+- Earlier polling batch is still local: hidden/offline reads pause, failure retries back off, normal account/session status refreshes use 60 seconds, quote fallback 30 seconds; manual post-save refresh queues a fresh read. Scheduler/hook regression tests and prior architecture/consolidation/build checks passed; final combined typecheck, lint, build and desktop validation passed. No exchange mutation.
+
+## Continuation review in new chat — 2026-10-09
+
+- Owner requested review of LUCIAN TRADING 1 and pasted checkpoint/history, then continuation in the new chat. Reviewed written history back to the imported trading discussion and inspected current source. Historical screenshots and every prior test were not replayed.
+- Consolidated product intent, dated evidence, saved authorization, remaining work and continuation order in `/Users/mac/Documents/Codex/2026-10-09/u/outputs/LUCIAN_CONTINUATION.md`.
+- Source confirms full terminal snapshot refresh remains every five seconds without a hidden-tab gate; separate ticker polling and durable observers add workload. No measured feature-by-feature production quota attribution is claimed. Prior suspension/login and open-order evidence remain historical until refreshed.
+- Next priority: verify database recovery options and reduce avoidable query/polling volume; reconcile the existing order; implement the missing bounded live-session execution/protection lifecycle against isolated fixtures/dev data. Waiting for the existing order to fill must not substitute for writing the missing code.
+- No app code, deployment, provider subscription, database records or exchange order changed in this review. Existing trading authorization and owner financial-review handoff are preserved; no new authorization inferred.
+
 ## Login response repair — 2026-10-09
 
 - Fixed the screenshot's undefined-URL failure path: Auth.js client signIn parsed data.url unconditionally when middleware returned a rate-limit or unavailable JSON response. The credential client now validates CSRF and callback responses, shows meaningful throttle/service/credential errors, and verifies a real server session before success/navigation. Password verification, server limits, cookies and owner checks are preserved. Google OAuth is unchanged.

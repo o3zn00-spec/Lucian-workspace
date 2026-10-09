@@ -19,6 +19,7 @@
 // arrives for a crypto symbol.
 
 import { create } from "zustand";
+import { startVisiblePolling } from "@/lib/visible-polling";
 import type {
   AccountState,
   Candle,
@@ -385,16 +386,16 @@ function ensurePriceSubscription(lucianSymbol: string): void {
       store.setStatus(lucianSymbol, "delayed");
     } catch {
       if (!stopped) useMarketsStore.getState().setStatus(lucianSymbol, "disconnected");
+      throw new Error("Quote refresh unavailable");
     } finally { polling = false; }
   };
-  const tickerTimer = window.setInterval(() => void pollTicker(), 5000);
+  const stopPolling = startVisiblePolling(pollTicker, 30_000);
   priceSubscriptions.set(lucianSymbol, {
     refCount: 1,
     bybitSymbol,
     unsubscribePrice,
-    stopTicker: () => { stopped = true; window.clearInterval(tickerTimer); },
+    stopTicker: () => { stopped = true; stopPolling(); },
   });
-  void pollTicker();
 }
 
 /**
@@ -635,7 +636,6 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
 
         // Initial historical fetch + 24h ticker (best-effort, non-blocking).
         let historyStopped = false;
-        let historyRetry: number | undefined;
         const loadHistory = async () => {
           try {
             const candles = await provider.getCandles(bybitSymbol, tf, 200);
@@ -651,11 +651,12 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
             get().setStatus(lucianSymbol, "disconnected");
             // Authentication hydration and temporary provider failures must not
             // leave an empty chart permanently. Retry only while subscribed.
-            historyRetry = window.setTimeout(() => void loadHistory(), 5000);
+            throw err;
           }
         };
-        void loadHistory();
-        void get().refreshTicker(lucianSymbol);
+        // Retry failures with backoff; a successful history load needs no timer.
+        let stopHistoryPolling = () => {};
+        stopHistoryPolling = startVisiblePolling(async () => { await loadHistory(); stopHistoryPolling(); }, 15_000);
 
         const unsubscribeKline = provider.subscribeKline(
           bybitSymbol,
@@ -672,7 +673,7 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
           bybitSymbol,
           timeframe: tf,
           unsubscribeKline,
-          stopHistory: () => { historyStopped = true; if (historyRetry !== undefined) window.clearTimeout(historyRetry); },
+          stopHistory: () => { historyStopped = true; stopHistoryPolling(); },
         });
       }
     }

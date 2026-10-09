@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useRef } from "react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import type { PaperSession } from "@/lib/assistant/paper-engine";
 import { PaperSessionResults } from "./paper-session-results";
+import { startVisiblePolling } from "@/lib/visible-polling";
 const amount=(cents:number)=>(cents/100).toFixed(2);
 export function PaperSessionControls({planRevision,ready}:{planRevision:string|null;ready:boolean}) {
   const [s,setSession]=useState<PaperSession|null>(null),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false),[confirmation,setConfirmation]=useState("");
@@ -24,15 +25,14 @@ export function PaperSessionControls({planRevision,ready}:{planRevision:string|n
     const version=++requestVersion.current;
     try {
       const response=await fetch("/api/assistant/paper-session",{cache:"no-store",signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});const data=await response.json();
-      if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setReadError(null);setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);}
-    }catch{if(version===requestVersion.current && !signal?.aborted)setReadError("Session refresh is unavailable. Showing the last loaded state; retry with Refresh session. No control was repeated.");}
+      if(!response.ok || !data.ok)throw Error(data.error??"Session unavailable.");if(version===requestVersion.current && !signal?.aborted){setReadError(null);setObservedAt(Date.now());setRuntimeCheck(data.runtimeCheck??null);setSession(data.session);} return true;
+    }catch{if(version===requestVersion.current && !signal?.aborted)setReadError("Session refresh is unavailable. Showing the last loaded state; retry with Refresh session. No control was repeated.");return false;}
     finally{refreshPending.current=false;}
   },[]);
   useEffect(()=>{
     const controller=new AbortController();
-    void Promise.resolve().then(()=>refresh(controller.signal)).catch(e=>{if(!controller.signal.aborted)setError(e.message);});
-    const timer=setInterval(()=>{if(document.visibilityState==="visible")void refresh(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});},15000);
-    return()=>{controller.abort();clearInterval(timer);};
+    const stop=startVisiblePolling(async()=>{if(await refresh(controller.signal)===false)throw Error("Session unavailable");},60_000);
+    return()=>{controller.abort();stop();};
   },[refresh]);
   const action=async(action:string)=>{
     if(actionPending.current)return;

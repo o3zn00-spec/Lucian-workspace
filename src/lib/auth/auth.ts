@@ -1,3 +1,4 @@
+import { configuredDatabaseUrl } from "@/lib/database-url";
 // LUCIAN Phase 16 — Auth.js v5 configuration (FINAL CORRECTED).
 //
 // Architecture (CORRECTED):
@@ -72,7 +73,7 @@ export function isAuthSecretConfigured(): boolean {
 /** True when the database is configured. Without it, signup/login
  *  return 503 (database_unavailable) rather than fake success. */
 export function isAuthDatabaseConfigured(): boolean {
-  return !!process.env.DATABASE_URL;
+  return !!configuredDatabaseUrl();
 }
 
 /* ── Google username creation boundary ──

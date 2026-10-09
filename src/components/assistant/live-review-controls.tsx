@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import type { LiveReviewSession } from "@/lib/assistant/live-review-policy";
+import { startVisiblePolling } from "@/lib/visible-polling";
 type Snapshot = Omit<LiveReviewSession, "lease" | "generation">;
 export function LiveReviewControls() {
   const [open, setOpen] = useState(false), [s, setSession] = useState<Snapshot | null>(null);
@@ -21,15 +22,15 @@ export function LiveReviewControls() {
       const r = await fetch("/api/assistant/live-review", { cache: "no-store", signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
       const data = await r.json(); if (!r.ok || !data.ok) throw Error(data.error ?? "Live research unavailable.");
       if (current === version.current && !signal?.aborted) { setSession(data.session); setLoaded(true); setError(null); }
-    } catch { if (current === version.current && !signal?.aborted) setError("Status could not refresh. Retry below; the last loaded session is retained."); }
+      return true;
+    } catch { if (current === version.current && !signal?.aborted) setError("Status could not refresh. Retry below; the last loaded session is retained."); return false; }
     finally { reading.current = false; }
   }, []);
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    void Promise.resolve().then(() => refresh(controller.signal));
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void refresh(controller.signal); }, 15000);
-    return () => { controller.abort(); clearInterval(timer); };
+    const stop = startVisiblePolling(async () => { if (await refresh(controller.signal) === false) throw Error("Research status unavailable"); }, 60_000);
+    return () => { controller.abort(); stop(); };
   }, [open, refresh]);
   const action = async (action: string) => {
     if (acting.current || !loaded) return;
