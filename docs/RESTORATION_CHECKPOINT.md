@@ -1852,3 +1852,12 @@ unverified or unfinished as specified above; these checks do not certify them.
   separate. Tests verify one query, owner filter, key whitelist and field bounds,
   plus toggle/revocation behavior. Chat/record fixtures, lint and full production
   build passed again. This reduces query overhead, not a measured latency claim.
+- Final performance app commit `8840a3eb65d9b7e03de43fb86fc2a2a1ed5279fa`,
+  tree `c82cb4570b0ab220eea9f5f5b4aef9bc088e3f06`, deployed as
+  `DqGSbLUYsxjDZHvjx2qAx2Y6sk5r` Ready Production in 45 seconds; production
+  domain assignment verified. The subsequent checkpoint-only publication does
+  not change application code.
+- Paid production model request explicitly requested records.read/research. It
+  resolved to the tool, returned access-off instead of invented records, and
+  recorded records.read denied with reason Owner record-read permission is off.
+  The default-off setting was preserved. No private record or file was read.
