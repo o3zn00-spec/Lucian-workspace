@@ -1,5 +1,5 @@
 export type LiveReviewPlan = { symbols: string[]; strategy: string; reviewMinutes: number; durationHours: number; maxReviews: number };
-export type LiveReview = { atMs: number; stance: "hold" | "owner_review"; rationale: string; sources: string[]; reservations: number; completed: number };
+export type LiveReview = { atMs: number; stance: "hold" | "owner_review"; rationale: string; sources: string[]; reservations: number; completed: number; modelStatus?: "completed" | "unavailable" | "skipped" };
 export type LiveReviewSession = {
   id: string; revision: string; generation: string; plan: LiveReviewPlan;
   provider: "gemini" | "openai" | "anthropic" | "openrouter" | "deepseek";
@@ -33,6 +33,7 @@ export function validateLiveReviewSession(s: LiveReviewSession): LiveReviewSessi
   if (s.lease && (typeof s.lease.token !== "string" || !s.lease.token || !Number.isSafeInteger(s.lease.untilMs) || s.lease.untilMs < 0)) return fail();
   for (const r of s.reviews) {
     parseLiveReview(JSON.stringify({ stance: r.stance, rationale: r.rationale }));
+    if (r.modelStatus !== undefined && !["completed", "unavailable", "skipped"].includes(r.modelStatus)) return fail();
     if (!Number.isSafeInteger(r.atMs) || r.atMs < s.startedAtMs || r.atMs > s.deadlineMs || !Array.isArray(r.sources) || r.sources.length > 15 || r.sources.some(url => typeof url !== "string" || !url.startsWith("https://") || url.length > 500) || !Number.isInteger(r.reservations) || r.reservations < 0 || !Number.isInteger(r.completed) || r.completed < 0) return fail();
   }
   return s;

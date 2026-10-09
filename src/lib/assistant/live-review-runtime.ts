@@ -103,6 +103,7 @@ export async function tickLiveReview(userId: string, id: string, generation: str
     const research = await collectPaperResearch(s.plan.symbols);
     if (Date.now() - research.observedAtMs > 30000 || research.observedAtMs > Date.now() + 1000) throw Error("Stale research");
     const sources = [...new Set([...research.markets.map(m => m.source), ...(research.context ?? []).map(c => c.source)])].slice(0, 15);
+    let modelStatus: "completed" | "unavailable" | "skipped" = "skipped", modelError: string | null = null;
     let review = { stance: "hold" as "hold" | "owner_review", rationale: profile.emergencyStop ? "Emergency stop is active. No trading action is proposed." : "Model review budget exhausted. Exchange observation continues until the deadline." };
     if (!profile.emergencyStop) {
       // Charge the model-call budget durably BEFORE inference, so process
@@ -113,6 +114,7 @@ export async function tickLiveReview(userId: string, id: string, generation: str
         current!.reviewsUsed++; await write(tx, userId, current!, "live.research.model-budget"); return true;
       });
       if (allowed) {
+        try {
         const adapter = await getProvider(s.provider, userId);
         if (!adapter) throw Error("Model unavailable");
         const reply = await adapter.chat({ model: s.model, reasoningEffort: s.effort,
@@ -120,6 +122,13 @@ export async function tickLiveReview(userId: string, id: string, generation: str
           messages: [{ role: "user", content: JSON.stringify({ strategy: s.plan.strategy, research, reservations: records.intents.map(i => ({ symbol: i.productId, state: i.state })), completed: records.completed.map(i => ({ symbol: i.productId, state: i.state })), risk: { maxOrder: profile.maxOrderUsd.toString(), maxExposure: profile.maxPositionUsd.toString(), maxDailyLoss: profile.maxDailyLossUsd.toString(), maxPositions: profile.maxOpenPositions, leverage: 1 } }) }] });
         if (!reply.fromModel) throw Error("Model unavailable");
         review = parseLiveReview(reply.content);
+        modelStatus = "completed";
+        } catch (error) {
+          modelStatus = "unavailable";
+          const status = error instanceof Error ? error.message.match(/^API error \((\d{3})\):/)?.[1] : undefined;
+          modelError = status ? `Model provider rejected this review (HTTP ${status}). Check the selected model and connection; no financial action was taken.` : error instanceof LiveReviewError || error instanceof SyntaxError ? "Model returned an invalid structured review. Fresh exchange observations are retained; no financial action was taken." : "Model response unavailable or timed out. Fresh exchange observations are retained; no financial action was taken.";
+          review = { stance: "hold", rationale: modelError };
+        }
       }
     }
     // Recheck after inference; never present stale model permission as approval.
@@ -129,9 +138,9 @@ export async function tickLiveReview(userId: string, id: string, generation: str
     if (latest.intents.length || latestProfile.emergencyStop || unverifiedFill) review = { stance: "hold", rationale: latestProfile.emergencyStop ? "Emergency stop is active." : unverifiedFill ? "An entry fill is recorded, but its protection and exit are not verified. Review exchange protection and exit evidence before considering another order." : "An exchange reservation remains open or unresolved. Check the matched records and protection before considering another order." };
     await locked(userId, async tx => {
       const current = await read(tx, userId); if (!valid(current)) return;
-      const now = Date.now(); current!.reviews.push({ ...review, atMs: now, sources, reservations: latest.intents.length, completed: latest.completed.length });
+      const now = Date.now(); current!.reviews.push({ ...review, modelStatus, atMs: now, sources, reservations: latest.intents.length, completed: latest.completed.length });
       current!.reviews = current!.reviews.slice(-30);
-      current!.heartbeatMs = now; current!.nextReviewAtMs = now + current!.plan.reviewMinutes * 60000; current!.error = null; current!.lease = null;
+      current!.heartbeatMs = now; current!.nextReviewAtMs = now + current!.plan.reviewMinutes * 60000; current!.error = modelError; current!.lease = null;
       await write(tx, userId, current!, "live.research.review");
     });
     return { done: false };

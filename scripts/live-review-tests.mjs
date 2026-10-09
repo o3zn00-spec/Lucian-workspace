@@ -12,7 +12,7 @@ const mocks={
  '@/lib/bybit/trading':`export const getTradingProfile=async()=>({emergencyStop:globalThis.liveResearchFixture.emergency,maxOrderUsd:6,maxPositionUsd:10,maxDailyLossUsd:1,maxOpenPositions:1});`,
  '@/lib/bybit/reconciliation':`export async function reconciliationCandidates(){const f=globalThis.liveResearchFixture;if(f.fail)throw Error('secret provider payload');return {hasMore:f.partial,intents:f.pending?[{id:'entry',productId:'BTCUSDT',state:'exchange_open'}]:[],completed:[]};}export async function reconcileTerminalOrder(){const f=globalThis.liveResearchFixture;if(f.fail)throw Error('secret provider payload');return {resolved:false};}`,
  './paper-research':`export const collectPaperResearch=async()=>({observedAtMs:Date.now(),markets:[{source:'https://api.bybit.com/v5/market/kline'}],context:[],warnings:[],announcements:[]});`,
- '@/lib/agent/providers':`export async function getProvider(){return {chat:async()=>{const f=globalThis.liveResearchFixture;f.calls++;if(f.during)await f.during();return {fromModel:true,content:f.reply};}};}`
+ '@/lib/agent/providers':`export async function getProvider(){return {chat:async()=>{const f=globalThis.liveResearchFixture;f.calls++;if(f.modelError)throw Error('API error (400): secret key and provider payload');if(f.during)await f.during();return {fromModel:true,content:f.reply};}};}`
 };
 const rt=await bundle('src/lib/assistant/live-review-runtime.ts',mocks),policy=await bundle('src/lib/assistant/live-review-policy.ts');
 const plan={symbols:['BTCUSDT'],strategy:'Review trends and fees; hold with uncertainty.',reviewMinutes:5,durationHours:1,maxReviews:2};
@@ -45,6 +45,11 @@ due();f.emergency=true;await rt.tickLiveReview('owner',s.id,s.generation);assert
 due();f.active=false;await rt.tickLiveReview('owner',s.id,s.generation);assert.equal(stored().status,'stopped');assert.equal(f.calls,3);f.active=true;
 s=await rt.startLiveReview('owner',start);const row=f.rows.get('owner:_live_review:active'),expired=stored();expired.startedAtMs=Date.now()-3600001;expired.deadlineMs=expired.startedAtMs+3600000;row.value=JSON.stringify(expired);
 await assert.rejects(control('recover'),/expired/);await rt.tickLiveReview('owner',s.id,s.generation);assert.equal(stored().status,'stopped');
+// Model/schema failure retains completed read-only evidence and never exposes raw errors.
+s=await rt.startLiveReview('owner',start);f.reply='not json';await rt.tickLiveReview('owner',s.id,s.generation);
+assert.equal(stored().reviews.at(-1).modelStatus,'unavailable');assert.ok(stored().heartbeatMs>0);assert.match(stored().error,/invalid structured/);assert.equal(stored().reviewsUsed,1);
+due();f.modelError=true;await rt.tickLiveReview('owner',s.id,s.generation);assert.match(stored().error,/HTTP 400/);assert.doesNotMatch(stored().error,/secret key/);assert.equal(stored().reviewsUsed,2);
+due();f.modelError=false;const attempts=f.calls;await rt.tickLiveReview('owner',s.id,s.generation);assert.equal(f.calls,attempts);assert.equal(stored().reviews.at(-1).modelStatus,'skipped');assert.equal(stored().error,null);
 // Audit stores cannot be overwritten through ordinary assistant memory tools.
 const privateState=await bundle('src/lib/assistant/private-state.ts');assert.equal(privateState.isPrivateAssistantKey('_live_review:active'),true);
 // The runtime dependency surface has no financial adapter or executable proposal.

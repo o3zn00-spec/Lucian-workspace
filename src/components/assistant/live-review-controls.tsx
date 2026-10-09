@@ -55,7 +55,7 @@ export function LiveReviewControls() {
         {!loaded && <p role="status" className="mt-3">Load the latest session before using its controls.</p>}
         {s && <div className="mt-4 space-y-3">
           <p role="status">Status: <strong>{s.status}</strong> · Model calls: {s.reviewsUsed}/{s.plan.maxReviews} · Automatic execution: off</p>
-          <p>Last successful review: {s.heartbeatMs ? new Date(s.heartbeatMs).toLocaleString() : "not yet"}. Ends {new Date(s.deadlineMs).toLocaleString()}.</p>
+          <p>Last exchange/research check: {s.heartbeatMs ? new Date(s.heartbeatMs).toLocaleString() : "not yet"}. Ends {new Date(s.deadlineMs).toLocaleString()}.</p>
           <p className="text-fg-muted">{s.plan.symbols.join(", ")} · every {s.plan.reviewMinutes} minutes · {s.model} ({s.effort}). Frozen rules: {s.plan.strategy}</p>
           {s.error && <p role="alert">{s.error}</p>}
           {s.status !== "stopped" && <div className="flex flex-wrap gap-2">
@@ -65,7 +65,7 @@ export function LiveReviewControls() {
           </div>}
           <p className="text-fg-muted">Pause/stop affect research only; they never cancel or close an exchange order. Recovery preserves the deadline, call budget and history.</p>
           <ol className="space-y-3">{[...s.reviews].reverse().map((review, i) => <li key={i} className="rounded-lg bg-surface-2 p-3">
-            <p>{new Date(review.atMs).toLocaleString()} · {review.stance === "hold" ? "Hold" : "Owner review suggested"} · {review.reservations} unresolved · {review.completed} recent completed records</p>
+            <p>{new Date(review.atMs).toLocaleString()} · {review.stance === "hold" ? "Hold" : "Owner review suggested"} · model {review.modelStatus ?? "outcome not recorded"} · {review.reservations} unresolved · {review.completed} recent completed records</p>
             <p className="mt-1 whitespace-pre-wrap">{review.rationale}</p>
             <details className="mt-1"><summary className="cursor-pointer">Sources</summary>{review.sources.map(source => <a key={source} className="block break-all underline" href={source} target="_blank" rel="noreferrer">{source}</a>)}</details>
           </li>)}</ol>
