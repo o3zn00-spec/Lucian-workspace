@@ -17,7 +17,7 @@ export async function reconciliationCandidates(userId: string) {
   // Completed orders must not disappear when the background watcher resolves
   // their reservation. Keep these separate so history cannot crowd out pending
   // risk reservations. Never expose the surrounding execution/error payload.
-  const recent = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:{in:["user","owner_session"]},state:{in:["filled","cancelled","rejected"]},updatedAt:{gte:new Date(Date.now()-7*86400000)}},orderBy:{updatedAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true,execution:true}});
+  const recent = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:{in:["user","owner_session"]},state:{in:["filled","cancelled","rejected","session_settled"]},updatedAt:{gte:new Date(Date.now()-7*86400000)}},orderBy:{updatedAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true,execution:true}});
   const completed = recent.slice(0,20).flatMap(({execution,...intent})=>{
     if(!execution || typeof execution!=="object" || Array.isArray(execution)) return [];
     const report=execution.reconciliation;

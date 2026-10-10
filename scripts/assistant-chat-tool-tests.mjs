@@ -30,7 +30,8 @@ async function bundle(entry){
  const r=await build({entryPoints:[entry],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'fixture'}:undefined);b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],resolveDir:process.cwd()}));}}]});
  return import(`data:text/javascript;base64,${Buffer.from(r.outputFiles[0].text).toString('base64')}`);
 }
-const {resolveChatTool}=await bundle('src/lib/assistant/chat-tools.ts');
+const {resolveChatTool,CHAT_TOOL_INSTRUCTIONS}=await bundle('src/lib/assistant/chat-tools.ts');
+const {isAssistantDestination,ASSISTANT_CAPABILITIES}=await bundle('src/lib/assistant/contracts.ts');
 assert.equal(await resolveChatTool('owner-A','Hello.'),'Hello.');assert.equal(events.length,0);
 assert.equal(await resolveChatTool('owner-A','{"other":"data"}'),' {"other":"data"}'.trim());
 const nav=await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'app.navigate',arguments:{module:'markets'}}));
@@ -44,8 +45,32 @@ for(const p of [
  {lucian_tool:'app.capabilities',arguments:{},ownerUserId:'owner-B'},
  {lucian_tool:'app.capabilities',arguments:null},
 ]){assert.match(await resolveChatTool('owner-A',JSON.stringify(p)),/unavailable/);assert.equal(events.at(-1).status,'denied');assert.equal(events.at(-1).userId,'owner-A');}
-assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.setup',arguments:{}})),/paperSetup=1/);
-assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.setup',arguments:{mode:'live'}})),/unavailable/);
+const setupEnvelope=JSON.stringify({lucian_tool:'trading.setup',arguments:{}});
+const setup=await resolveChatTool('owner-A',setupEnvelope);
+assert.match(setup,/\[Markets session review\]\(\/markets\)/);
+assert.match(setup,/\[paper session plan\]\(\/markets\?paperSetup=1\)/);
+for(const link of setup.matchAll(/\]\(([^)]+)\)/g)) assert.equal(isAssistantDestination(link[1]),true);
+assert.match(setup,/owner password, exact confirmation phrase and passing server checks/);
+assert.match(setup,/within that session without per-order approval/);
+assert.match(setup,/No session or order was started/);
+assert.doesNotMatch(setup,/Live sessions remain unavailable|live unavailable/i);
+assert.equal(events.at(-1).status,'completed');
+assert.equal(globalThis.bybitCalls.length,0);
+assert.equal(globalThis.savedQueries.length,0);
+assert.equal(globalThis.toolPermissions.size,0);
+for(const arguments_ of [{mode:'live'},{action:'start'},{capital:'20'},{password:'fixture-password'},{confirmation:'START',ownerUserId:'owner-B'}]) {
+ assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.setup',arguments:arguments_})),/unavailable/);
+ assert.equal(events.at(-1).status,'denied');
+}
+assert.equal(globalThis.bybitCalls.length,0);
+assert.match(CHAT_TOOL_INSTRUCTIONS,/Bybit Live or Testnet autonomous Spot/);
+assert.doesNotMatch(CHAT_TOOL_INSTRUCTIONS,/live unavailable/i);
+assert.equal(ASSISTANT_CAPABILITIES.find(c=>c.id==='trading.execute').available,false);
+assert.match(ASSISTANT_CAPABILITIES.find(c=>c.id==='trading.setup').description,/does not start a session/);
+const capabilities=await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'app.capabilities',arguments:{}}));
+assert.match(capabilities,/Markets trading-session review links/);
+assert.match(capabilities,/separately reviewed and owner-authorized Markets session/);
+assert.doesNotMatch(capabilities,/Requires implemented and authorized trading-session policy/);
 const savedEnvelope=JSON.stringify({lucian_tool:'saved.read',arguments:{}});
 assert.match(await resolveChatTool('owner-A',savedEnvelope),/access is off/);
 assert.equal(globalThis.savedQueries.length,0);
@@ -164,6 +189,11 @@ const request=(origin='https://fixture.test',stream=false)=>new Request('https:/
 reply='{"lucian_tool":"app.navigate","arguments":{"module":"markets"}}';
 let res=await POST(request());assert.equal(res.status,200);assert.match((await res.json()).content,/\[Markets\]\(\/markets\)/);
 assert.match(globalThis.lastChatParameters.systemPrompt,/SERVER APP TOOLS/);
+assert.match(globalThis.lastChatParameters.systemPrompt,/Bybit Live or Testnet autonomous Spot/);
+reply=setupEnvelope;
+const beforeSetupCalls=globalThis.bybitCalls.length;
+res=await POST(request());assert.equal(res.status,200);assert.equal((await res.json()).content,setup);
+assert.equal(globalThis.bybitCalls.length,beforeSetupCalls);
 reply='{"lucian_tool":"trading.execute","arguments":{}}';
 res=await POST(request('https://fixture.test',true));const stream=await res.text();assert.match(stream,/unavailable/);assert.doesNotMatch(stream,/lucian_tool/);
 assert.equal((await POST(request('https://evil.test'))).status,403);

@@ -4,11 +4,12 @@ import { cancelTerminalOrder, previewTerminalOrder } from "@/lib/bybit/terminal"
 import { executeObservedOrder } from "@/lib/bybit/observed-execution";
 import { listBybitOrders } from "@/lib/bybit/trading";
 import { AuthError } from "@/lib/auth/errors";
+import { OrderCancellationError } from "@/lib/bybit/cancellation-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store" };
-const failure = (error: unknown) => NextResponse.json({ error: error instanceof AuthError ? "Owner authentication required." : error instanceof Error ? error.message : "Bybit order action unavailable." }, { status: error instanceof AuthError ? error.statusCode : 400, headers });
+const failure = (error: unknown, dispatchState?: "not_sent" | "unknown") => NextResponse.json({ error: error instanceof AuthError ? "Owner authentication required." : error instanceof Error ? error.message : "Bybit order action unavailable.", ...(dispatchState ? { dispatchState } : {}) }, { status: error instanceof AuthError ? error.statusCode : 400, headers });
 function sameOrigin(request: Request) {
   return request.headers.get("origin") === new URL(process.env.AUTH_APP_URL ?? request.url).origin;
 }
@@ -38,11 +39,13 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  let cancellationStarted = false;
   try {
     const ownerUserId = await requireOwnerId();
-    if (!sameOrigin(request)) return NextResponse.json({ error: "Same-origin request required." }, { status: 403, headers });
+    if (!sameOrigin(request)) return NextResponse.json({ error: "Same-origin request required.", dispatchState: "not_sent" }, { status: 403, headers });
     const body = await bodyOf(request);
     if (Object.keys(body).some(key => !["mode", "category", "symbol", "orderId", "confirmation", "password"].includes(key))) throw Error("Cancellation request has unexpected fields.");
+    cancellationStarted = true;
     return NextResponse.json(await cancelTerminalOrder(ownerUserId, body), { headers });
-  } catch (error) { return failure(error); }
+  } catch (error) { return failure(error, error instanceof OrderCancellationError ? error.dispatchState : cancellationStarted ? "unknown" : "not_sent"); }
 }

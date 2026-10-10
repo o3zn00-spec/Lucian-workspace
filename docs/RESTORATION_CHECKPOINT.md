@@ -1,3 +1,29 @@
+## Current continuation audit and fixes — 2026-10-10, 18:17 UTC
+
+This chat reviewed LUCIAN TRADING 1 and 2, all four owner-supplied files, current source, and production metadata/database evidence. Older implementation-status tables below are historical. The current owner-facing acceptance record is /Users/mac/Documents/Codex/2026-10-10/um-why-do-you-get-dumber/outputs/LUCIAN_MARKETS_COMPLETION.md.
+
+- Production observed at 18:04:47 UTC: original BTCUSDT 0.00007 BUY at 81750 still exchange_open / New, zero fills (exchange observation 18:03:46 UTC). Zero autonomous sessions/intents and zero accepted cancellation audits. This is a saved fresh exchange observation, not a new financial request.
+- Existing production application is aee6a333, tree c4171d98, Vercel E8qkAD8ESo8kuC5FacL1oCBK5wu5 Ready Production. Autonomous engine exists; funded lifecycle remains unverified.
+- Implemented locally in this batch: manual execute/cancel passwords preserve exact input like login; cancellation distinguishes known pre-dispatch rejection from unknown exchange outcome, permits a corrected explicit submission only after a not-sent response, and keeps feedback visible outside the dialog. This fixes a real whitespace inconsistency but does not establish the cause of the owner's actual password rejection.
+- Implemented locally: partial-fill entry/exit reservations settle atomically only after complete owned fills, terminal exits and wallet/dust reconciliation. Original fills/status and settlement evidence persist; unrelated manual reservations remain blocked. Recovery and transaction rollback tests pass. A next trade after partial IOC completion is now explicitly tested.
+- Implemented locally: Lilthe trading setup accurately links to autonomous Live/Testnet review and separate paper practice; obsolete live-unavailable guidance removed. Chat text does not perform financial authorization.
+- Verified locally: focused cancellation/service/route/UI tests, manual execution tests, assistant tool/paper-plan tests, autonomous isolated-Postgres lifecycle/failure tests, policy/workflow/reconciliation tests, full typecheck/lint, consolidation/architecture, and production build (30 steps / 7 workflows). All 10 desktop host tests passed after the finished build; native Rust unchanged. Release outcome is recorded in the owner-facing record after verification.
+- Browser inspection was denied by browser permission policy for lucian-workspace.vercel.app; no alternate browser or direct site-access workaround was used. Code and provider-metadata checks continue; post-release visual/runtime acceptance remains open until browser permission is restored.
+- Additional original Markets scope still open: actual conversational plan draft/setup, reusable templates, explicitly authorized rule amendments, source-linked decision history and richer per-trade/session reporting. Existing setup is a form/link; research sources reach the model but complete source snapshots are not persisted. Do not reduce the full remaining scope to only password/cancellation.
+- Broader project scope remains tracked separately: natural physical voice conversation; complete Investing hierarchy/cloud persistence; wider assistant/coding tools/provider acceptance; measured app stability/performance. Recovery email and withdrawals stay deferred; separate unfinished model project stays excluded.
+
+## Authoritative current checkpoint — 2026-10-10, 17:58 UTC
+
+This section supersedes older status summaries below; keep their evidence as historical records. The complete current handoff is saved in this continuation chat's outputs/LUCIAN_CHECKPOINT_2026-10-10.md.
+
+- Autonomous Spot execution/protection/exit/repeat engine is IMPLEMENTED, TESTED and DEPLOYED. It is no longer unimplemented. GitHub application aee6a33332fddb715fbd701763d90f0e616c5fbc; tested tree c4171d98b89f31ada07cec209137a3302a3350ea; Vercel E8qkAD8ESo8kuC5FacL1oCBK5wu5 verified Ready Production. Funded runtime/actual exchange lifecycle is still UNVERIFIED.
+- Owner DID submit cancellation. Reopened production dialog retained: "Current LUCIAN password verification failed. Check exchange records before another request. No automatic retry was sent." This is a rejected authorization before the cancellation broker call. Do not instruct the owner as though they never clicked Submit.
+- Database check 2026-10-10 17:58:36 UTC; exchange observation 17:57:54.607 UTC: original BTCUSDT Spot BUY Limit 0.00007 at 81750 remains New, zero fills, 0.00007 remaining, provider 2321863677537774336. Zero order.cancel audits, zero funded session records, zero owner_session trade intents.
+- Immediate blocker: successful current-password verification inside LUCIAN. Then reconcile original cancellation/racing fills, obtain one actual session activation, and verify funded entry, exact native stop, exit/fees, subsequent trade and background recovery. Do not bypass authentication or repeat general authorization questions; owner previously delegated funded test sizing.
+- Supabase runtime/data cutover is production verified; original Prisma retained for rollback. Shared Lilthe text/image inference, bounded app tools, synced-file proposal/review/apply, paper execution/recovery and read-only observer recovery have prior verification. New autonomous worker fixtures are not proof of a funded production runtime.
+- Broader open scope: other-provider compatibility/wider module tools, local coding/execution/publishing, complete Investing hierarchy/cloud persistence/populated acceptance, physical two-way voice/Sesame quality, measured cold-load stability and real recovery-email delivery (sender deferred). Trading remains the priority.
+- No mandatory profitability/backtest gate was added to the autonomous engine. Existing owner/account/exchange-identity/emergency/ownership rules remain. Native stops are exchange orders; targets require the server worker.
+
 ## Supabase data import and cutover preparation — 2026-10-09
 
 - Owner explicitly authorized switching all existing application data to Supabase. Activated Prisma's one-time free 24-hour recovery window and exported a consistent pg_dump SQL snapshot with original IDs, password hashes, encrypted credentials, history and trading records. Existing Prisma database was retained.
@@ -2200,3 +2226,31 @@ unverified or unfinished as specified above; these checks do not certify them.
 - Route/workflow control-flow fixtures passed owner/origin checks, bounded JSON, read-only preview, dispatch-failure redaction, saved-grant retention, fast/normal polling, worker termination, bounded continuation and generation-scoped recovery. These fixtures do not simulate the deployed durable runtime.
 - Existing manual-execution/reconciliation suites, typecheck, lint, architecture, consolidation, ten desktop-host tests and production build passed before final publication. No database migration or production trade was run by these checks. Native Rust source is unchanged.
 - Release and funded production acceptance are still pending at this checkpoint. A deployed card/build is not evidence of real autonomous fills, native-stop acceptance, exits or live-worker recovery. Earlier historical entries saying the engine was unimplemented describe previous releases, not this implementation batch.
+
+### Autonomous release verification and owner handoff — 2026-10-10
+
+- Published GitHub aee6a33332fddb715fbd701763d90f0e616c5fbc with verified tested source tree c4171d98b89f31ada07cec209137a3302a3350ea (local code commit 842d5bf). Vercel production deployment E8qkAD8ESo8kuC5FacL1oCBK5wu5 verified Ready / Production, build duration 1m 16s.
+- Production Markets shows the rounded Lilthe trading card, Ready to set up, and the editable autonomous session dialog with saved OpenRouter model openai/gpt-6.1-sol / medium. The real read-only preflight reached the connected model and exchange wallet, then returned the precise existing-order-reservation blocker. No funded session was started and no autonomous production order was submitted.
+- Fresh exchange evidence at 2026-10-10T13:34:00.953Z still reports the original BTCUSDT limit entry New, cumExecQty 0, leavesQty 0.00007, same provider order ID 2321863677537774336. The production Orders panel also shows that unfilled order. Opened its exact cancellation review for owner handoff; no password or confirmation was entered and no cancellation was submitted by the agent.
+- The remaining funded acceptance path is concrete: owner submits that exact cancellation, verify cancellation/racing fills, owner approves one new autonomous session, then verify real entry → exact native stop → exit/fees → subsequent trade and worker recovery. Browser-tool policy requires owner completion of funded cancellation/initial session activation. The engine itself does not require owner approval of every subsequent trade in that approved session.
+- Evidence saved outside the repository in this chat's outputs: autonomous-release-ready.png, autonomous-trading-card-production.png, autonomous-session-preflight.png, autonomous-next-owner-action.png and TRADING_COMPLETION.md. This verifies publication and live setup, not a funded lifecycle or profitability.
+
+### Lilthe trading setup guidance correction — 2026-10-10, local only
+
+- Corrected the shared chat instructions, `trading.setup` response and capability
+  registry that still described live sessions as unavailable. The existing
+  zero-argument utility now links Markets session review and separate virtual
+  paper practice. It explains owner password/exact-phrase session authorization,
+  current server checks and subsequent bounded trades without per-order approval.
+- This is a navigation handoff, not a new financial tool. It does not choose
+  capital, save a draft, start/stop a session or read/change exchange orders.
+  Direct `trading.execute` remains unavailable through the chat tool protocol.
+  Setup does not claim verified fills, protection, recovery or profit.
+- Focused chat-tool and paper-plan fixtures passed, including both validated
+  links, actual chat-route delivery, rejection of model-supplied financial/start
+  arguments and unchanged exchange-call/permission state. Targeted ESLint and
+  whitespace checks passed. No paid inference, database/provider call, full build,
+  publication or production verification was performed for this local correction.
+- Conversational draft creation, reusable session templates and active-rule
+  amendments remain separate unfinished acceptance items. Existing Markets
+  setup/authorization and current financial controls are unchanged.

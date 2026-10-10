@@ -138,6 +138,34 @@ const validLease = (s: AutonomousSession | null, snapshot: AutonomousSession) =>
 async function change(userId: string, snapshot: AutonomousSession, action: string, message: string, fn: (s: AutonomousSession) => void) {
   return lock(userId, async tx => { const s = await read(tx, userId); if (!validLease(s, snapshot)) return null; fn(s!); return save(tx, userId, s!, action, message); });
 }
+async function settleTrade(userId: string, snapshot: AutonomousSession, evidence: Array<Awaited<ReturnType<typeof orderEvidence>>>, remaining: bigint, costCents: number, proceedsCents: number) {
+  return lock(userId, async tx => {
+    const s = await read(tx, userId);
+    if (!validLease(s, snapshot)) return null;
+    const trade = s!.active;
+    if (!trade || trade.entryId !== snapshot.active?.entryId || JSON.stringify(trade.sellIds) !== JSON.stringify(snapshot.active.sellIds)) throw new AutonomousError("Owned trade changed before settlement. Reservations retained.");
+    const ids = [trade.entryId, ...trade.sellIds];
+    if (new Set(ids).size !== ids.length || evidence.length !== ids.length || ids.some(id => !evidence.some(e => e.intent.id === id && terminal(e.intent.state) && e.report))) throw new AutonomousError("Complete terminal entry and exit evidence required before settlement.");
+    const current = await tx.liveTradeIntent.findMany({ where: { userId, initiatedBy: "owner_session", id: { in: ids } } });
+    if (current.length !== ids.length || current.some(i => {
+      const observed = evidence.find(e => e.intent.id === i.id)!.intent;
+      const preview = i.preview as { sessionId?: string; role?: string } | null;
+      return preview?.sessionId !== s!.id || (i.id === trade.entryId ? preview.role !== "entry" : !["stop", "exit"].includes(preview.role ?? "")) || i.productId !== trade.symbol || i.state !== observed.state || i.updatedAt.getTime() !== observed.updatedAt.getTime() || digest(i.execution) !== digest(observed.execution);
+    })) throw new AutonomousError("Order evidence changed before settlement. Reservations retained.");
+    // Only the fully reconciled owned lifecycle can release a partial-fill
+    // reservation. Preserve the exchange status/fills; never relabel it Filled.
+    const settlement = { sessionId: s!.id, entryId: trade.entryId, sellIds: trade.sellIds, remainingQuantity: formatDecimal(remaining), costCents, proceedsCents, settledAt: new Date().toISOString() };
+    for (const i of current.filter(i => i.state === "cancelled_with_fills")) {
+      const execution = i.execution as Prisma.JsonObject;
+      const changed = await tx.liveTradeIntent.updateMany({ where: { id: i.id, userId, initiatedBy: "owner_session", state: i.state, updatedAt: i.updatedAt }, data: { state: "session_settled", execution: { ...execution, sessionSettlement: settlement } as Prisma.InputJsonValue } });
+      if (changed.count !== 1) throw new AutonomousError("Partial-fill reservation changed before settlement. State retained.");
+    }
+    s!.cashCents += proceedsCents - costCents; s!.realizedCents += proceedsCents - costCents;
+    s!.dust[trade.symbol] = formatDecimal(decimal(s!.dust[trade.symbol] ?? "0", true) + remaining);
+    s!.trades++; s!.active = null; s!.error = null; s!.nextReviewMs = Date.now(); if (s!.status === "closing") s!.status = "stopped";
+    return save(tx, userId, s!, "trade_closed", `Trade settled from exchange fills and fees. Residual dust ${formatDecimal(remaining)} ${trade.symbol.slice(0, -4)} remains visible in the wallet.`);
+  });
+}
 async function assertGrant(userId: string, s: AutonomousSession, entry = false) {
   validateSession(s); const a = await identity(userId);
   if (a.connection !== s.connection || a.credential !== s.credential || Date.now() >= s.managementDeadlineMs || entry && (s.status !== "running" || Date.now() >= s.deadlineMs)) throw new AutonomousError("Approved session identity, mode or deadline changed.");
@@ -271,7 +299,9 @@ async function manageTrade(userId: string, snapshot: AutonomousSession): Promise
   if (sellable < decimal(q.minQty) || sellable * decimal(q.bid) < decimal(q.minNotional) * 1000000000000n) {
     if (remaining >= step) throw new AutonomousError("Remaining holding is below exchange exit minimum. It remains owned and requires review; no new entry is permitted.");
     if (sales.some(s => !terminal(s.intent.state))) throw new AutonomousError("An exchange exit remains active; session cannot settle it yet.");
-    await change(userId, snapshot, "trade_closed", `Trade settled from exchange fills and fees. Residual dust ${formatDecimal(remaining)} ${t.symbol.slice(0, -4)} remains visible in the wallet.`, s => { s.cashCents += proceeds - acquired.cents; s.realizedCents += proceeds - acquired.cents; s.dust[t.symbol] = formatDecimal(decimal(s.dust[t.symbol] ?? "0", true) + remaining); s.trades++; s.active = null; s.nextReviewMs = Date.now(); if (s.status === "closing") s.status = "stopped"; }); return false;
+    const wallet = await autonomousWallet(userId), balance = wallet.find(c => c.coin === t.symbol.slice(0, -4))?.total ?? 0n;
+    if (balance !== remaining + decimal(snapshot.dust[t.symbol] ?? "0", true)) throw new AutonomousError("Wallet and completed owned fills differ. Reservations retained until reconciliation.");
+    await settleTrade(userId, snapshot, [entry, ...sales], remaining, acquired.cents, proceeds); return false;
   }
   const wallet = await autonomousWallet(userId), owned = wallet.find(c => c.coin === t.symbol.slice(0, -4));
   const expected = remaining + decimal(snapshot.dust[t.symbol] ?? "0", true);

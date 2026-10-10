@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';import {build} from 'esbuild';
 globalThis.fixture={state:'previewed',calls:0,fail:false};
 const mocks={
 'server-only':'',
-'@/lib/auth/password':'export const verifyPassword=async()=>true;',
+'@/lib/auth/password':'export const verifyPassword=async(value)=>{globalThis.fixture.receivedPassword=value;return globalThis.fixture.expectedPassword===undefined || value===globalThis.fixture.expectedPassword;};',
 '@/lib/bybit/spot-risk':`export async function readSpotRisk(){globalThis.fixture.spotRead=true;if(globalThis.fixture.spotUnknown)throw Error('unknown Spot accounting');return {dailyRealized:globalThis.fixture.spotPnl??0};}`,
 '@/lib/bybit/trading':'export const getTradingProfile=async()=>({emergencyStop:false,maxOrderUsd:50,maxPositionUsd:100,maxOpenPositions:3,maxLeverage:1,maxDailyLossUsd:20});',
 '@/lib/bybit/client':`export const getBybitConfig=async()=>({configured:true,environment:globalThis.fixture.live?'mainnet':'testnet',apiKey:'fixture',apiSecret:'fixture'});export const bybitPublicRequest=async(environment,path)=>({list:path.includes('tickers')?[{symbol:'BTCUSDT',lastPrice:String(globalThis.fixture.price??40000)}]:[{symbol:'BTCUSDT',baseCoin:'BTC',quoteCoin:'USDT',lotSizeFilter:{minOrderQty:'0.00001',maxLimitOrderQty:'10',maxMarketOrderQty:'1',basePrecision:'0.00001',minOrderAmt:'1'},priceFilter:{tickSize:'0.01'}}]});export async function bybitRequest(owner,path,options){if(options.method!=='POST'){if(path.includes('wallet-balance'))return {list:[{accountType:'UNIFIED',coin:[{coin:'USDT',walletBalance:String(globalThis.fixture.balance??1000),locked:String(globalThis.fixture.locked??0),spotBorrow:String(globalThis.fixture.borrowed??0)},...(globalThis.fixture.coins??[])]}]};if(path.includes('fee-rate'))return {list:[{symbol:'BTCUSDT',takerFeeRate:'0.001',makerFeeRate:'0.001'}]};if(path.includes('position/list'))return {list:globalThis.fixture.positions??[]};if(path.includes('order/realtime') && options.query.category==='spot' && globalThis.fixture.secondPageExposure) return options.query.cursor ? {list:[{orderId:'page-two',symbol:'ETHUSDT',side:'Buy',leavesValue:'80'}],nextPageCursor:''} : {list:[],nextPageCursor:'second'};if(path.includes('order/realtime'))return {list:globalThis.fixture.pending??[],nextPageCursor:globalThis.fixture.pendingPartial?'more':''};return {list:globalThis.fixture.pnl?[{closedPnl:String(globalThis.fixture.pnl)}]:globalThis.fixture.badPnl?[{closedPnl:'NaN'}]:[],nextPageCursor:globalThis.fixture.partial?'more':''};}globalThis.fixture.calls++;globalThis.fixture.body=options.body;if(globalThis.fixture.fail)throw Error('ambiguous timeout');return {orderId:'order-one'};}`,
@@ -47,3 +47,10 @@ await executeTerminalOrder('owner',input);
 assert.deepEqual(globalThis.fixture.transactionOptions,{isolationLevel:'Serializable',maxWait:20000,timeout:20000});
 assert.equal(globalThis.fixture.calls,1);
 console.log('PASS bounded reservation acquisition: failure makes no broker request or reservation; successful acquisition retains Serializable isolation and single submission.');
+
+globalThis.fixture={state:'previewed',calls:0,live:true,expectedPassword:'  exact password  '};
+await assert.rejects(executeTerminalOrder('owner',{...liveInput,password:'exact password'}),/password/);
+assert.equal(globalThis.fixture.calls,0);assert.equal(globalThis.fixture.state,'previewed');
+await executeTerminalOrder('owner',{...liveInput,password:globalThis.fixture.expectedPassword});
+assert.equal(globalThis.fixture.receivedPassword,'  exact password  ');assert.equal(globalThis.fixture.calls,1);
+console.log('PASS live order confirmation preserves the same exact password accepted by login.');

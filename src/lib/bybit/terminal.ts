@@ -9,6 +9,7 @@ import { getTradingProfile } from "@/lib/bybit/trading";
 import { accountExposure } from "@/lib/bybit/exposure";
 import { readCompleteBybitList } from "@/lib/bybit/pagination";
 import { readSpotRisk } from "@/lib/bybit/spot-risk";
+import { OrderCancellationError } from "@/lib/bybit/cancellation-error";
 
 export type TradingMode = "bybit_testnet" | "bybit_live";
 export type TradingCategory = "spot" | "linear";
@@ -320,7 +321,7 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
   if (text(input.confirmation) !== phrase) throw new Error(`Type ${phrase} exactly to approve this order.`);
   if (mode === "bybit_live") {
     const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-    if (!user?.passwordHash || !(await verifyPassword(text(input.password), user.passwordHash))) throw new Error("Current LUCIAN password verification failed.");
+    if (!user?.passwordHash || typeof input.password !== "string" || !(await verifyPassword(input.password, user.passwordHash))) throw new Error("Current LUCIAN password verification failed.");
   }
   const profile = await getTradingProfile(userId);
   if (profile.emergencyStop) throw new Error("Emergency stop is active.");
@@ -386,26 +387,32 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
 }
 
 export async function cancelTerminalOrder(userId: string, input: Record<string, unknown>) {
-  const mode = normalizeMode(input.mode);
-  const config = await assertMode(userId, mode);
-  if (input.category !== "spot" && input.category !== "linear") throw new Error("Choose the exact order category.");
-  const category = input.category;
-  if (typeof input.symbol !== "string" || !/^[A-Z0-9]{5,24}$/.test(input.symbol)) throw new Error("Choose the exact order symbol.");
-  const symbol = input.symbol;
-  const orderId = text(input.orderId);
-  if (!/^[A-Za-z0-9_-]{1,100}$/.test(orderId)) throw new Error("A valid order id is required.");
-  const phrase = `${mode === "bybit_live" ? "CANCEL BYBIT LIVE ORDER" : "CANCEL BYBIT TESTNET ORDER"} ${orderId}`;
-  if (text(input.confirmation) !== phrase) throw new Error(`Type ${phrase} exactly to request cancellation.`);
-  if (mode === "bybit_live") {
-    const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
-    if (!user?.passwordHash || !(await verifyPassword(text(input.password), user.passwordHash))) throw new Error("Current LUCIAN password verification failed.");
+  let exchangeAttempted = false;
+  try {
+    const mode = normalizeMode(input.mode);
+    const config = await assertMode(userId, mode);
+    if (input.category !== "spot" && input.category !== "linear") throw new Error("Choose the exact order category.");
+    const category = input.category;
+    if (typeof input.symbol !== "string" || !/^[A-Z0-9]{5,24}$/.test(input.symbol)) throw new Error("Choose the exact order symbol.");
+    const symbol = input.symbol;
+    const orderId = text(input.orderId);
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(orderId)) throw new Error("A valid order id is required.");
+    const phrase = `${mode === "bybit_live" ? "CANCEL BYBIT LIVE ORDER" : "CANCEL BYBIT TESTNET ORDER"} ${orderId}`;
+    if (text(input.confirmation) !== phrase) throw new Error(`Type ${phrase} exactly to request cancellation.`);
+    if (mode === "bybit_live") {
+      const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+      if (!user?.passwordHash || typeof input.password !== "string" || !(await verifyPassword(input.password, user.passwordHash))) throw new Error("Current LUCIAN password verification failed.");
+    }
+    const currentConfig = await assertMode(userId, mode);
+    if (currentConfig.environment !== config.environment || currentConfig.apiKey !== config.apiKey || currentConfig.apiSecret !== config.apiSecret) throw new Error("Bybit connection changed during cancellation. Refresh the order before acting.");
+    // One attempt only. A timeout is an unknown outcome, never a retry signal.
+    exchangeAttempted = true;
+    const result = await bybitRequest(userId, "/v5/order/cancel", { method: "POST", body: { category, symbol, orderId } }, config);
+    await audit(userId, "order.cancel", mode, "submitted", { symbol, orderId, category });
+    return result;
+  } catch (error) {
+    throw new OrderCancellationError(error instanceof Error ? error.message : "Cancellation could not be confirmed.", exchangeAttempted ? "unknown" : "not_sent");
   }
-  const currentConfig = await assertMode(userId, mode);
-  if (currentConfig.environment !== config.environment || currentConfig.apiKey !== config.apiKey || currentConfig.apiSecret !== config.apiSecret) throw new Error("Bybit connection changed during cancellation. Refresh the order before acting.");
-  // One attempt only. A timeout is an unknown outcome, never a retry signal.
-  const result = await bybitRequest(userId, "/v5/order/cancel", { method: "POST", body: { category, symbol, orderId } }, config);
-  await audit(userId, "order.cancel", mode, "submitted", { symbol, orderId, category });
-  return result;
 }
 
 export async function setEmergencyStop(userId: string, input: Record<string, unknown>) {
