@@ -387,12 +387,23 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
 
 export async function cancelTerminalOrder(userId: string, input: Record<string, unknown>) {
   const mode = normalizeMode(input.mode);
-  await assertMode(userId, mode);
-  const category = normalizeCategory(input.category);
-  const symbol = normalizeSymbol(input.symbol);
+  const config = await assertMode(userId, mode);
+  if (input.category !== "spot" && input.category !== "linear") throw new Error("Choose the exact order category.");
+  const category = input.category;
+  if (typeof input.symbol !== "string" || !/^[A-Z0-9]{5,24}$/.test(input.symbol)) throw new Error("Choose the exact order symbol.");
+  const symbol = input.symbol;
   const orderId = text(input.orderId);
-  if (!orderId) throw new Error("Order id is required.");
-  const result = await bybitRequest(userId, "/v5/order/cancel", { method: "POST", body: { category, symbol, orderId } });
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(orderId)) throw new Error("A valid order id is required.");
+  const phrase = `${mode === "bybit_live" ? "CANCEL BYBIT LIVE ORDER" : "CANCEL BYBIT TESTNET ORDER"} ${orderId}`;
+  if (text(input.confirmation) !== phrase) throw new Error(`Type ${phrase} exactly to request cancellation.`);
+  if (mode === "bybit_live") {
+    const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    if (!user?.passwordHash || !(await verifyPassword(text(input.password), user.passwordHash))) throw new Error("Current LUCIAN password verification failed.");
+  }
+  const currentConfig = await assertMode(userId, mode);
+  if (currentConfig.environment !== config.environment || currentConfig.apiKey !== config.apiKey || currentConfig.apiSecret !== config.apiSecret) throw new Error("Bybit connection changed during cancellation. Refresh the order before acting.");
+  // One attempt only. A timeout is an unknown outcome, never a retry signal.
+  const result = await bybitRequest(userId, "/v5/order/cancel", { method: "POST", body: { category, symbol, orderId } }, config);
   await audit(userId, "order.cancel", mode, "submitted", { symbol, orderId, category });
   return result;
 }

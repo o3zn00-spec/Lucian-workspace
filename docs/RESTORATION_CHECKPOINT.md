@@ -2137,6 +2137,40 @@ unverified or unfinished as specified above; these checks do not certify them.
   accounting and exchange reconciliation. Isolated PostgreSQL watch integration,
   typecheck, lint, architecture 11/12/52, consolidation 5/5, production build
   (26 steps/5 workflows), desktop 10/10 passed. No exchange financial write.
-- Publication and production recovery drill pending. Autonomous strategy
-  execution, real fill/verified native protection/exit and actual exchange
-  recovery remain OPEN. Do not label these done after deploying observer code.
+- Published GitHub e71b4a711f93c74762dd3bd31c1db20ec11a731d; Vercel
+  5qAg44M5BkMGSTyxrWd2MPEZWnhv verified Ready and new controls observed.
+  Stopped the legacy monitor in production without exchange mutation, then
+  started a supervised monitor. Closed Lucian and canceled its actual Vercel
+  observer wrun_41M4HYQHFE7GSVSPDXMGTW95YH. Dashboard confirmed Canceled;
+  heartbeat stopped at 2026-10-10 04:09:20.607 UTC. Without manual restart,
+  supervisor replaced it with wrun_41M4J09YRH7GGP9D1PS52Y7NHF, generation
+  ced68817-dd33-4b55-86fd-6749aa853420, recoveryAttempts=1. The original
+  deadline 2026-10-11 02:36:44.741 UTC and supervision token were preserved;
+  heartbeat resumed at 04:14:37.933 UTC. Production automatic observer
+  recovery is verified. Autonomous strategy execution, real fill/verified
+  native protection/exit and actual exchange recovery remain OPEN.
+
+### Trading continuation — reviewed cancellation and request boundaries
+
+- Replaced immediate order cancellation with a review dialog naming the exact
+  mode, category, symbol and provider order ID. Server requires a target-specific
+  cancellation phrase and the current owner password for live cancellations.
+  Rechecks and pins the exchange connection before one cancellation attempt.
+  Failed/unknown responses do not retry; UI directs exchange reconciliation.
+  Cancellation acknowledgement is not proof of cancellation or absence of fills.
+- Order POST/DELETE routes require the application's exact Origin, bounded
+  object bodies and owner authentication; cancellation rejects extra fields.
+  Order responses are private/no-store. Cancelling remains available when entry
+  execution is locked, so entry locks do not prevent owner-directed cleanup.
+- Cancellation and route fixtures passed: wrong target/phrase/password,
+  malformed category/symbol/ID, changed connection, one attempt on unknown
+  result, explicit testnet mode, cross-origin/missing-Origin rejection and
+  malformed/oversized requests. Existing live execution fixtures, typecheck,
+  lint, architecture 11/12/52, consolidation 5/5, full production build and
+  desktop 10/10 passed. No exchange financial action was performed by tests.
+- Production protection review at 2026-10-10 04:09:11.393 UTC returned entry
+  New, no candidate protective orders, protectionVerified=false and
+  exitVerified=false. Existing requested stop/target fields are not proof.
+- This change does not implement autonomous financial execution. Actual
+  cancellation/fills/protection/exit verification remains OPEN; the owner must
+  perform final consequential browser financial submissions.
