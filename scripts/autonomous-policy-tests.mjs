@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';import {build} from 'esbuild';
+const built=await build({entryPoints:['src/lib/bybit/autonomous-policy.ts'],bundle:true,write:false,platform:'node',format:'esm'});const p=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+const plan={mode:'bybit_live',symbols:['BTCUSDT'],capital:'20',maxOrder:'6',maxLoss:'2',maxRiskPerTrade:'1',maxTrades:20,reviewMinutes:5,durationHours:24,maxModelCalls:100,slippageBps:50,strategy:'Owner strategy'};
+const decision={action:'buy',symbol:'BTCUSDT',quantity:'0.05',stopPrice:'90',takeProfit:'110',rationale:'Entry'};
+const quote={ask:'100',bid:'99.9',step:'0.00001',tick:'0.01',minQty:'0.00001',minNotional:'1',fee:'0.001',atMs:Date.now()};
+assert.equal(p.validateAutonomousPlan(plan).capital,'20');assert.equal(p.parseAutonomousDecision(JSON.stringify(decision)).action,'buy');assert.ok(p.evaluateAutonomousEntry(plan,decision,quote,2000,0,0).debitCents>500);
+for(const d of [{...decision,quantity:'0.1'},{...decision,quantity:'0.050001'},{...decision,stopPrice:'100'},{...decision,takeProfit:'90'},{...decision,symbol:'ETHUSDT'}])assert.throws(()=>p.evaluateAutonomousEntry(plan,d,quote,2000,0,0));
+assert.throws(()=>p.evaluateAutonomousEntry(plan,decision,{...quote,atMs:Date.now()-11000},2000,0,0));assert.throws(()=>p.evaluateAutonomousEntry(plan,decision,quote,2000,-200,0));assert.throws(()=>p.evaluateAutonomousEntry(plan,decision,quote,2000,0,20));
+for(const d of [{action:'hold',rationale:'Hold',execute:true},{...decision,quantity:'-1'},{action:'sell',symbol:'BTCUSDT',rationale:'Exit',quantity:'1'}])assert.throws(()=>p.parseAutonomousDecision(JSON.stringify(d)));
+const entry=p.fillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.00005',feeCurrency:'BTC'}],'BTCUSDT','buy');assert.equal(p.formatDecimal(entry.quantity),'0.04995');assert.equal(entry.cents,500);
+const exit=p.fillTotals([{execQty:'0.04995',execPrice:'110',execFee:'0.0054945',feeCurrency:'USDT'}],'BTCUSDT','sell');assert.equal(exit.cents,548);assert.equal(p.formatDecimal(exit.quantity),'0.04995');
+assert.throws(()=>p.fillTotals([{execQty:'1',execPrice:'100',execFee:'1',feeCurrency:null}],'BTCUSDT','buy'));
+console.log('PASS owner plan validation, strict structured decisions, integer fee/slippage/risk sizing, stale quote and loss/count limits, exact net base inventory and actual exit fee accounting.');

@@ -1,6 +1,7 @@
 "use client";
 
 import { PaperSessionSetup } from "@/components/assistant/paper-session-setup";
+import { AutonomousTradingCard } from "@/components/markets/autonomous-trading-card";
 import { Suspense } from "react";
 import { MarketsFrame } from "@/components/markets/markets-frame";
 import { MarketsDeepLinkReceiver } from "@/components/markets/markets-deep-link-receiver";
@@ -17,6 +18,7 @@ export default function MarketsPage() {
       <Suspense fallback={null}>
         <MarketsDeepLinkReceiver />
       </Suspense>
+      <AutonomousTradingCard />
       <Suspense fallback={null}><PaperSessionSetup /></Suspense>
       <div className="min-h-0 flex-1"><MarketsFrame /></div>
     </div>

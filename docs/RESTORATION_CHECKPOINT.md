@@ -2174,3 +2174,29 @@ unverified or unfinished as specified above; these checks do not certify them.
 - This change does not implement autonomous financial execution. Actual
   cancellation/fills/protection/exit verification remains OPEN; the owner must
   perform final consequential browser financial submissions.
+- Published GitHub d0d39dc9eee902225b14cc77777e2198d5559e51; exact source
+  tree b8ef911ffa7feb114991f772ef68861c09fda1b2. Vercel production deployment
+  GADwC4AKqbnQgfxw4pFvTit1Mbxq verified Ready (53 seconds); production Orders
+  shows Review cancellation. Opened its dialog for Spot BTCUSDT provider order
+  2321863677537774336, displayed New, price 81750.0. Exact target phrase shown,
+  current owner password required, submission disabled with empty fields.
+  No financial cancellation submitted. Left review dialog for owner handoff;
+  next step is reconcile actual cancellation and any racing fills, then continue
+  bounded entry/protection/exit validation. Broader autonomous engine remains
+  unimplemented, and this release must not be represented as completing it.
+- Owner subsequently reports submitting cancellation. Fresh explicit production
+  reconciliation at 2026-10-10T04:35:49.447Z still returned the same order New,
+  cumulative fills 0, leaves 0.00007, resolved=false. No order.cancel audit was
+  found. Do not claim cancellation succeeded or submit a replacement entry;
+  identify the owner's submission response before another financial attempt.
+
+## Autonomous trading engine — 2026-10-10
+
+- Implemented the owner-requested funded-session path separately from the existing read-only observer. One password/exact-phrase authorization freezes the selected model, allowed Spot symbols, cash/risk/slippage limits, entry duration and model-call budget. The server worker researches, submits entries, tracks actual fills/fees, creates a native conditional stop, manages targets/model exits, cancels its exact stop before an exit, settles proceeds and can enter another trade without another per-order approval.
+- There is no mandatory backtest-profit or perfect-signal gate. Existing account limits, immutable-owner authorization, emergency stop, exchange identity, fill ownership and historical reservations remain enforced. Only session-owned inventory can be sold. Native stops reside on Bybit; targets depend on the server worker. No leveraged positions, transfers or withdrawals are added.
+- Added durable pre-dispatch order reservations, attempted markers, stable order links, worker leases/generations and a read-only recovery supervisor. Unknown order/cancellation outcomes are reconciled rather than blindly repeated. Original entry deadlines/budgets survive recovery. Session expiry closes holdings within a fixed 30-minute window; unresolved holdings remain recorded and require an explicit closure-only renewal. Known session dust is carried into subsequent sessions without treating foreign inventory as owned.
+- Added one rounded trading card with setup/authorization, model/strategy/limits, funds/results, owned quantity/stop/target, heartbeat/recovery state, decisions, pause/resume/recovery and close/end controls. Research/practice controls are separately arranged in a rounded row.
+- Isolated named PostgreSQL fixture tests passed: competing workers send one entry; fees reduce native-stop inventory; target waits for stop cancellation; exits settle actual fees and subsequent entries run; accepted entry with lost acknowledgement is not repeated; stop-fill/cancellation race prevents a duplicate sell; paused inference and changed credentials cannot submit; concurrent starts consume one draft; snapshots omit authority fields; stale-worker recovery preserves deadlines/budget/orders; expired management preserves the native stop; explicit renewal closes only the old holding; model-call exhaustion does not disable exits; mismatched native-stop trigger cannot be certified; partially filled IOC entry protects/exits only acquired inventory.
+- Route/workflow control-flow fixtures passed owner/origin checks, bounded JSON, read-only preview, dispatch-failure redaction, saved-grant retention, fast/normal polling, worker termination, bounded continuation and generation-scoped recovery. These fixtures do not simulate the deployed durable runtime.
+- Existing manual-execution/reconciliation suites, typecheck, lint, architecture, consolidation, ten desktop-host tests and production build passed before final publication. No database migration or production trade was run by these checks. Native Rust source is unchanged.
+- Release and funded production acceptance are still pending at this checkpoint. A deployed card/build is not evidence of real autonomous fills, native-stop acceptance, exits or live-worker recovery. Earlier historical entries saying the engine was unimplemented describe previous releases, not this implementation batch.

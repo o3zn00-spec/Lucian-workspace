@@ -13,11 +13,11 @@ const decimal = (value: unknown, positive = false) => {
 };
 
 export async function reconciliationCandidates(userId: string) {
-  const intents = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:"user",state:{in:eligible}},orderBy:{createdAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true}});
+  const intents = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:{in:["user","owner_session"]},state:{in:eligible}},orderBy:{createdAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true}});
   // Completed orders must not disappear when the background watcher resolves
   // their reservation. Keep these separate so history cannot crowd out pending
   // risk reservations. Never expose the surrounding execution/error payload.
-  const recent = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:"user",state:{in:["filled","cancelled","rejected"]},updatedAt:{gte:new Date(Date.now()-7*86400000)}},orderBy:{updatedAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true,execution:true}});
+  const recent = await db.liveTradeIntent.findMany({where:{userId,initiatedBy:{in:["user","owner_session"]},state:{in:["filled","cancelled","rejected"]},updatedAt:{gte:new Date(Date.now()-7*86400000)}},orderBy:{updatedAt:"desc"},take:21,select:{id:true,productId:true,tradingMode:true,state:true,updatedAt:true,execution:true}});
   const completed = recent.slice(0,20).flatMap(({execution,...intent})=>{
     if(!execution || typeof execution!=="object" || Array.isArray(execution)) return [];
     const report=execution.reconciliation;
@@ -31,7 +31,7 @@ export async function reconciliationCandidates(userId: string) {
 }
 
 export async function reconcileTerminalOrder(userId: string, intentId: string) {
-  const intent=await db.liveTradeIntent.findFirst({where:{id:intentId,userId,initiatedBy:"user"}});
+  const intent=await db.liveTradeIntent.findFirst({where:{id:intentId,userId,initiatedBy:{in:["user","owner_session"]}}});
   if(!intent || !eligible.includes(intent.state)) throw Error("No eligible owner order reservation.");
   if(intent.state==="executing" && Date.now()-intent.updatedAt.getTime()<120000) throw Error("Submission may still be in progress. Wait before reconciliation.");
   if(!["spot","linear"].includes(intent.category) || !["bybit_live","bybit_testnet"].includes(intent.tradingMode)) throw Error("Unsupported reservation category or environment.");
@@ -59,6 +59,8 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const side=intent.side.toLowerCase()==="buy"?"Buy":"Sell";
   const matches=(row:Row)=>row.symbol===symbol && row.side===side && row.orderLinkId===orderLinkId && typeof row.orderId==="string" && !!row.orderId && (!intent.providerOrderId || row.orderId===intent.providerOrderId);
   if(!matches(order) || typeof order.orderStatus!=="string") throw Error("Exchange order identity mismatch. Reservation retained.");
+  const sessionPreview = intent.preview as { role?: string; body?: { triggerPrice?: unknown } } | null;
+  if (intent.initiatedBy === "owner_session" && sessionPreview?.role === "stop" && decimal(order.triggerPrice, true) !== decimal(sessionPreview.body?.triggerPrice, true)) throw Error("Tracked native stop trigger does not match its reserved price.");
   const cumulative=decimal(order.cumExecQty),leaves=decimal(order.leavesQty);
   const requested=decimal(intent.baseSize?.toString(),true);
   const tolerance=Math.max(1e-12,requested*1e-9);

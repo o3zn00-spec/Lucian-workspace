@@ -178,7 +178,7 @@ export async function updateRiskPolicy(userId: string, input: Record<string, unk
   return profile;
 }
 
-async function validateTerminalOrder(userId: string, input: Record<string, unknown>, requireExecution = true) {
+export async function validateTerminalOrder(userId: string, input: Record<string, unknown>, requireExecution = true) {
   const mode = normalizeMode(input.mode);
   const config = await assertMode(userId, mode, requireExecution);
   if (requireExecution && mode === "bybit_testnet" && process.env.BYBIT_TESTNET_TRADING_ENABLED === "false") throw new Error("Bybit Testnet order submission is server-locked.");
@@ -329,7 +329,7 @@ export async function executeTerminalOrder(userId: string, input: Record<string,
   const reserved = await db.$transaction(async tx => {
     const unresolved = await tx.liveTradeIntent.findFirst({ where: {
       userId, id: { not: intent.id },
-      state: { in: ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open", "cancelled_with_fills"] },
+      state: { in: ["queued", "executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open", "cancelled_with_fills"] },
     }, select: { id: true } });
     if (unresolved) throw new Error("An existing exchange reservation needs reconciliation and protection review before another order can execute.");
     return tx.liveTradeIntent.updateMany({where:{id:intent.id,userId,state:"previewed",initiatedBy:"user",expiresAt:{gt:new Date()}},data:{state:"executing"}});

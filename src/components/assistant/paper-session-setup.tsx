@@ -69,8 +69,8 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
   };
   const inputClass = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-fg focus-ring";
   return <Dialog.Root open={open} onOpenChange={changeOpen}>
-    <div className="themed flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2 text-sm text-fg">
-      <span>Lilthe sessions</span>
+    <div className="themed mx-3 mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-fg">
+      <span className="font-medium">Research and practice</span>
       <LiveReviewControls />
       <Dialog.Trigger asChild><button className="focus-ring rounded-lg border border-line px-3 py-1.5" type="button">Set up paper session</button></Dialog.Trigger>
     </div>
@@ -83,7 +83,7 @@ function PaperSessionState({ initiallyOpen }: { initiallyOpen: boolean }) {
         {error && <div className="my-3 space-y-2 text-sm"><p role="alert">{error}</p>{!loaded && <button type="button" onClick={retryLoad} disabled={busy} className="focus-ring rounded-lg border border-line px-3 py-2">Retry loading plan</button>}</div>}
         <form onSubmit={save} className="mt-4 space-y-4">
           <fieldset disabled={busy || !loaded} className="space-y-4">
-            <div className="rounded-lg bg-surface-2 p-3 text-sm">Mode: Paper · Bybit market data · USDT spot · no leverage. Simulated capital is separate from your exchange balance. Live session setup is unavailable.</div>
+            <div className="rounded-lg bg-surface-2 p-3 text-sm">Mode: Paper · Bybit market data · USDT spot · no leverage. Simulated capital is separate from your exchange balance. Use the Lilthe trading card for autonomous exchange sessions.</div>
             <h3 className="font-medium">Capital and risk limits</h3>
             <div className="grid gap-3 sm:grid-cols-2">{amountFields.map(([key,label]) => <label key={key} className="text-sm">{label}<input required inputMode="decimal" type="text" pattern="[0-9]+(\.[0-9]{1,2})?" value={fields[key]} onChange={e => update(key,e.target.value)} className={inputClass} /></label>)}</div>
             <p className="text-xs text-fg-muted">Maximum order ≤ exposure ≤ capital. Risk per trade ≤ session loss limit ≤ capital. Execution costs count toward order/exposure limits. Current equity losses and open-position stop risk count toward the loss budget.</p>
