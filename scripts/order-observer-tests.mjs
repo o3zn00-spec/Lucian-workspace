@@ -26,6 +26,7 @@ assert.ok(fixture.audits.every(a => a.details.financialWrites === 0 && a.details
 const execution = { startFailure: true, dbFailure: false, executeFailure: false, calls: 0, starts: 0, claimed: true, claimFailure: false, records: [], args: null, state: 'submitted' };
 globalThis.executionFixture = execution;
 const { executeObservedOrder } = await bundle('src/lib/bybit/observed-execution.ts', {
+  './watch-supervision': 'export async function launchWatchSupervisor(){};',
   'server-only': '',
   'workflow/api': `export async function start(){let f=globalThis.executionFixture;f.starts++;f.args=arguments[1];if(f.startFailure)throw Error('queue unavailable');return {runId:'run'};}`,
   '@/workflows/order-watch': 'export const orderWatchWorkflow=async()=>{};',

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';import {build} from 'esbuild';
 globalThis.routeWatch={owner:true,claimed:true,starts:0,records:[],fail:false};
 const mocks={
+ '@/lib/bybit/protection-review':'export async function reviewOrderProtection(){return {protectionVerified:false};}',
+ '@/lib/bybit/watch-supervision':'export async function launchWatchSupervisor(){};',
  '@/lib/auth/errors':'export class AuthError extends Error { statusCode=401; }',
  '@/lib/auth/owner':`import {AuthError} from '@/lib/auth/errors';export async function requireOwnerId(){if(!globalThis.routeWatch.owner)throw new AuthError();return 'owner';}`,
  '@/lib/bybit/reconciliation':`export async function reconciliationCandidates(){return {intents:[{id:'one'}]};}export async function reconcileTerminalOrder(){return {state:'exchange_open'};}`,
  'workflow/api':`export async function start(){const f=globalThis.routeWatch;f.starts++;if(f.fail)throw Error('sensitive queue detail');return {runId:'run'};}`,
  '@/workflows/order-watch':'export const orderWatchWorkflow=async()=>{};',
- '@/lib/bybit/order-watch':`export async function claimOrderWatch(){return {claimed:globalThis.routeWatch.claimed,state:{generation:'generation'}};}export async function recordOrderWatch(_u,_i,_g,run){globalThis.routeWatch.records.push(run);}export async function orderWatchSummaries(){return {one:{status:'watching'}};}`
+ '@/lib/bybit/order-watch':`export async function claimOrderWatch(){return {claimed:globalThis.routeWatch.claimed,state:{generation:'generation'}};}export async function recordOrderWatch(_u,_i,_g,run){globalThis.routeWatch.records.push(run);}export async function stopOrderWatch(){}export async function orderWatchSummaries(){return {one:{status:'watching'}};}`
 };
 const r=await build({entryPoints:['app/api/bybit/reconciliation/route.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));}}]});const route=await import('data:text/javascript;base64,'+Buffer.from(r.outputFiles[0].text).toString('base64'));
 process.env.AUTH_APP_URL='https://example.test';const f=globalThis.routeWatch;

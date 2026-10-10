@@ -24,6 +24,16 @@ fixture.active=true;c=await watch.claimOrderWatch('owner','intent');assert.equal
 await watch.recordOrderWatch('owner','intent',c.state.generation,null);
 assert.deepEqual(await watch.tickOrderWatch('owner','intent',c.state.generation),{done:true});assert.equal(reads,1);
 c=await watch.claimOrderWatch('owner','intent');assert.equal(c.claimed,true);
+const originalDeadline=c.state.expiresAtMs,supervisionToken=c.state.supervisionToken;
+for(const [k,row] of memory){const s=JSON.parse(row.value);s.heartbeatMs=Date.now()-181000;memory.set(k,{...row,value:JSON.stringify(s)});}
+const recovery=await Promise.all(Array.from({length:8},()=>watch.recoverOrderWatch('owner','intent',supervisionToken)));
+assert.equal(recovery.filter(r=>r.claimed).length,1);
+c={state:recovery.find(r=>r.claimed).state};
+assert.equal(c.state.expiresAtMs,originalDeadline);assert.equal(c.state.recoveryAttempts,1);
+assert.equal((await watch.recoverOrderWatch('owner','intent','stale-supervisor')).done,true);
+await watch.recordWatchSupervisor('owner','intent',supervisionToken,'supervisor');
+for(const [k,row] of memory){const s=JSON.parse(row.value);s.heartbeatMs=Date.now()-181000;s.recoveryAttempts=8;memory.set(k,{...row,value:JSON.stringify(s)});}
+assert.equal((await watch.recoverOrderWatch('owner','intent',supervisionToken)).done,true);
 for(const [k,row] of memory){const s=JSON.parse(row.value);s.expiresAtMs=Date.now()-1;memory.set(k,{...row,value:JSON.stringify(s)});}
 assert.deepEqual(await watch.tickOrderWatch('owner','intent',c.state.generation),{done:true});assert.equal(reads,1);
 c=await watch.claimOrderWatch('owner','intent');fixture.done=true;await watch.tickOrderWatch('owner','intent',c.state.generation);assert.equal(reads,2);
@@ -33,4 +43,4 @@ const flow={ticks:0,sleeps:0,starts:0,records:0,doneAt:1};globalThis.watchFlow=f
 const workflow=await bundle('src/workflows/order-watch.ts',{'workflow':'export async function sleep(){globalThis.watchFlow.sleeps++;}','workflow/api':`export async function start(){globalThis.watchFlow.starts++;return {runId:'child'};}`,'@/lib/bybit/order-watch':`export async function tickOrderWatch(){const f=globalThis.watchFlow;return {done:++f.ticks>=f.doneAt};}export async function recordOrderWatch(){globalThis.watchFlow.records++;}`});
 await workflow.orderWatchWorkflow('owner','intent','generation');assert.equal(flow.starts,0);assert.equal(flow.sleeps,0);
 Object.assign(flow,{ticks:0,doneAt:100});await workflow.orderWatchWorkflow('owner','intent','generation');assert.equal(flow.ticks,61);assert.equal(flow.sleeps,60);assert.equal(flow.starts,1);assert.equal(flow.records,1);
-console.log('PASS owner isolation, duplicate claim exclusion, stale generations, disabled owner, dispatch failure recovery, hard deadline, invalid order dates, terminal stop and bounded workflow continuation. Fixtures; no exchange mutations.');
+console.log('PASS automatic recovery concurrency/deadline/retry cap, owner isolation, duplicate claim exclusion, stale generations, disabled owner, dispatch failure recovery, hard deadline, invalid order dates, terminal stop and bounded workflow continuation. Fixtures; no exchange mutations.');

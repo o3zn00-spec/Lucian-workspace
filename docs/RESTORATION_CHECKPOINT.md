@@ -2,9 +2,9 @@
 
 - Owner explicitly authorized switching all existing application data to Supabase. Activated Prisma's one-time free 24-hour recovery window and exported a consistent pg_dump SQL snapshot with original IDs, password hashes, encrypted credentials, history and trading records. Existing Prisma database was retained.
 - Export: 1,048,311 bytes; SHA-256 b6a7778e44d57bc2a42fa79afcbb51a4acf6b6a6d5d58ed46c60b8da27d4ad05. Private export resides in the new chat's work/migration directory; it must never be published in source.
-- Imported 41 application tables and 1,166 rows into zvceemzxaaxgvqmymjpe; every table count matches the export. Foreign keys applied successfully. RLS enabled and anon/authenticated table privileges revoked in the schema creation transaction. Supabase-managed schemas remain intact. Security advisor reports only informational no-policy notices, expected for server-only Prisma access; no permissive public policy added.
+- Imported 41 application tables and 1,166 rows into zvceemzxaaxgvqmymjpe; every table count matches the export. Canonical row-content fingerprint comparison with the source also matched all 41 tables before cutover, with zero differences. Foreign keys applied successfully. RLS enabled and anon/authenticated table privileges revoked in the schema creation transaction. Supabase-managed schemas remain intact. Security advisor reports only informational no-policy notices, expected for server-only Prisma access; no permissive public policy added.
 - Runtime now selects the connected Supabase POSTGRES_PRISMA_URL instead of legacy Prisma DATABASE_URL; explicit local/other-provider DATABASE_URL keeps precedence. All auth, ledger and owner-credential availability checks use the same selection. Existing encryption/authentication secrets and trading controls are preserved. CLI migration targets remain explicitly configured separately.
-- Validation passed: database connection/provider-selection fixtures, connection integrity, owner credential reads, architecture/consolidation, typecheck, lint, full production build and desktop 10/10. GitHub publication and Vercel Ready/login/runtime verification remain pending at this checkpoint.
+- Validation passed: database connection/provider-selection fixtures, connection integrity, owner credential reads, architecture/consolidation, typecheck, lint, full production build and desktop 10/10. Published GitHub first as 066f3bbfab545d419ca4228de26c427063984d9d, exact tree ce5d242c79010f71d6aedfafb7d95e1622e8be68. Vercel HqqHYz2ziMT9WiReTzHRhiFuKkMm is Ready Production with the production alias, build duration 1m5s. The existing immutable-owner session loads Account and saved Lilthe history. Markets reads real Bybit equity 40.91 USD/free 35.20 USD, and the original Spot BTCUSDT Buy Limit 0.000070 at 81750.0 remains New/open. No exchange mutation. Supabase recorded new authentication-rate-limit activity after cutover, verifying runtime writes there. A fresh sign-in attempt using the older local diagnostic password was rejected; no password was changed or further guesses made. Existing authenticated access was verified, but a fresh current-password login was not.
 
 ## Provider connection verification — 2026-10-09
 
@@ -2082,3 +2082,61 @@ unverified or unfinished as specified above; these checks do not certify them.
 - Production floating chat exposes Start voice conversation; activation entered listening successfully, and End voice conversation stopped it. The microphone was stopped after control verification. Final-turn debounce, spoken response then follow-up listening, interruption, stale callbacks, failures and session bounds passed automated fixtures. A real microphone-to-audible-answer round trip remains UNVERIFIED: owner responses authorize the test but do not report transcribed/audio results. Browser-native speech is used; Sesame-quality voice and acoustic barge-in are not claimed.
 - Evidence screenshots outside source: outputs/exchange-monitor-live.png and outputs/lilthe-voice-conversation.png. Checkpoint distinguishes implemented/tested controls, observed production worker activity and unverified physical/exchange outcomes.
 - Unattended live strategy/execution remains OPEN. The 24-hour observer does not unlock it. Recovery-email sender configuration remains deferred at the owner's request.
+
+
+### Supabase background-monitor verification — 2026-10-09 Pacific
+
+- Diagnosed stale migrated watch and failed original Vercel worker. Started
+  read-only replacement wrun_41M4HEHRJN7GZDJVZD63K0FM18. Closed Lucian tab;
+  Supabase persisted independent exchange-read audits at 23:05:31.503 and
+  23:06:41.074 UTC, with advancing heartbeats. Vercel trace showed tick/sleep.
+- Actually canceled that read-only worker in Vercel for an interruption test.
+  Dashboard confirmed Canceled; heartbeat stopped at 23:06:42.781 UTC. Lucian
+  displayed delayed after the stale threshold. No simulated heartbeat edit.
+- Recovered through Lucian's Monitor button. Final run
+  wrun_41M4HHPNSA7GXVG57KFHQ67PMN, generation
+  42fc2231-45d1-4c62-8ead-a720c0ba4806, remains watching. Successful exchange
+  reads at 23:59:24.461 and 00:00:36.387 UTC; heartbeat advanced to
+  00:00:38.181 UTC after closing Lucian again. Fixed deadline October 10,
+  2026 23:59:16.258 UTC (4:59:16 PM Pacific).
+- Owner's original Spot BTCUSDT BUY Limit 0.000070 at 81750 remained New,
+  zero fills, 0.00007 remaining; same provider ID 2321863677537774336.
+  No exchange order submission, amendment, cancellation or closure performed.
+- Watch, observer, watch-route fixtures and isolated local PostgreSQL watch
+  integration passed: concurrent claim exclusion, stale-generation fencing,
+  disabled owner, provider error redaction/read_unavailable, dispatch failure
+  recovery, hard deadline and bounded workflow continuation. No production
+  provider outage was forced. No application code changed in this verification.
+- Manual stale-worker recovery is verified. Automatic unattended restart
+  remains OPEN. This 24-hour observer is not strategy execution or protective
+  exit management; actual expiry and live provider failure remain unobserved.
+- Detailed evidence and screenshots are outside source in the October 9
+  continuation chat outputs/BACKGROUND_MONITORING.md.
+
+
+### Trading continuation — bounded monitor recovery and protection review
+
+- Owner requested finishing trading and delegated testing/sizing using the test
+  account balance. This does not remove password/exact confirmation checks.
+- Added separate three-minute read-only Workflow supervisor. It serializes
+  stale observer replacement, fences generations, preserves the initial 24-hour
+  deadline and permits at most eight recovery attempts. Stopping monitoring
+  invalidates both observer and supervisor without changing exchange orders.
+  Supervisor platform failure still requires manual recovery; no perpetual
+  uptime promise. Existing pre-release watches need a fresh monitor start to
+  acquire supervision; application builds never start monitors or trades.
+- Added owner-scoped read-only protection review: refreshes eligible entry
+  reconciliation, reads complete active-order pages, audits bounded candidate
+  fields and rejects conflicting/malformed data. Candidate price/quantity or
+  requested stop/target never certifies exit identity, coverage or execution.
+  Spot has no documented attached-exit parent link; exact verification remains
+  OPEN. UI exposes review and explicit stop-monitor controls.
+- Tests passed: supervisor cadence/dispatch failure/continuation; concurrent
+  recovery/deadline/retry cap; observer and watch route; protection review
+  ownership/environment/pagination/conflicts; existing live execution, Spot
+  accounting and exchange reconciliation. Isolated PostgreSQL watch integration,
+  typecheck, lint, architecture 11/12/52, consolidation 5/5, production build
+  (26 steps/5 workflows), desktop 10/10 passed. No exchange financial write.
+- Publication and production recovery drill pending. Autonomous strategy
+  execution, real fill/verified native protection/exit and actual exchange
+  recovery remain OPEN. Do not label these done after deploying observer code.

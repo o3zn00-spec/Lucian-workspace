@@ -6,12 +6,20 @@ import { observeOrder } from "./order-observer";
 
 const prefix = "_order_watch:";
 const eligible = ["executing", "submitted", "reconciliation_required", "partially_filled", "exchange_open"];
-type Watch = { generation: string; expiresAtMs: number; heartbeatMs: number; status: "starting" | "watching" | "ended" | "dispatch_failed"; runId: string | null };
+type Watch = { generation: string; expiresAtMs: number; heartbeatMs: number; status: "starting" | "watching" | "ended" | "dispatch_failed"; runId: string | null; supervisionToken?: string; supervisorRunId?: string | null; recoveryAttempts?: number };
 type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 const where = (userId: string, intentId: string) => ({ userId_key: { userId, key: prefix + intentId } });
 const read = (value?: string): Watch | null => {
   if (!value) return null;
-  try { const s = JSON.parse(value); return typeof s.generation === "string" && s.generation.length > 0 && (s.runId === null || typeof s.runId === "string") && Number.isSafeInteger(s.expiresAtMs) && s.expiresAtMs > 0 && s.expiresAtMs < 8640000000000000 && Number.isSafeInteger(s.heartbeatMs) && s.heartbeatMs > 0 && s.heartbeatMs < 8640000000000000 && ["starting", "watching", "ended", "dispatch_failed"].includes(s.status) ? s : null; } catch { return null; }
+  try {
+    const s = JSON.parse(value);
+    if (!s || typeof s !== "object" || Array.isArray(s)) return null;
+    const validTime = (t: unknown) => typeof t === "number" && Number.isSafeInteger(t) && t > 0 && t < 8640000000000000;
+    const validId = (id: unknown) => typeof id === "string" && id.length > 0 && id.length <= 200;
+    if (!validId(s.generation) || !(s.runId === null || validId(s.runId)) || !validTime(s.expiresAtMs) || !validTime(s.heartbeatMs) || !["starting", "watching", "ended", "dispatch_failed"].includes(s.status)) return null;
+    if (s.supervisionToken !== undefined && !validId(s.supervisionToken) || s.supervisorRunId !== undefined && s.supervisorRunId !== null && !validId(s.supervisorRunId) || s.recoveryAttempts !== undefined && (!Number.isInteger(s.recoveryAttempts) || s.recoveryAttempts < 0 || s.recoveryAttempts > 8)) return null;
+    return s as Watch;
+  } catch { return null; }
 };
 async function locked<T>(userId: string, intentId: string, fn: (tx: Tx) => Promise<T>) {
   return db.$transaction(async tx => { await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${prefix + userId + intentId}))::text`; return fn(tx); }, { maxWait: 5000, timeout: 10000 });
@@ -26,9 +34,44 @@ export async function claimOrderWatch(userId: string, intentId: string) {
     const previous = read((await tx.assistantMemory.findUnique({ where: where(userId, intentId) }))?.value);
     const now = Date.now();
     if (previous && ["starting", "watching"].includes(previous.status) && previous.expiresAtMs > now && previous.heartbeatMs > now - 180000) return { claimed: false, state: previous };
-    const state: Watch = { generation: randomUUID(), expiresAtMs: now + 86400000, heartbeatMs: now, status: "starting", runId: null };
+    const state: Watch = { generation: randomUUID(), expiresAtMs: now + 86400000, heartbeatMs: now, status: "starting", runId: null, supervisionToken: randomUUID(), supervisorRunId: null, recoveryAttempts: 0 };
     await save(tx, userId, intentId, state);
     return { claimed: true, state };
+  });
+}
+// A separate read-only supervisor can replace a failed observer. It preserves
+// the owner's original deadline, bounds retries and never starts a new order.
+export async function recoverOrderWatch(userId: string, intentId: string, token: string) {
+  return locked(userId, intentId, async tx => {
+    const state = read((await tx.assistantMemory.findUnique({ where: where(userId, intentId) }))?.value);
+    if (!state || state.supervisionToken !== token || state.status === "ended" || state.expiresAtMs <= Date.now()) return { done: true, claimed: false, state: null };
+    const owner = await tx.user.findUnique({ where: { id: userId }, select: { email: true, status: true } });
+    const intent = await tx.liveTradeIntent.findFirst({ where: { id: intentId, userId, initiatedBy: "user", state: { in: eligible } } });
+    if (!intent || owner?.status !== "active" || !isConfiguredOwnerEmail(owner.email)) {
+      state.status = "ended"; await save(tx, userId, intentId, state);
+      return { done: true, claimed: false, state: null };
+    }
+    if (state.heartbeatMs > Date.now() - 180000 && state.status !== "dispatch_failed") return { done: false, claimed: false, state: null };
+    if ((state.recoveryAttempts ?? 0) >= 8) return { done: true, claimed: false, state: null };
+    state.generation = randomUUID(); state.heartbeatMs = Date.now(); state.status = "starting"; state.runId = null;
+    state.recoveryAttempts = (state.recoveryAttempts ?? 0) + 1;
+    await save(tx, userId, intentId, state);
+    return { done: false, claimed: true, state };
+  });
+}
+export async function recordWatchSupervisor(userId: string, intentId: string, token: string, runId: string) {
+  return locked(userId, intentId, async tx => {
+    const state = read((await tx.assistantMemory.findUnique({ where: where(userId, intentId) }))?.value);
+    if (!state || state.supervisionToken !== token || state.status === "ended") return;
+    state.supervisorRunId = runId; await save(tx, userId, intentId, state);
+  });
+}
+export async function stopOrderWatch(userId: string, intentId: string) {
+  return locked(userId, intentId, async tx => {
+    const state = read((await tx.assistantMemory.findUnique({ where: where(userId, intentId) }))?.value);
+    if (!state) return;
+    state.generation = randomUUID(); state.supervisionToken = randomUUID(); state.status = "ended";
+    await save(tx, userId, intentId, state);
   });
 }
 export async function recordOrderWatch(userId: string, intentId: string, generation: string, runId: string | null) {
@@ -61,6 +104,6 @@ export async function orderWatchSummaries(userId: string, intentIds: string[]) {
   return Object.fromEntries(rows.flatMap(row => {
     const state = read(row.value); if (!state) return [];
     const active = ["starting", "watching"].includes(state.status) && state.expiresAtMs > Date.now() && state.heartbeatMs > Date.now() - 180000;
-    return [[row.key.slice(prefix.length), { status: active ? state.status : state.status === "ended" ? "ended" : "delayed", expiresAt: new Date(state.expiresAtMs).toISOString(), lastCheck: new Date(state.heartbeatMs).toISOString() }]];
+    return [[row.key.slice(prefix.length), { status: active ? state.status : state.status === "ended" ? "ended" : "delayed", expiresAt: new Date(state.expiresAtMs).toISOString(), lastCheck: new Date(state.heartbeatMs).toISOString(), automaticRecovery: Boolean(state.supervisorRunId), recoveryAttempts: state.recoveryAttempts ?? 0 }]];
   }));
 }

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { orderWatchWorkflow } from "@/workflows/order-watch";
 import { claimOrderWatch, recordOrderWatch } from "./order-watch";
 import { executeTerminalOrder } from "./terminal";
+import { launchWatchSupervisor } from "./watch-supervision";
 
 async function launchObserver(userId: string, intentId: string) {
   try {
@@ -11,6 +12,7 @@ async function launchObserver(userId: string, intentId: string) {
     if (!intent) return;
     const claim = await claimOrderWatch(userId, intentId);
     if (!claim.claimed) return;
+    await launchWatchSupervisor(userId, intentId, claim.state);
     let run;
     try {
       run = await start(orderWatchWorkflow, [userId, intentId, claim.state.generation], { region: "cpt1" });
