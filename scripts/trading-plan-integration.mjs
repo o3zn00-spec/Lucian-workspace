@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { build } from 'esbuild';
+const database = new URL(process.env.DATABASE_URL ?? 'http://invalid');
+assert(['127.0.0.1','localhost'].includes(database.hostname) && database.pathname === '/lucian_restoration_dev_20261007', 'Named local development database required.');
+const { PrismaClient } = createRequire(import.meta.url)('@prisma/client'); const db = new PrismaClient();
+globalThis.planningFixture = { db, owner: null };
+const mocks = { 'server-only':'', '@/lib/db':'export const db=globalThis.planningFixture.db;', '@/lib/auth/owner':`import {AuthError} from '@/lib/auth/errors';export async function requireOwnerId(){if(!globalThis.planningFixture.owner)throw new AuthError('unauthorized','Owner required',401);return globalThis.planningFixture.owner;}` };
+async function bundle(entry) { const r=await build({entryPoints:[entry],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'fixture'}:undefined);b.onLoad({filter:/.*/,namespace:'fixture'},a=>({contents:mocks[a.path],resolveDir:process.cwd()}));}}]});return import('data:text/javascript;base64,'+Buffer.from(r.outputFiles[0].text).toString('base64')); }
+const lib=await bundle('src/lib/assistant/trading-plan.ts'), policy=await bundle('src/lib/assistant/trading-plan-policy.ts'), route=await bundle('app/api/assistant/trading-plan/route.ts'), chat=await bundle('src/lib/assistant/chat-tools.ts');
+const owners=[randomUUID(),randomUUID()];
+const plan={mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'6',maxLoss:'1',maxRiskPerTrade:'1',maxTrades:20,reviewMinutes:5,durationHours:24,maxModelCalls:100,slippageBps:50,strategy:'Owner supplied strategy'};
+const selection={provider:'openai',model:'fixture',effort:'low'};
+try {
+ for(const id of owners)await db.user.create({data:{id,email:id+'@example.test',username:'plan-'+id,status:'active'}});
+ const [owner,other]=owners;let s=await lib.tradingPlanSnapshot(owner);assert.equal(s.revision,null);assert.equal(s.complete,false);assert.equal(s.missing.length,12);
+ s=await lib.changeTradingPlan(owner,{action:'update',revision:null,changes:{symbols:['BTCUSDT'],strategy:'Research then discuss'}});assert.equal(s.draft.rules.capital,undefined);assert.equal(s.complete,false);assert.equal(s.sessionStarted,false);
+ await assert.rejects(()=>lib.changeTradingPlan(owner,{action:'update',revision:null,changes:{capital:'10'}}),/changed elsewhere/);
+ await assert.rejects(()=>lib.changeTradingPlan(owner,{action:'save_template',revision:s.revision,name:'Incomplete'}),/Complete all/);
+ await assert.rejects(()=>lib.changeTradingPlan(owner,{action:'update',revision:s.revision,changes:{password:'secret'}}));
+ await assert.rejects(()=>lib.changeTradingPlan(owner,{action:'update',revision:s.revision,changes:{capital:'2',maxOrder:'6'}}));
+ s=await lib.changeTradingPlan(owner,{action:'update',revision:s.revision,changes:plan,selection});assert.ok(s.complete);assert.deepEqual(s.draft.rules,plan);
+ const before=s.revision;const concurrent=await Promise.allSettled(['One','Two'].map(strategy=>lib.changeTradingPlan(owner,{action:'update',revision:before,changes:{strategy}})));assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);s=await lib.tradingPlanSnapshot(owner);
+ s=await lib.changeTradingPlan(owner,{action:'save_template',revision:s.revision,name:'My session'});const template=s.templates[0];
+ await assert.rejects(()=>lib.changeTradingPlan(owner,{action:'save_template',revision:s.revision,name:'my SESSION'}),/already exists/);
+ await assert.rejects(()=>lib.changeTradingPlan(other,{action:'load_template',revision:null,templateId:template.id}),/unavailable/);
+ s=await lib.changeTradingPlan(owner,{action:'clear',revision:s.revision});assert.equal(s.complete,false);assert.equal(s.templates.length,1);
+ s=await lib.changeTradingPlan(owner,{action:'load_template',revision:s.revision,templateId:template.id});assert.ok(s.complete);assert.deepEqual(s.draft.selection,selection);
+ const result=await chat.resolveChatTool(owner,JSON.stringify({lucian_tool:'trading.plan.read',arguments:{}}));assert.match(result,/Unapproved trading draft/);assert.match(result,/My session/);
+ assert.match(await chat.resolveChatTool(owner,JSON.stringify({lucian_tool:'trading.plan.update',arguments:{revision:s.revision,changes:{strategy:'Requested in conversation'}}})),/Requested in conversation/);
+ for(const args of [{revision:s.revision,changes:{password:'x'}},{revision:s.revision,changes:{capital:'999'},action:'start'},{revision:s.revision,changes:{capital:'10'},ownerUserId:other}])assert.match(await chat.resolveChatTool(owner,JSON.stringify({lucian_tool:'trading.plan.update',arguments:args})),/unavailable/);
+ assert.equal(await db.liveTradeIntent.count({where:{userId:{in:owners}}}),0);assert.equal(await db.assistantMemory.count({where:{userId:{in:owners},key:{startsWith:'_live_session:'}}}),0);
+ assert.equal((await lib.tradingPlanSnapshot(other)).revision,null);
+ const stored=await db.assistantMemory.findUnique({where:{userId_key:{userId:owner,key:'_trading_plan:library'}}});await db.assistantMemory.update({where:{id:stored.id},data:{value:'invalid'}});await assert.rejects(()=>lib.tradingPlanSnapshot(owner),/unreadable/);assert.equal((await db.assistantMemory.findUnique({where:{id:stored.id}})).value,'invalid');await db.assistantMemory.update({where:{id:stored.id},data:{value:stored.value}});
+ assert.throws(()=>policy.chatPlanCommand('trading.template.load',{revision:null,templateId:template.id,action:'start'}));
+ process.env.AUTH_APP_URL='https://example.test';const request=(body,origin='https://example.test')=>new Request('https://example.test/api/assistant/trading-plan',{method:'POST',headers:{origin},body:typeof body==='string'?body:JSON.stringify(body)});
+ assert.equal((await route.GET()).status,401);globalThis.planningFixture.owner=owner;
+ assert.equal((await route.POST(request({action:'clear',revision:s.revision},'https://evil.test'))).status,403);
+ for(const invalid of ['null','[]','{'])assert.equal((await route.POST(request(invalid))).status,400);
+ assert.equal((await route.POST(request('x'.repeat(9001)))).status,413);assert.equal((await route.GET()).headers.get('Cache-Control'),'private, no-store');
+ console.log('PASS local PostgreSQL conversational partial drafts, complete templates, owner isolation, CAS concurrency, invalid fields, corruption retention and private route boundaries. No session, worker, exchange or model call occurred.');
+} finally { await db.user.deleteMany({where:{id:{in:owners}}});await db.$disconnect();delete globalThis.planningFixture; }

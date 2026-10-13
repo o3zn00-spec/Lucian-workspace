@@ -5,6 +5,8 @@ import { RECORD_SOURCES, readModuleRecords, readWorkspaceProjects, readWorkspace
 import { db } from "@/lib/db";
 import { ASSISTANT_CAPABILITIES, ASSISTANT_MODULES } from "./contracts";
 import { proposeWorkspaceEdit, validEditArguments, EditReviewError } from "./workspace-edits";
+import { chatPlanCommand, isTradingPlanTool, TradingPlanError } from "./trading-plan-policy";
+import { changeTradingPlan, describeTradingPlan, tradingPlanSnapshot } from "./trading-plan";
 
 // A text envelope works with every existing chat adapter. It is an untrusted
 // proposal, never authorization. No model-produced URL or owner id is accepted.
@@ -40,6 +42,25 @@ sessions. The owner reviews model, capital, assets, strategy, timing and risk li
 then authorizes the exact session with their password and confirmation phrase.
 Eligible trades can then run within that session without per-order approval.
 Existing account limits and current server checks still apply and can block a start.
+To help the owner draft a session conversationally, first read their planning state:
+{"lucian_tool":"trading.plan.read","arguments":{}}
+Ask for missing rules in normal conversation. Only use preferences the owner supplied
+or explicitly approved; do not silently invent capital, risk limits or model choices.
+To save supplied rules, use the exact revision from the last planning result:
+{"lucian_tool":"trading.plan.update","arguments":{"revision":"exact-revision-or-null","changes":{"symbols":["BTCUSDT"],"strategy":"owner instructions"}}}
+Use actual JSON null for a new revision, not the quoted string. Changes merge into
+the draft; null removes a rule. Valid rules: mode (bybit_live/bybit_testnet), symbols,
+capital, maxOrder, maxLoss, maxRiskPerTrade (USDT strings), maxTrades, reviewMinutes,
+durationHours, maxModelCalls, slippageBps (integers), strategy. Optional selection is
+{provider,model,effort}. Never include passwords, confirmation or owner IDs.
+For an explicit request to save the complete draft as a reusable template:
+{"lucian_tool":"trading.template.save","arguments":{"revision":"exact-revision","name":"owner chosen name"}}
+For an explicit request to load a listed template into the unapproved draft:
+{"lucian_tool":"trading.template.load","arguments":{"revision":"exact-revision","templateId":"exact-id"}}
+Planning tools only save preferences. They do not change or authorize an active session,
+connect an account, start workers or send exchange requests. A conflict requires a fresh
+read and review; do not blindly retry or claim success. Direct the owner to Markets to
+load the completed draft, review the exact rules/model and approve the session there.
 Paper practice uses virtual funds and requires its own explicit start. Do not choose
 capital or limits for the owner, claim a session is active, or imply verified fills,
 protection, recovery or profit from a setup link. Model text cannot authorize a session.
@@ -85,6 +106,17 @@ export async function resolveChatTool(ownerUserId: string, content: string): Pro
   const validEnvelope = Object.keys(proposal).every(key => ["lucian_tool", "arguments"].includes(key)) &&
     args !== null && typeof args === "object" && !Array.isArray(args);
   const values = validEnvelope ? args as Record<string, unknown> : {};
+  if (validEnvelope && isTradingPlanTool(tool)) {
+    try {
+      const command = chatPlanCommand(tool, values);
+      await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: "started", reason: "Owner-scoped unapproved planning only; no financial authority." } });
+      const result = command ? await changeTradingPlan(ownerUserId, command) : await tradingPlanSnapshot(ownerUserId);
+      return describeTradingPlan(result);
+    } catch (error) {
+      await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: "failed", reason: "Planning result unavailable. No session or exchange request was authorized." } });
+      return `Trading plan unavailable. ${error instanceof TradingPlanError ? error.message : "Planning storage could not be read or saved."} No session was authorized or started.`;
+    }
+  }
   const destination = tool === "app.navigate" ? ASSISTANT_MODULES.find(m => m.id === values.module) : undefined;
   const recordModule = typeof values.module === "string" && Object.hasOwn(RECORD_SOURCES, values.module) ? values.module as keyof typeof RECORD_SOURCES : null;
   const validRead = tool === "records.read" ? Boolean(recordModule) && Object.keys(values).length === 1 :

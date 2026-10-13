@@ -34,6 +34,7 @@ export const ASSISTANT_CAPABILITIES = [
   { id: "trading.read", available: true, description: "Read Bybit Unified balances after explicit owner permission; no financial execution." },
   { id: "trading.activity.read", available: true, description: "Read bounded Bybit spot open orders and USDT linear open orders/positions after separate owner permission." },
   { id: "trading.setup", available: true, description: "Link to Markets review for owner-authorized Bybit Live/Testnet autonomous Spot sessions or separate virtual paper practice; this chat tool does not start a session." },
+  { id: "trading.plan", available: true, description: "Prepare owner-scoped unapproved session drafts and save/load reusable templates through conversation. Markets review and owner authorization are required to start trading." },
   { id: "records.read", available: true, description: "Read bounded cloud-saved investing, research and news details after separate owner permission; excludes local holdings and notes." },
   { id: "workspace.read", available: true, description: "List cloud projects and read one indexed text file after separate owner permission; excludes environment settings and private credential paths." },
   { id: "workspace.propose", available: true, description: "Propose one existing cloud text-file change under project-read permission. Owner reviews before/after and applies the exact revision; no code runs or publishes." },
