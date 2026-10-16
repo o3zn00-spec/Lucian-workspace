@@ -81,7 +81,7 @@ To save supplied rules, use the exact revision from the last planning result:
 Use actual JSON null for a new revision, not the quoted string. Changes merge into
 the draft; null removes a rule. Valid rules: mode (bybit_live/bybit_testnet), symbols,
 capital, maxOrder, maxLoss, maxRiskPerTrade (USDT strings), maxTrades, reviewMinutes,
-durationHours, maxModelCalls, slippageBps (integers), strategy. Optional selection is
+durationHours, maxModelCalls, slippageBps (integers), strategy. Optional webResearch (boolean) enables background public web research for an OpenRouter session: each review consumes two approved model calls plus search credits. Explain this cost before proposing it; it remains off for existing plans unless explicitly included in the reviewed new session. Optional selection is
 {provider,model,effort}. Never include passwords, confirmation or owner IDs.
 For an explicit request to save the complete draft as a reusable template:
 {"lucian_tool":"trading.template.save","arguments":{"revision":"exact-revision","name":"owner chosen name"}}

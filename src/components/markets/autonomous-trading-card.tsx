@@ -27,6 +27,7 @@ function PlanSummary({ plan }: { plan: AutonomousPlan }) {
     ["Exchange", plan.mode === "bybit_live" ? "Bybit Live · real funds" : "Bybit Testnet"],
     ["Assets", plan.symbols.join(", ")],
     ...moneyFields.map(([key, label]) => [label.replace(" (USDT)", ""), `${plan[key]} USDT`]),
+    ["Public web research", plan.webResearch ? "Enabled · 2 model calls per review plus search credits" : "Off · market data and feeds"],
     ["Trade limit", String(plan.maxTrades)], ["Model-call limit", String(plan.maxModelCalls)],
     ["Duration from original start", `${plan.durationHours} hours`], ["Research interval", `${plan.reviewMinutes} minutes`],
     ["Slippage allowance", `${plan.slippageBps} basis points`],
@@ -173,6 +174,7 @@ export function AutonomousTradingCard() {
             {moneyFields.map(([key, label]) => <label key={key} className="text-sm">{label}<input inputMode="decimal" className={input} value={plan[key]} onChange={e => edit(key, e.target.value)} /></label>)}
             {countFields.map(([key, label, max]) => <label key={key} className="text-sm">{label}<input type="number" min="1" max={max} step="1" className={input} value={plan[key]} onChange={e => edit(key, Number(e.target.value))} /></label>)}
           </div>
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={Boolean(plan.webResearch)} onChange={e => edit("webResearch", e.target.checked)} /><span>Include public web research<span className="mt-1 block text-xs text-fg-muted">Requires an OpenRouter model. Each review uses two calls from your model budget plus search credits. Failed searches skip the model decision; existing protective exits continue.</span></span></label>
           <label className="block text-sm">Your trading instructions<textarea rows={4} maxLength={3000} className={input} value={plan.strategy} onChange={e => edit("strategy", e.target.value)} /></label>
         </fieldset>
         <div className="rounded-xl bg-surface-2 p-3 text-sm">Selected model: {model} · {provider} · {effort}. Existing account risk limits also apply. One owned trade is managed at a time; it can trade again after that trade closes. Stops can slip; a loss limit is not a guaranteed execution price.</div>

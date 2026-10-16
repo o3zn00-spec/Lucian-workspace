@@ -11,3 +11,8 @@ const entry=p.fillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.00005',feeC
 const exit=p.fillTotals([{execQty:'0.04995',execPrice:'110',execFee:'0.0054945',feeCurrency:'USDT'}],'BTCUSDT','sell');assert.equal(exit.cents,548);assert.equal(p.formatDecimal(exit.quantity),'0.04995');
 assert.throws(()=>p.fillTotals([{execQty:'1',execPrice:'100',execFee:'1',feeCurrency:null}],'BTCUSDT','buy'));
 console.log('PASS owner plan validation, strict structured decisions, integer fee/slippage/risk sizing, stale quote and loss/count limits, exact net base inventory and actual exit fee accounting.');
+
+assert.equal(p.validateAutonomousPlan({...plan,webResearch:true}).webResearch,true);
+assert.equal(p.validateAutonomousPlan(plan).webResearch,undefined);
+assert.throws(()=>p.validateAutonomousPlan({...plan,webResearch:'true'}));
+assert.throws(()=>p.validateAutonomousPlan({...plan,webResearch:true,maxModelCalls:1}));

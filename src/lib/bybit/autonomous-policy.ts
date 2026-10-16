@@ -2,7 +2,7 @@ export type AutonomousPlan = {
   mode: "bybit_live" | "bybit_testnet"; symbols: string[]; capital: string;
   maxOrder: string; maxLoss: string; maxRiskPerTrade: string;
   maxTrades: number; reviewMinutes: number; durationHours: number;
-  maxModelCalls: number; slippageBps: number; strategy: string;
+  webResearch?: boolean; maxModelCalls: number; slippageBps: number; strategy: string;
 };
 export type AutonomousDecision = { action: "hold" | "buy" | "sell"; rationale: string; symbol?: string; quantity?: string; stopPrice?: string; takeProfit?: string };
 export class AutonomousError extends Error { constructor(message: string, public status = 400) { super(message); } }
@@ -19,11 +19,13 @@ export const moneyCents = (raw: unknown) => {
 export function validateAutonomousPlan(raw: unknown): AutonomousPlan {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AutonomousError("Choose session rules.");
   const p = raw as AutonomousPlan;
-  if (Object.keys(p).sort().join(",") !== "capital,durationHours,maxLoss,maxModelCalls,maxOrder,maxRiskPerTrade,maxTrades,mode,reviewMinutes,slippageBps,strategy,symbols") throw new AutonomousError("Unexpected session rule fields.");
+  if (Object.keys(p).filter(k => k !== "webResearch").sort().join(",") !== "capital,durationHours,maxLoss,maxModelCalls,maxOrder,maxRiskPerTrade,maxTrades,mode,reviewMinutes,slippageBps,strategy,symbols") throw new AutonomousError("Unexpected session rule fields.");
   if (!["bybit_live", "bybit_testnet"].includes(p.mode) || !Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s))) throw new AutonomousError("Choose unique Bybit USDT Spot symbols.");
   const capital = moneyCents(p.capital), order = moneyCents(p.maxOrder), loss = moneyCents(p.maxLoss), risk = moneyCents(p.maxRiskPerTrade);
   if (order > capital || loss > capital || risk > loss) throw new AutonomousError("Order and loss limits must fit capital; trade risk must fit the loss limit.");
   for (const [n, min, max] of [[p.maxTrades, 1, 10000], [p.reviewMinutes, 1, 1440], [p.durationHours, 1, 168], [p.maxModelCalls, 1, 10000], [p.slippageBps, 1, 500]]) if (!Number.isInteger(n) || n < min || n > max) throw new AutonomousError("Session counts, interval, duration or slippage allowance are invalid.");
+  if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new AutonomousError("Web research must be enabled or disabled explicitly.");
+  if (p.webResearch && p.maxModelCalls < 2) throw new AutonomousError("Web research needs at least two model calls per review.");
   if (typeof p.strategy !== "string" || !p.strategy.trim() || p.strategy.length > 3000) throw new AutonomousError("Describe the trading strategy.");
   return { ...p, symbols: [...p.symbols], strategy: p.strategy.trim() };
 }

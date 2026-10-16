@@ -14,3 +14,5 @@ Owner approved implementation of both requirement documents. Preserve identity, 
 Shipping gates: typecheck/lint, focused behavioral tests, architecture/consolidation, production build and desktop tests. No financial test dispatch from coding work. Record built/tested/deployed/runtime/funded separately.
 
 October 16 continuation: natural WebRTC voice transport and shared-chat delegation implemented, actual microphone/provider acceptance pending. OpenRouter per-model supported efforts implemented with catalog evidence. Descriptive closed-candle chart levels implemented; bounded model-generated annotated chat charts also implemented, with independent exchange-data loading; actual model pattern quality is unverified. Short/noncrypto execution and actual funded acceptance remain open, not silently removed from scope.
+
+October 16 background research: reviewed opt-in public web search is now wired into durable Spot session decisions, counted against model-call limits, source-linked in reports and tested with simulated providers/exchange. Actual paid research quality remains an acceptance item.

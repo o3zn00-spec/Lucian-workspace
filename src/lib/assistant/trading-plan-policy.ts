@@ -26,7 +26,7 @@ export type TradingPlanTool = typeof tradingPlanTools[number];
 export const isTradingPlanTool = (tool: string): tool is TradingPlanTool => tradingPlanTools.some(t => t === tool);
 const moneyFields = ["capital", "maxOrder", "maxLoss", "maxRiskPerTrade"] as const;
 const counts = { maxTrades: [1, 10000], reviewMinutes: [1, 1440], durationHours: [1, 168], maxModelCalls: [1, 10000], slippageBps: [1, 500] } as const;
-const fields = new Set(TRADING_PLAN_FIELDS.map(f => f.key));
+const fields = new Set<keyof AutonomousPlan>([...TRADING_PLAN_FIELDS.map(f => f.key), "webResearch"]);
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TradingPlanError("Use a valid planning object.");
   return value as Record<string, unknown>;
@@ -47,6 +47,7 @@ export function validateDraftRules(raw: unknown): Partial<AutonomousPlan> {
   if (Object.keys(input).some(k => !fields.has(k as keyof AutonomousPlan))) throw new TradingPlanError("Unknown session rule. Credentials and authorization do not belong in a draft.");
   const p = { ...input } as Partial<AutonomousPlan>;
   try {
+    if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new TradingPlanError("Web research must be a boolean.");
     if (p.mode !== undefined && !["bybit_live", "bybit_testnet"].includes(p.mode)) throw new TradingPlanError("Choose Bybit Live or Testnet; paper practice has its own setup.");
     if (p.symbols !== undefined && (!Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s)))) throw new TradingPlanError("Choose 1–10 unique USDT Spot symbols.");
     for (const key of moneyFields) if (p[key] !== undefined) moneyCents(p[key]);

@@ -16,6 +16,7 @@ type AmendmentState = { plan: AutonomousPlan; status: string; deadlineMs: number
 export function validateAmendedPlan(session: AmendmentState, raw: unknown, now = Date.now()) {
   if (session.status !== "paused" || session.active?.closing || now >= session.deadlineMs) throw new AutonomousError("Pause new entries before changing rules. A closing or expired session cannot be amended.", 409);
   const plan = validateAutonomousPlan(raw);
+  if (Boolean(plan.webResearch) !== Boolean(session.plan.webResearch)) throw new AutonomousError("Web research permission stays fixed for this session. Review a new session to change it.");
   for (const field of ["mode", "symbols", "capital", "durationHours", "slippageBps"] as const) {
     if (JSON.stringify(plan[field]) !== JSON.stringify(session.plan[field])) throw new AutonomousError("Exchange, assets, capital, original duration and slippage stay fixed for this session.");
   }

@@ -1,17 +1,21 @@
 import type { PaperResearch } from "@/lib/assistant/paper-research";
 import { decimal, fillTotals, formatDecimal, type AutonomousDecision, type ExecutionFill } from "./autonomous-policy";
-export type ResearchSource = { title: string; url: string; atMs: number; summary: string };
+export type ResearchSource = { title: string; url: string; atMs: number; summary: string; kind?: "web" };
 export type DecisionEvidence = { atMs: number; researchAtMs: number; decision: AutonomousDecision | null; outcome: string; sources: ResearchSource[]; warnings: string[] };
-export function researchSourceUrl(value: unknown): string | null {
-  try { const u = new URL(String(value)); return u.protocol === "https:" && !u.username && !u.password && !u.port && ["api.bybit.com", "announcements.bybit.com", "www.bybit.com", "bybit.com", "api.exchange.coinbase.com", "api.alternative.me"].includes(u.hostname) && u.href.length <= 1500 ? u.href : null; } catch { return null; }
+export function researchSourceUrl(value: unknown, web = false): string | null {
+  try { const u = new URL(String(value)); return u.protocol === "https:" && !u.username && !u.password && !u.port && (web || ["api.bybit.com", "announcements.bybit.com", "www.bybit.com", "bybit.com", "api.exchange.coinbase.com", "api.alternative.me"].includes(u.hostname)) && u.href.length <= 1500 ? u.href : null; } catch { return null; }
 }
-export function decisionEvidence(research: PaperResearch, decision: AutonomousDecision | null, outcome: string, now = Date.now()): DecisionEvidence {
+export function decisionEvidence(research: PaperResearch, decision: AutonomousDecision | null, outcome: string, now = Date.now(), web?: { observedAt: string; sources: { title: string; url: string; excerpt: string }[]; coverage: string } | null): DecisionEvidence {
   const sources: ResearchSource[] = [];
   const add = (title: string, url: string, atMs: number, summary: string) => { const safe = researchSourceUrl(url); if (safe && Number.isSafeInteger(atMs) && atMs > 0) sources.push({ title: title.slice(0, 180), url: safe, atMs, summary: summary.slice(0, 500) }); };
   for (const market of research.markets.slice(0, 40)) add(`${market.symbol} · ${market.intervalMinutes} minute candles`, market.source, market.candles.at(-1)?.atMs ?? research.observedAtMs, `${market.candles.length} closed candles; last close ${market.candles.at(-1)?.close}; change ${market.changePercent}%; SMA20 ${market.sma20}; SMA50 ${market.sma50}; range ${market.rangePercent}%. Timestamp is the final candle's opening time.`);
   for (const announcement of research.announcements.slice(0, 20)) add(announcement.title, announcement.url, announcement.publishedAtMs, "Exchange announcement publication time.");
   for (const context of research.context?.slice(0, 10) ?? []) add(`${context.kind} · ${context.symbol}`, context.source, context.atMs, `Observed value ${context.value}.`);
-  return { atMs: now, researchAtMs: research.observedAtMs, decision, outcome: outcome.slice(0, 500), sources, warnings: research.warnings.slice(0, 10).map(w => w.slice(0, 600)) };
+  if (web) for (const source of web.sources.slice(0, 10)) {
+    const url = researchSourceUrl(source.url, true), atMs = Date.parse(web.observedAt);
+    if (url && Number.isSafeInteger(atMs)) sources.push({ kind: "web", title: source.title.slice(0, 180), url, atMs, summary: `Web search observation time, not publication time. ${source.excerpt}`.slice(0, 500) });
+  }
+  return { atMs: now, researchAtMs: research.observedAtMs, decision, outcome: outcome.slice(0, 500), sources, warnings: [...(web ? [web.coverage] : []), ...research.warnings].slice(0, 10).map(w => w.slice(0, 600)) };
 }
 export type ReportOrder = { id: string; providerOrderId: string | null; side: string; state: string; symbol: string; observedAt: string | null; fills: Array<{ quantity: string; price: string; fee: string; currency: string; atMs: number | null }> };
 export function projectOrder(order: { id: string; providerOrderId: string | null; side: string; state: string; productId: string; execution: unknown }): ReportOrder {

@@ -17,8 +17,8 @@ function readEvidence(value: unknown): DecisionEvidence {
   const e = object(value);
   if (!Number.isSafeInteger(e.atMs) || !Number.isSafeInteger(e.researchAtMs) || !Array.isArray(e.sources) || !Array.isArray(e.warnings) || typeof e.outcome !== "string") throw Error("Incomplete decision record.");
   return { atMs: e.atMs as number, researchAtMs: e.researchAtMs as number, decision: e.decision ? parseAutonomousDecision(JSON.stringify(e.decision)) : null, outcome: e.outcome.slice(0, 500), sources: e.sources.slice(0, 70).flatMap(raw => {
-    const s = object(raw), url = researchSourceUrl(s.url);
-    return url && typeof s.title === "string" && typeof s.summary === "string" && Number.isSafeInteger(s.atMs) ? [{ title: s.title.slice(0, 180), url, summary: s.summary.slice(0, 500), atMs: s.atMs as number }] : [];
+    const s = object(raw), url = researchSourceUrl(s.url, s.kind === "web");
+    return url && typeof s.title === "string" && typeof s.summary === "string" && Number.isSafeInteger(s.atMs) ? [{ ...(s.kind === "web" ? { kind: "web" as const } : {}), title: s.title.slice(0, 180), url, summary: s.summary.slice(0, 500), atMs: s.atMs as number }] : [];
   }), warnings: e.warnings.filter(w => typeof w === "string").slice(0, 10).map(w => w.slice(0, 600)) };
 }
 export async function readAutonomousReport(userId: string, options: { sessionId?: string; sessionPage?: number; tradePage?: number; decisionPage?: number } = {}): Promise<AutonomousReport> {
