@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const mocks={'server-only':'','@/lib/security/owner-credentials':'export const readOwnerCredential=async(owner)=>{globalThis.researchOwner=owner;return "fixture-key"}'};
+const r=await build({entryPoints:['src/lib/assistant/web-research.ts'],bundle:true,write:false,platform:'node',format:'esm',plugins:[{name:'mocks',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path]}));}}]});
+const {searchPublicWeb}=await import('data:text/javascript;base64,'+Buffer.from(r.outputFiles[0].text).toString('base64'));
+let response, calls=[];
+globalThis.fetch=async(url,init)=>{calls.push({url,init});return Response.json(response)};
+const source={type:'url_citation',url_citation:{url:'https://example.test/report',title:'Public report',content:'Evidence'}};
+response={usage:{server_tool_use:{web_search_requests:1}},choices:[{message:{content:'Sourced analysis',annotations:[null,{type:'url_citation',url_citation:{url:'javascript:alert(1)'}},source]}}]};
+const result=await searchPublicWeb('owner-a','selected/model','Public BTC market news');
+assert.equal(globalThis.researchOwner,'owner-a');assert.equal(result.sources.length,1);assert.equal(result.sources[0].url,'https://example.test/report');
+const request=JSON.parse(calls[0].init.body);assert.equal(request.model,'selected/model');assert.equal(request.max_tool_calls,1);assert.equal(request.tools[0].parameters.max_uses,1);assert.equal(request.tools[0].parameters.max_total_results,5);assert.equal(request.messages.length,2);assert.equal(request.messages[1].content,'Public BTC market news');assert.equal(calls[0].init.redirect,'error');assert.doesNotMatch(JSON.stringify(result),/fixture-key/);
+response={choices:[{message:{content:'Invented answer',annotations:[source]}}]};await assert.rejects(searchPublicWeb('owner-a','selected/model','News'),/did not confirm/);
+response={usage:{server_tool_use:{web_search_requests:1}},choices:[{message:{content:'No sources',annotations:[]}}]};await assert.rejects(searchPublicWeb('owner-a','selected/model','News'),/no usable/);
+const count=calls.length;await assert.rejects(searchPublicWeb('owner-a','selected/model','x'.repeat(301)),/Invalid/);assert.equal(calls.length,count);
+console.log('PASS public web research: selected model, bounded request, owner credentials, required search evidence/citations, malformed citations rejected, no credential disclosure. Mocked network only.');

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { parseChatInteraction } from "@/lib/chat/interaction";
+import { InteractionCard } from "./interaction-card";
 import { ToolActivity } from "@/components/assistant/tool-activity";
 import { isAssistantDestination } from "@/lib/assistant/contracts";
 
@@ -9,7 +11,7 @@ import {
   Check,
   Clipboard,
   Copy,
-  Paperclip,
+  Plus,
   RefreshCw,
   RotateCcw,
   Send,
@@ -54,6 +56,8 @@ interface MessageProps {
   message: LilithChatMessage;
   assistantName?: string;
   compact?: boolean;
+  onChoose?: (text: string) => void;
+  interactionDisabled?: boolean;
   onRetry?: () => void;
   onRegenerate?: () => void;
 }
@@ -69,6 +73,8 @@ export function LilithMessage({
   compact = false,
   onRetry,
   onRegenerate,
+  onChoose,
+  interactionDisabled = false,
 }: MessageProps) {
   const [copied, setCopied] = useState(false);
 
@@ -98,16 +104,17 @@ export function LilithMessage({
   }
 
   const isUser = message.role === "user";
+  const interaction = !isUser ? parseChatInteraction(message.content) : null;
   const time = message.timestamp
     ? new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : null;
 
   return (
     <div
-      className={cn("group flex py-2", isUser ? "justify-end" : "justify-start")}
+      className={cn("group flex py-4", isUser ? "justify-end" : "justify-start")}
       data-chat-role={message.role}
     >
-      <div className={cn("min-w-0", compact ? "max-w-[92%]" : "max-w-[84%]")}> 
+      <div className={cn("min-w-0", isUser ? "max-w-[88%]" : "w-full")}>
         <div
           className={cn(
             "mb-1 flex items-center gap-1.5 text-[9px] uppercase tracking-[0.08em] text-fg-faint",
@@ -127,12 +134,13 @@ export function LilithMessage({
 
         <div
           className={cn(
-            "relative rounded-xl border px-3 py-2.5 text-[13px] leading-relaxed shadow-sm",
+            "relative text-fg",
+            compact ? "text-[13px] leading-6" : "text-[15px] leading-7",
             isUser
-              ? "border-[color-mix(in_srgb,var(--accent)_42%,transparent)] bg-[color-mix(in_srgb,var(--accent)_18%,var(--surface))] text-fg"
+              ? "rounded-2xl bg-surface-2 px-4 py-3"
               : message.status === "error"
-                ? "border-red-500/35 bg-red-500/8 text-fg"
-                : "border-line-muted bg-surface text-fg",
+                ? "rounded-lg border border-red-500/35 bg-red-500/8 p-3"
+                : "py-1",
           )}
         >
           {isUser ? (
@@ -141,7 +149,7 @@ export function LilithMessage({
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </>
           ) : (
-            <LilithMarkdown content={message.content} />
+            interaction ? <InteractionCard interaction={interaction} onChoose={onChoose} interfaceId={compact ? "lilith" : "economic-agent"} disabled={interactionDisabled || message.status === "streaming"} /> : <LilithMarkdown content={message.content} />
           )}
           {message.status === "streaming" && (
             <span className="ml-1 inline-block h-3.5 w-0.5 animate-pulse bg-[var(--accent)] align-middle" />
@@ -150,7 +158,7 @@ export function LilithMessage({
 
         <div
           className={cn(
-            "mt-1 flex min-h-6 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+            "mt-2 flex min-h-6 items-center gap-1 text-fg-muted transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
             isUser && "justify-end",
           )}
         >
@@ -333,10 +341,10 @@ export function LilithComposer({
   };
 
   return (
-    <div className="bg-surface p-2.5">
+    <div className="rounded-2xl border border-line bg-surface p-3 shadow-sm">
       {attachments.length > 0 && <AttachmentGallery items={attachments.map(item => ({id:item.id,name:item.name,url:item.previewUrl}))} onRemove={id => setAttachments(current => current.filter(item => item.id !== id))} />}
 
-      <div className="rounded-xl bg-inset">
+      <div className="rounded-xl bg-transparent">
         <textarea
           ref={textareaRef}
           value={value}
@@ -352,10 +360,10 @@ export function LilithComposer({
           )}
         />
 
-        <div className="flex items-center gap-1 border-t border-line-muted px-2 py-1.5">
+        <div className="flex flex-wrap items-center gap-1 px-1 pt-2">
           <input ref={fileRef} type="file" multiple accept={accept} onChange={chooseFiles} className="hidden" />
           <ComposerButton label="Attach files" onClick={() => fileRef.current?.click()} disabled={disabled || busy}>
-            <Paperclip className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
           </ComposerButton>
           {onContextClick && (
             <ComposerButton label="Add context" onClick={onContextClick} disabled={disabled || busy}>

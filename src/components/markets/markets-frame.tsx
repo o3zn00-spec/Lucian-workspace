@@ -1,5 +1,7 @@
 "use client";
 
+import { MobileResearch } from "./mobile-research";
+import { SessionTools } from "./session-tools";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -57,7 +59,8 @@ export function MarketsFrame() {
   const { setTheme } = useTheme();
   const { mode } = useEffectiveAppearance();
   const setAppearance = useSettingsStore((s) => s.setAppearance);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  useEffect(() => { if (window.matchMedia("(min-width: 1280px)").matches) { const id = window.setTimeout(() => setPanelOpen(true), 0); return () => window.clearTimeout(id); } }, []);
   const leftPanelMode = useMarketsStore((s) => s.leftPanelMode);
   const setLeftPanelMode = useMarketsStore((s) => s.setLeftPanelMode);
   const setToggleInstrumentsHandler = useMarketsStore(
@@ -154,14 +157,14 @@ export function MarketsFrame() {
 
   return (
     <BybitTerminalContext.Provider value={terminal}>
-    <div className="themed flex h-full min-h-0 overflow-hidden bg-canvas text-fg">
+    <div className="themed relative flex h-full min-h-0 overflow-hidden bg-canvas text-fg">
       {/* ── LEFT VERTICAL RAIL (88px) — desktop only ── */}
       {/* Phase 17 responsive: rail is hidden on mobile (lg:flex). Mobile
           users get a horizontal scrollable toolbar rendered below the
           account metrics strip. */}
       <div
         className={cn(
-          "hidden lg:flex w-[88px] shrink-0 flex-col items-center py-3",
+          "hidden lg:flex w-[64px] shrink-0 flex-col items-center py-3",
           SURFACE_RAIL,
         )}
       >
@@ -244,7 +247,7 @@ export function MarketsFrame() {
           />
           <aside
             className={cn(
-              "themed w-[260px] max-w-[85vw] shrink-0 border-r border-line-muted bg-surface",
+              "themed w-[224px] max-w-[85vw] shrink-0 border-r border-line-muted bg-surface",
               "fixed inset-y-0 left-0 z-40 lg:static lg:z-0 lg:max-w-none",
             )}
           >
@@ -276,13 +279,14 @@ export function MarketsFrame() {
             SURFACE_TOP,
           )}
         >
-          <span className="animate-pulse text-[11px] font-semibold tracking-wide text-[var(--accent)]">
+          <span className="text-[11px] font-semibold tracking-wide text-[var(--accent)]">
             LUCIAN Markets
           </span>
           {/* Mode indicator on the left of the strip */}
           <span className="ml-3 text-[10px] font-medium uppercase tracking-wide text-fg-faint">
             {accountMode === "paper" ? "Paper" : accountMode === "bybit_testnet" ? "Bybit Testnet" : "Bybit Live · Real Funds"}
           </span>
+          <SessionTools /><MobileResearch />
         </div>
 
         {/* ── ACCOUNT METRICS STRIP (48px) ──
@@ -478,7 +482,7 @@ export function MarketsFrame() {
           />
 
           {/* Right Markets intelligence area (Chat + Feed) — desktop only */}
-          <div className="hidden lg:flex">
+          <div className="hidden xl:flex">
             <IntelligencePanel />
           </div>
         </div>

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const result=await build({entryPoints:['src/lib/chat/interaction.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+const {parseChatInteraction:parse}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+const question={lilthe_ui:'question',question:'Which duration?',options:['Today','One week']};
+assert.deepEqual(parse(JSON.stringify(question)),question);
+for(const invalid of [{...question,options:['Today','Today']},{...question,options:['Today']},{...question,options:['a'.repeat(121),'Today']},{...question,action:'start'},{...question,ownerId:'other'},{lilthe_ui:'trade_review',summary:'Review',password:'secret'},{lilthe_ui:'trade_review',summary:'Review',url:'https://evil.test'},null,[]])assert.equal(parse(JSON.stringify(invalid)),null);
+assert.equal(parse('Ordinary conversation'),null);
+assert.deepEqual(parse('{"lilthe_ui":"trade_review","summary":"Review the plan"}'),{lilthe_ui:'trade_review',summary:'Review the plan'});
+console.log('PASS interactive schema: bounded choices, duplicates, unknown authority/URL/password fields rejected; review is presentation-only.');

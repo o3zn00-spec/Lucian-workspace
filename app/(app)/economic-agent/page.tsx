@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceControls } from "@/components/chat/voice-controls";
 import { ComposerPopover } from "@/components/chat/composer-popover";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import { ModelSelector } from "@/components/chat/model-selector";
@@ -426,7 +427,7 @@ function ConversationView({ conversation }: { conversation: Conversation }) {
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-y-auto"
       >
-        <div className="mx-auto max-w-3xl px-4 py-4">
+        <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
           {messages.map((m, index) => (
             <MessageRow
               key={m.id}
@@ -440,7 +441,7 @@ function ConversationView({ conversation }: { conversation: Conversation }) {
       </div>
 
       {/* Bottom composer */}
-      <div className="shrink-0 border-t border-line-muted p-3" style={{paddingRight:orbVisible?getSizePx(orbSize)+48:12}}>
+      <div className="shrink-0 px-4 pb-5 pt-2" style={{paddingRight:orbVisible?getSizePx(orbSize)+48:12}}>
         <div className="mx-auto max-w-3xl">
           <AgentComposer mode="conversation" />
         </div>
@@ -543,7 +544,9 @@ function UserMessage({ message }: { message: AgentMessage }) {
 }
 
 function AgentMessageView({ message, onRegenerate }: { message: AgentMessage; onRegenerate?: () => void }) {
-  return <LilithMessage message={message} assistantName="Lilthe" onRegenerate={onRegenerate} />;
+  const activeId = useEconomicAgentStore(s => s.activeId);
+  const busy = useEconomicAgentStore(s => s.busy);
+  return <LilithMessage message={message} assistantName="Lilthe" onRegenerate={onRegenerate} interactionDisabled={busy || !onRegenerate} onChoose={text => window.dispatchEvent(new CustomEvent("lilthe:choice-main", { detail: { conversationId: activeId, text } }))} />;
 }
 
 /** Lightweight markdown renderer — handles headings, lists, code blocks,
@@ -733,8 +736,8 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
   // Phase 6: the core send function. Now sends full conversation history
   // (bounded to the last 20 messages) so the model can understand references
   // like "continue" or "what about the second option?".
-  const handleSend = useCallback(async (attachments: LilithChatAttachment[] = []) => {
-    const text = draftText.trim();
+  const handleSend = useCallback(async (attachments: LilithChatAttachment[] = [], chosenText?: string) => {
+    const text = (chosenText ?? draftText).trim();
     if ((!text && attachments.length === 0) || busy) return;
 
     setBusy(true);
@@ -943,6 +946,14 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
     return () => window.removeEventListener("lilith:regenerate-economic", regenerate);
   }, [handleRetry]);
 
+  useEffect(() => {
+    const choose = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.conversationId === activeId && typeof detail.text === "string" && !busy) void handleSend([], detail.text);
+    };
+    window.addEventListener("lilthe:choice-main", choose);
+    return () => window.removeEventListener("lilthe:choice-main", choose);
+  }, [activeId, busy, handleSend]);
   return (
     <div className="overflow-hidden rounded-xl bg-surface shadow-sm">
       {error && <LilithErrorBanner message={error.message} onRetry={error.type === "attachment-failed" ? undefined : () => void handleRetry()} onDismiss={() => setError(null)} />}
@@ -954,7 +965,13 @@ function AgentComposer({ mode }: { mode: "welcome" | "conversation" }) {
         onStop={() => abortRef.current?.abort()}
         placeholder={mode === "welcome" ? "Ask Lilthe anything, research something, or add context…" : "Message Lilthe…"}
         contextCount={contextItems.length}
-        footer={<><ContextSelector /><AddContextButton /><ProviderModelSelector /></>}
+        footer={<><ContextSelector /><AddContextButton /><ProviderModelSelector /><VoiceControls conversationId={activeId} value={draftText} onChange={setDraftText} busy={busy} onCancel={() => abortRef.current?.abort()} onSend={async text => {
+          await handleSend([], text);
+          const state = useEconomicAgentStore.getState();
+          if (state.error) return undefined;
+          const last = state.conversations.find(c => c.id === state.activeId)?.messages.at(-1);
+          return last?.role === "assistant" && last.status === "complete" ? last.content : undefined;
+        }} /></>}
       />
     </div>
   );

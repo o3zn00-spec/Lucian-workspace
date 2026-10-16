@@ -18,7 +18,7 @@ export const ASSISTANT_MODULES = [
 ] as const;
 
 export function isAssistantDestination(path: string) {
-  return path === "/markets?paperSetup=1" || ASSISTANT_MODULES.some(module => module.path === path);
+  return path === "/markets#lilthe-plan" || path === "/markets?paperSetup=1" || ASSISTANT_MODULES.some(module => module.path === path);
 }
 
 export type AssistantModule = typeof ASSISTANT_MODULES[number]["id"];
@@ -33,15 +33,15 @@ export const ASSISTANT_CAPABILITIES = [
   { id: "saved.read", available: true, description: "Read at most 12 cloud-saved bookmark titles after explicit owner permission." },
   { id: "trading.read", available: true, description: "Read Bybit Unified balances after explicit owner permission; no financial execution." },
   { id: "trading.activity.read", available: true, description: "Read bounded Bybit spot open orders and USDT linear open orders/positions after separate owner permission." },
-  { id: "trading.setup", available: true, description: "Link to Markets review for owner-authorized Bybit Live/Testnet autonomous Spot sessions or separate virtual paper practice; this chat tool does not start a session." },
-  { id: "trading.plan", available: true, description: "Prepare owner-scoped unapproved session drafts and save/load reusable templates through conversation. Markets review and owner authorization are required to start trading." },
+  { id: "trading.setup", available: true, description: "Prepare inline chat review or link to Markets review for owner-authorized Bybit Live/Testnet autonomous Spot sessions or separate virtual paper practice; this chat tool does not start a session." },
+  { id: "trading.plan", available: true, description: "Prepare owner-scoped unapproved session drafts and save/load reusable templates through conversation. Inline chat review or Markets review and owner authorization are required to start trading." },
   { id: "records.read", available: true, description: "Read bounded cloud-saved investing, research and news details after separate owner permission; excludes local holdings and notes." },
   { id: "workspace.read", available: true, description: "List cloud projects and read one indexed text file after separate owner permission; excludes environment settings and private credential paths." },
   { id: "workspace.propose", available: true, description: "Propose one existing cloud text-file change under project-read permission. Owner reviews before/after and applies the exact revision; no code runs or publishes." },
-  { id: "research.run", available: false, description: "Sourced research awaits provider and research adapters." },
+  { id: "research.run", available: true, description: "Bounded public market data and publisher feeds; broader cited web search with a connected, supported OpenRouter model. Search credits apply. Availability must be confirmed by tool results." },
   { id: "workspace.edit", available: false, description: "Direct model writes are unavailable. Use workspace.propose and the owner-reviewed apply form for cloud text files." },
-  { id: "trading.execute", available: false, description: "Direct financial execution is unavailable as a chat tool. Autonomous Spot execution requires a separately reviewed and owner-authorized Markets session with passing server checks." },
-  { id: "voice.talk", available: false, description: "Two-way voice awaits provider integration." },
+  { id: "trading.execute", available: false, description: "Direct financial execution is unavailable as a chat tool. Autonomous Spot execution requires a separately reviewed and owner-authorized Markets session with passing server checks; that review can be completed inline in chat." },
+  { id: "voice.talk", available: true, description: "Browser speech supports dictation and voice conversation where available. Premium realtime voice is not integrated; voice cannot authorize financial actions." },
 ] as const;
 
 export function validateContext(value: unknown): { module: AssistantModule; recordId: string | null } {

@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
-  Mic, ChevronDown, X, Sparkles, Cpu, MessageSquarePlus, Search, Archive, Trash2, Pencil, MessagesSquare,
+  Mic, X, Sparkles, MessageSquarePlus, Search, Archive, Trash2, Pencil, MessagesSquare,
 } from "lucide-react";
 import { useLilithStore, type LilithError } from "@/store/lilith";
 import {
@@ -22,7 +22,8 @@ import {
   type AgentMessage,
   type LilithCapability,
 } from "@/store/economic-agent";
-import { useSharedAIConfig, PROVIDERS, getProviderInfo, type ProviderId } from "@/store/shared-ai-config";
+import { ModelSelector } from "@/components/chat/model-selector";
+import { useSharedAIConfig } from "@/store/shared-ai-config";
 import { readAIBehaviorWire } from "@/lib/ai-behavior";
 import { cn } from "@/lib/utils";
 import {
@@ -104,23 +105,14 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
 
   // Shared AI config
   const resolve = useSharedAIConfig((s) => s.resolve);
-  const setOverride = useSharedAIConfig((s) => s.setOverride);
-  const setGlobalProvider = useSharedAIConfig((s) => s.setGlobalProvider);
-  const setGlobalModel = useSharedAIConfig((s) => s.setGlobalModel);
-  const globalProvider = useSharedAIConfig((s) => s.globalProvider);
-  const globalModel = useSharedAIConfig((s) => s.globalModel);
-  const overrides = useSharedAIConfig((s) => s.overrides);
 
   const resolved = resolve("lilith");
-  const lilithOverride = overrides["lilith"];
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [modelOpen, setModelOpen] = useState(false);
   const [conversationsOpen, setConversationsOpen] = useState(false);
   const [conversationSearch, setConversationSearch] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const modelRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const voiceBaseTextRef = useRef("");
   const voice = useLilithVoice();
@@ -156,16 +148,6 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  // Close model popover on outside click.
-  useEffect(() => {
-    if (!modelOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (!modelRef.current?.contains(e.target as Node)) setModelOpen(false);
-    };
-    const id = setTimeout(() => document.addEventListener("mousedown", handler), 0);
-    return () => { clearTimeout(id); document.removeEventListener("mousedown", handler); };
-  }, [modelOpen]);
 
   // Phase 8: consume handoff context from other modules (Notes, Investing, Chess, etc.)
   const [handoffContext, setHandoffContext] = useState<{
@@ -389,15 +371,13 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
     if (started) setStatus("listening");
   }, [inputText, setError, setInputText, setStatus, settings.voiceEnabled, updateSettings, voice]);
 
-  const providerInfo = getProviderInfo(resolved.provider);
-  const displayModel = resolved.model || providerInfo.defaultModel || "model";
   const visibleConversations = filterConversations(conversations, conversationSearch)
     .sort((a, b) => Number(a.archived) - Number(b.archived) || b.updatedAt - a.updatedAt);
   const currentPageContext = resolvePageContext(pathname);
 
   return (
     <div
-      className="themed fixed z-[101] flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-pop"
+      className="themed fixed z-[101] flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-pop"
       style={{ left: panelLeft, top: panelTop, width: PANEL_WIDTH, height: PANEL_HEIGHT }}
     >
       {/* Header */}
@@ -502,6 +482,8 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
               message={message}
               assistantName={settings.name}
               compact
+              interactionDisabled={busy || index !== messages.length - 1}
+              onChoose={text => { void handleSend([], text); }}
               onRegenerate={message.role === "assistant" && index === messages.length - 1 ? () => void handleRetry() : undefined}
             />
           ))
@@ -539,85 +521,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
             >
               <Mic className="h-3.5 w-3.5" />
             </button>
-            <div ref={modelRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setModelOpen((v) => !v)}
-                className="focus-ring flex h-7 max-w-24 items-center gap-1 rounded-md px-1.5 text-[9px] text-fg-muted hover:bg-hover hover:text-fg"
-                title="Provider & Model"
-              >
-                <Cpu className="h-2.5 w-2.5" />
-                <span className="max-w-[60px] truncate">{displayModel}</span>
-                <ChevronDown className="h-2 w-2" />
-              </button>
-              {modelOpen && (
-                <div className="absolute bottom-full left-0 mb-1 w-64 overflow-hidden rounded-md border border-line bg-overlay shadow-pop">
-                  <div className="border-b border-line-muted px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-fg-faint">
-                    Lilthe Provider & Model
-                  </div>
-                  <div className="space-y-2 p-2">
-                    {/* Override toggle */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-fg-muted">
-                        {lilithOverride ? "Using custom override" : "Using global default"}
-                      </span>
-                      <button
-                        onClick={() => {
-                          if (lilithOverride) {
-                            setOverride("lilith", null);
-                          } else {
-                            setOverride("lilith", { provider: globalProvider, model: globalModel });
-                          }
-                        }}
-                        className="rounded border border-line-muted px-1.5 py-0.5 text-[9px] text-fg-muted hover:text-fg"
-                      >
-                        {lilithOverride ? "Use global" : "Override"}
-                      </button>
-                    </div>
-                    {/* Provider dropdown */}
-                    <div>
-                      <label className="text-[9px] uppercase tracking-wide text-fg-faint">Provider</label>
-                      <select
-                        value={lilithOverride?.provider ?? globalProvider}
-                        onChange={(e) => {
-                          const p = e.target.value as ProviderId;
-                          if (lilithOverride) {
-                            setOverride("lilith", { provider: p, model: getProviderInfo(p).defaultModel });
-                          } else {
-                            setGlobalProvider(p);
-                            setGlobalModel(getProviderInfo(p).defaultModel);
-                          }
-                        }}
-                        className="mt-1 w-full rounded border border-line-muted bg-surface px-2 py-1 text-[11px] text-fg"
-                      >
-                        {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                    {/* Model input */}
-                    <div>
-                      <label className="text-[9px] uppercase tracking-wide text-fg-faint">Model</label>
-                      <input
-                        type="text"
-                        value={lilithOverride?.model ?? globalModel}
-                        onChange={(e) => {
-                          if (lilithOverride) {
-                            setOverride("lilith", { ...lilithOverride, model: e.target.value });
-                          } else {
-                            setGlobalModel(e.target.value);
-                          }
-                        }}
-                        placeholder={providerInfo.modelPlaceholder}
-                        className="mt-1 w-full rounded border border-line-muted bg-surface px-2 py-1 text-[11px] text-fg"
-                      />
-                    </div>
-                    <div className="text-[9px] text-fg-faint">
-                      The selected provider + model are used for Lilthe&apos;s next request.
-                      Configure API keys in Settings → Lilthe → Lilthe Model Connection.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <ModelSelector interfaceId="lilith" />
             <button onClick={() => newConversation("general")} className="focus-ring h-7 rounded-md px-1.5 text-[9px] text-fg-faint hover:bg-hover hover:text-fg" title="Start a new conversation">New</button>
           </>
         }

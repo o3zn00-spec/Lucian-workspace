@@ -11,7 +11,7 @@ export function IntelligencePanel({ open: controlledOpen, onOpenChange }: { open
   const [localOpen, setLocalOpen] = useState(true);
   const open = controlledOpen ?? localOpen;
   const toggle = () => { if (onOpenChange) onOpenChange(!open); else setLocalOpen(!open); };
-  return <aside className="flex shrink-0 flex-col border-l border-line-muted bg-surface" style={{width: open ? 320 : 32}} aria-label="Market news">
+  return <aside className="flex shrink-0 flex-col border-l border-line-muted bg-surface" style={{width: open ? 280 : 36}} aria-label="Market news">
     <button type="button" onClick={toggle} aria-label={open ? "Collapse market news" : "Expand market news"} className="flex h-8 items-center justify-center border-b border-line-muted text-fg-muted">
       {open ? <><Newspaper className="mr-2 h-3.5 w-3.5" />Feed<PanelRightClose className="ml-2 h-3.5 w-3.5" /></> : <PanelRightOpen className="h-4 w-4" />}
     </button>

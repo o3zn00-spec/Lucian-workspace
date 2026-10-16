@@ -1,3 +1,13 @@
+## October 16 — integrated Lilthe upgrade, first implementation batch
+
+Owner authorized the complete redesign; requirements and phased acceptance are preserved in docs/design. This batch implements reusable bounded inline question cards; server-backed saved-plan review/approve/reject in main and floating chat; plain assistant typography and restrained composer; shared searchable model selection; main-chat dictation/continuous browser speech fallback; compact Markets session controls, chart-first proportions and mobile news access. Original orb, branding, history and financial server checks remain.
+
+Added bounded OpenRouter public web research (selected model, one search invocation per chat turn, source annotations and provider-confirmed search count required). It sends a public query, not conversation/account context. Requires supported model/credits; network fixtures are not evidence of actual provider availability. Background trading research has not been changed to use this web search.
+
+Validation: typecheck, lint, production build, chat-turn/tool/interaction/web-research/voice/autonomous-UI fixtures, architecture and consolidation checks, ten desktop tests, and isolated Playwright desktop/mobile interaction checks pass. Browser tests cover actual component choices, rejection without start, changed-model invalidation, exact password preservation, one start submission, ambiguous failure clearing credentials without retry, and narrow-screen overflow. All financial/network responses in UI tests are mocked. An initial desktop test ran concurrently with build and saw missing build artifacts; rerun after build passed all ten. No live trade, paid inference, account-limit change or migration performed.
+
+Not complete: actual selected-model dialogue and authenticated UI acceptance; natural provider realtime voice; per-model reasoning capability expansion; chart annotations; derivatives/short/multiasset execution; comprehensive Markets visual acceptance; funded lifecycle/recovery. Existing Spot engine/limits preserved. Do not label the whole upgrade complete. Production browser saved block remains unmodified; release metadata recorded in the chat completion record after publication.
+
 ## October 16 — conversational trading repair
 
 Owner screenshots demonstrate failed production conversation acceptance: “start a trade” returned a setup tutorial; “$10 from my Bybit balance” returned raw planning JSON without saving the budget. Root cause: a single model call was followed by direct tool-result delivery, and the tool instructions explicitly selected the static setup response.

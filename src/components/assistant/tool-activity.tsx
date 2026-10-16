@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Activity, X } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 
 type ToolState = { recordsRead: boolean; workspaceRead: boolean; savedRead: boolean; tradingRead: boolean; tradingActivityRead: boolean; activity: { id: string; tool: string; module: string; status: string; reason: string; createdAt: string }[] };
 export function ToolActivity() {
@@ -38,7 +38,7 @@ function ToolActivityState() {
     }
   };
   return <Dialog.Root open={open} onOpenChange={changeOpen}>
-    <Dialog.Trigger asChild><button type="button" aria-label="Tool activity and permissions" title="Tool activity and permissions" className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted hover:bg-hover"><Activity size={14} /></button></Dialog.Trigger>
+    <Dialog.Trigger asChild><button type="button" aria-label="Tool activity and permissions" title="Tool activity and permissions" className="focus-ring inline-flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted hover:bg-hover"><ShieldCheck size={16} /></button></Dialog.Trigger>
     <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[180] bg-black/50" />
       <Dialog.Content className="themed fixed left-1/2 top-1/2 z-[181] max-h-[85dvh] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-line bg-surface p-5 text-fg shadow-pop">
         <Dialog.Title className="text-lg font-semibold">Lilthe’s tools</Dialog.Title>

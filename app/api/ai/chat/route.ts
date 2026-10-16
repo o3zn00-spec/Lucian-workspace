@@ -210,12 +210,21 @@ export async function POST(req: Request) {
   }
 
   try {
+    let webSearchUsed = false;
     const content = await runChatTurn(adapter, {
       messages: chatMessages,
       model: model || "gpt-4o-mini",
       systemPrompt: fullSystemPrompt + "\n" + CHAT_TOOL_INSTRUCTIONS,
       reasoningEffort: body.reasoningEffort,
-    }, (request) => resolveChatTool(authenticatedOwner, request));
+    }, (request) => {
+      let tool: string | undefined;
+      try { tool = JSON.parse(request).lucian_tool; } catch { /* Resolver handles invalid envelopes. */ }
+      if (tool === "research.web.search") {
+        if (webSearchUsed) return Promise.resolve("The one-request web research budget for this turn is used. Summarize available evidence without another search.");
+        webSearchUsed = true;
+      }
+      return resolveChatTool(authenticatedOwner, request, { provider, model: model || "gpt-4o-mini" });
+    });
     return successResponse(body.stream, content, provider, model || "gpt-4o-mini");
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
