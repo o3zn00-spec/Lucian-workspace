@@ -34,6 +34,9 @@ interface VaultProvidersResult {
 
 export function ConnectionsSection() {
   
+  const [connectionRevision, setConnectionRevision] = useState(0);
+  const [checking, setChecking] = useState(true);
+  const credentialsChanged = useCallback(() => { setChecking(true); setConnectionRevision(value => value + 1); }, []);
   const [vault, setVault] = useState<VaultProvidersResult | null>(null);
 
   
@@ -66,19 +69,22 @@ export function ConnectionsSection() {
         }
       } catch {
         if (!cancelled) setVault(null);
+      } finally {
+        if (!cancelled) setChecking(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [connectionRevision]);
 
   return (
     <div>
       <SettingsSectionHeader
         title="Connections"
-        subtitle="Status of every external service LUCIAN can talk to. Status only — actual setup lives inside each module."
+        subtitle="Manage saved credentials and verified service connections."
       />
 
-      <OwnerCredentialsGroup />
+      <OwnerCredentialsGroup onChanged={credentialsChanged} />
+      <div className="mb-4 text-sm text-fg-muted" role="status">{checking ? "Checking service connections…" : "Connection checks complete. Saving or removing credentials refreshes these results automatically."}</div>
 
       
 
@@ -117,11 +123,11 @@ export function ConnectionsSection() {
           title="Bybit"
           description={`Vault exchange for balances, deposits, withdrawals, orders and positions${vault?.bybit.environment ? ` · ${vault.bybit.environment}` : ""}.`}
         >
-          <VaultStatusPill state={vault?.bybit.state ?? "not_configured"} detail={vault?.bybit.detail} />
+          <VaultStatusPill state={checking ? "connecting" : vault?.bybit.state ?? "not_configured"} detail={vault?.bybit.detail} />
         </SettingsRow>
         <SettingsRow
           title="Alpaca"
-          description="Vault broker provider (trading / funding)."
+          description="Broker adapter not implemented. Adding an API key does not enable trading yet."
         >
           <VaultStatusPill state={vault?.alpaca.state ?? "not_configured"} detail={vault?.alpaca.detail} />
         </SettingsRow>
@@ -149,7 +155,7 @@ interface CredentialStatus {
   updatedAt: string | null;
 }
 
-function OwnerCredentialsGroup() {
+function OwnerCredentialsGroup({ onChanged }: { onChanged: () => void }) {
   const [credentials, setCredentials] = useState<CredentialStatus[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -186,6 +192,7 @@ function OwnerCredentialsGroup() {
       if (!response.ok || !data.ok) throw new Error(data.error ?? "Credential was not saved.");
       setValues((current) => ({ ...current, [id]: "" }));
       setMessage(`${item.label} saved in encrypted owner storage.`);
+      onChanged();
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Credential was not saved.");
@@ -202,6 +209,7 @@ function OwnerCredentialsGroup() {
       const response = await fetch(`/api/owner/credentials?service=${encodeURIComponent(item.service)}&key=${encodeURIComponent(item.key)}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Credential was not removed.");
       setMessage(`${item.label} removed.`);
+      onChanged();
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Credential was not removed.");
@@ -226,6 +234,7 @@ function OwnerCredentialsGroup() {
           >
             <div className="flex items-center gap-1.5">
               <input
+                aria-label={item.label}
                 type={item.key === "environment" ? "text" : "password"}
                 value={values[id] ?? ""}
                 onChange={(event) => setValues((current) => ({ ...current, [id]: event.target.value }))}

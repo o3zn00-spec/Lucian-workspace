@@ -1,3 +1,15 @@
+## October 16 — chart stability and automatic connection refresh
+
+Owner clarified Bybit first; other brokers may be added later. Automatic credential recognition is possible for supported adapters, not arbitrary broker APIs. No new financial permissions or unsupported broker execution were enabled.
+
+Fixed the actual chart lifecycle: candle array updates previously destroyed and recreated the chart and fit its full range. The chart instance now survives streaming data and resizes, fits once per instrument/timeframe with data, and refreshes overlay coordinates on visible-range changes. Removed generated noncrypto candles; unconnected history shows an explicit connection-required state, and crypto loading has an explicit state. Existing drawings, indicators, original branding and exchange candles remain.
+
+Connections now rechecks provider status after credential save/removal and indicates checking while pending. Inputs have accessible labels. Alpaca's unimplemented adapter is clearly identified instead of implying an available trading integration. Existing encrypted credential storage and server verification are reused; no arbitrary broker URL/key capture added.
+
+Validation: typecheck, lint and production build passed; architecture/consolidation and ten desktop tests passed. New isolated browser tests exercise actual lightweight-charts instance survival and numeric visible-range preservation through ten candle updates, resize, loading and unsupported empty history. Another browser fixture verifies credential save/removal automatically refreshes status and clears saved input. All network/private APIs mocked. Test harness fixes: awaited chart range layout before asserting; exact Connected label instead of explanatory text; added bundle resolution directory and moved fixture mutation outside React render. No production browser, paid model or funded trade.
+
+Remaining: Bybit short execution still unimplemented; current autonomous engine remains Spot-only under preserved account limits. Additional brokers need concrete adapters. Actual model/voice/visual and funded lifecycle/recovery acceptance remain blocked/unverified as recorded in the continuation record. Do not present this release as complete delivery of the full requirements.
+
 ## October 16 — reviewed background public web research
 
 Continued from local 798ea370 / GitHub 8d9652dc. Background Spot session reviews can now opt into the same bounded OpenRouter web research used by chat. The optional webResearch boolean is included in the exact server-reviewed plan/grant, conversational drafts and reusable templates. Existing plans omit it and retain their original behavior. Both approval surfaces disclose two model calls per review plus search credits; a non-OpenRouter provider is rejected. Web permission stays fixed through amendments and requires a new reviewed session to change.

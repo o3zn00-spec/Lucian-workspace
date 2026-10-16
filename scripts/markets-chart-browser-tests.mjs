@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile, readdir } from 'node:fs/promises';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.PLAYWRIGHT_PACKAGE || '/Users/mac/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const chartModule=JSON.stringify(process.cwd()+'/node_modules/lightweight-charts/dist/lightweight-charts.production.mjs');
+const chartProbe={name:'chart-probe',setup(b){b.onResolve({filter:/^lightweight-charts$/},()=>({path:'chart',namespace:'probe'}));b.onLoad({filter:/.*/,namespace:'probe'},()=>({contents:`export * from ${chartModule}; import {createChart as original} from ${chartModule}; export function createChart(...args){const chart=original(...args);window.fixtureChart=chart;return chart;}`,resolveDir:process.cwd() }));}};
+const bundle=await build({entryPoints:['scripts/fixtures/markets-chart.tsx'],bundle:true,write:false,platform:'browser',format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"','process.env':'{}'},plugins:[chartProbe,{name:'fixture-link',setup(b){b.onResolve({filter:/^next\/link$/},()=>({path:'link',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'import React from "react"; export default function Link(p){return React.createElement("a",p,p.children)}',resolveDir:process.cwd()}));}}]});
+const cssFiles=(await readdir('.next/static/chunks')).filter(f=>f.endsWith('.css'));
+const css=(await Promise.all(cssFiles.map(f=>readFile('.next/static/chunks/'+f,'utf8')))).join('\n');
+const server=createServer((req,res)=>{if(req.url==='/app.js'){res.setHeader('Content-Type','application/javascript');res.end(bundle.outputFiles[0].text)}else if(req.url==='/style.css'){res.setHeader('Content-Type','text/css');res.end(css)}else{res.setHeader('Content-Type','text/html');res.end('<html data-theme="midnight-gray"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"><body class="themed bg-canvas text-fg"><div id="root"></div><script src="/app.js"></script></body></html>')}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await chromium.launch({headless:true, ...(process.env.CHROMIUM_EXECUTABLE ? {executablePath:process.env.CHROMIUM_EXECUTABLE} : {})});
+const page=await browser.newPage({viewport:{width:1440,height:1100}});
+page.on("pageerror", error => console.error("Fixture browser error:", error.message));
+page.setDefaultTimeout(10000);
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+try {
+await page.route('**/api/**',route=>route.abort());
+await page.goto(`http://127.0.0.1:${server.address().port}`);
+await page.getByText('Loading exchange candles for BTCUSD…').waitFor();
+await page.evaluate(()=>window.publishChart());
+await page.waitForFunction(()=>!document.body.textContent.includes('Loading exchange candles'));
+await page.waitForSelector('canvas');
+await page.evaluate(()=>window.savedCanvas=document.querySelector('canvas'));
+await page.evaluate(()=>window.fixtureChart.timeScale().setVisibleLogicalRange({from:20,to:50}));
+await page.waitForFunction(()=>Math.abs(window.fixtureChart.timeScale().getVisibleLogicalRange().from-20)<0.001);
+const beforeRange=await page.evaluate(()=>window.fixtureChart.timeScale().getVisibleLogicalRange());
+for(let i=0;i<10;i++){await page.evaluate(()=>window.tickChart());await page.waitForTimeout(25);}
+assert.equal(await page.evaluate(()=>window.savedCanvas===document.querySelector('canvas')),true,'Live updates must preserve chart instance/canvas');
+const afterRange=await page.evaluate(()=>window.fixtureChart.timeScale().getVisibleLogicalRange());
+assert.ok(Math.abs(afterRange.from-beforeRange.from)<0.001&&Math.abs(afterRange.to-beforeRange.to)<0.001,'Live ticks must preserve zoom/pan range');
+await page.setViewportSize({width:390,height:844});await page.waitForTimeout(100);
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+assert.equal(await page.evaluate(()=>window.savedCanvas===document.querySelector('canvas')),true,'Resize must preserve chart instance');
+await page.evaluate(()=>window.switchChart());await page.getByText('Market data connection required').waitFor();
+assert.equal(await page.evaluate(()=>window.fixtureChart.timeScale().getVisibleLogicalRange()),null,'Unsupported asset must contain no fabricated candles');
+assert.equal(await page.evaluate(()=>window.savedCanvas===document.querySelector('canvas')),true);
+assert.deepEqual(errors,[]);
+console.log('PASS actual chart: loading, provider candle arrival, ten streaming updates preserve canvas, viewport resize, unsupported asset honest empty state; no API/exchange requests.');
+} finally {await browser.close();await new Promise(r=>server.close(r));}

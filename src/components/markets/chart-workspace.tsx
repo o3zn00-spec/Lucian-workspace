@@ -23,7 +23,7 @@
  * Behavior rules:
  *  - Visual structure only — no fake trading logic, no fake account activity
  *  - Real candlestick chart from lightweight-charts (live Bybit V5 data for crypto,
- *    reference snapshot for non-crypto)
+ *    explicit unavailable state for unconnected assets)
  *  - Timeframe selector cycles M1/M5/M15/M30/H1/H4/D1/W
  *  - Drawing toolbar icons are visual only for this stage
  *  - Bottom strip tabs are visual only for this stage
@@ -1879,7 +1879,7 @@ function ToolMenuPopup({
 /* Candlestick chart (lightweight-charts)                              */
 /* ------------------------------------------------------------------ */
 
-function CandleChart({
+export function CandleChart({
   timeframe,
   symbol,
   settings,
@@ -1931,29 +1931,12 @@ function CandleChart({
   // compiler) AND the set-state-in-effect warning when called from the
   // ResizeObserver callback.
 
-  // Live candles come from the markets store. The store's `subscribePane`
-  // (called by ChartPane) owns the WebSocket + initial historical fetch.
-  // For non-crypto (no provider), we generate reference candles from the
-  // catalog snapshot — these are honestly labeled "REFERENCE" by the
-  // header badge and never presented as live.
+  // Only provider candles represent price history. Catalog quotes are not OHLC data.
   const paneKeyStr = paneKey(symbol, timeframe);
   const liveCandles = useMarketsStore((s) => s.candlesByKey.get(paneKeyStr));
-  const midPrice = useMemo(() => (bidPrice + askPrice) / 2, [bidPrice, askPrice]);
-
-  const candles: CandlestickData<UTCTimestamp>[] = useMemo(() => {
-    if (liveCandles && liveCandles.length > 0) {
-      return liveCandles.map((c) => ({
-        time: c.time as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
-    }
-    // Never invent crypto candles while an exchange request is pending.
-    if (isSupportedCrypto(symbol)) return [];
-    return generateReferenceCandles(timeframe, 120, midPrice, symbol);
-  }, [liveCandles, midPrice, symbol, timeframe]);
+  const fittedPane = useRef<string | null>(null);
+  const candles: CandlestickData<UTCTimestamp>[] = useMemo(() =>
+    (liveCandles ?? []).map(c => ({ time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close })), [liveCandles]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1996,7 +1979,7 @@ function CandleChart({
       wickDownColor: C_DOWN,
     });
     seriesRef.current = series;
-    series.setData(candles);
+    fittedPane.current = null;
 
     // Local closure: builds a chartCoord snapshot from the chart + series
     // + container that exist inside this effect's scope. Avoids tripping
@@ -2033,6 +2016,9 @@ function CandleChart({
       };
     };
 
+    const refreshCoordinates = () => setChartCoord(buildChartCoord());
+    chart.timeScale().subscribeVisibleLogicalRangeChange(refreshCoordinates);
+
     // Resize observer keeps the chart filling its container
     const ro = new ResizeObserver((entries) => {
       const e = entries[0];
@@ -2053,6 +2039,7 @@ function CandleChart({
     return () => {
       window.clearTimeout(initId);
       ro.disconnect();
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(refreshCoordinates);
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -2061,22 +2048,19 @@ function CandleChart({
       pendingLineRef.current = null;
       setChartCoord(null);
     };
-  }, [candles, containerRef]);
+  }, [containerRef]);
 
-  // Live candle updates — when the store's kline WS pushes a new candle
-  // we patch the forming candle in place instead of recreating the chart.
-  const lastCandle = liveCandles?.[liveCandles.length - 1];
+  // Keep the chart instance and the user's zoom/scroll across quote updates.
+  // A different instrument/timeframe receives one initial fit when data arrives.
   useEffect(() => {
-    const series = seriesRef.current;
-    if (!series || !lastCandle) return;
-    series.update({
-      time: lastCandle.time as UTCTimestamp,
-      open: lastCandle.open,
-      high: lastCandle.high,
-      low: lastCandle.low,
-      close: lastCandle.close,
-    });
-  }, [lastCandle]);
+    const series = seriesRef.current, chart = chartRef.current;
+    if (!series || !chart) return;
+    series.setData(candles);
+    if (candles.length && fittedPane.current !== paneKeyStr) {
+      chart.timeScale().fitContent();
+      fittedPane.current = paneKeyStr;
+    }
+  }, [candles, paneKeyStr]);
 
   // Sync Bid price line with settings.showBid.
   useEffect(() => {
@@ -2144,11 +2128,6 @@ function CandleChart({
     }
   }, [pendingOrderPrice, candles]);
 
-  // Fit content when candles change
-  useEffect(() => {
-    chartRef.current?.timeScale().fitContent();
-  }, [candles]);
-
   // ── Bybit failure overlay ──
   // When the live provider is disconnected AND there are no cached
   // candles to show, we render an honest "Live Market Data Temporarily
@@ -2182,6 +2161,8 @@ function CandleChart({
         chartCoord={chartCoord}
       />
       <AnalysisOverlay candles={liveCandles ?? []} timeframe={timeframe} coord={chartCoord} status={status} />
+      {!isSupportedCrypto(symbol) && !candles.length && <div role="status" className="absolute inset-0 z-20 flex items-center justify-center bg-[#131722]/95 px-6 text-center"><div className="max-w-sm"><p className="text-sm font-medium text-[#d1d4dc]">Market data connection required</p><p className="mt-2 text-xs text-[#787b86]">Price history for {symbol} is not connected. Select a supported crypto pair to view exchange candles. Catalog quotes are reference prices, not a trading chart.</p></div></div>}
+      {isSupportedCrypto(symbol) && !candles.length && status !== "disconnected" && <div role="status" className="absolute inset-0 z-20 flex items-center justify-center bg-[#131722]/95 text-xs text-[#787b86]">Loading exchange candles for {symbol}…</div>}
       {showUnavailableOverlay && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#131722]/95">
           <div className="max-w-xs rounded border border-[#ff5b5b]/30 bg-[#1a1f2c] px-4 py-3 text-center">
@@ -2204,79 +2185,6 @@ function CandleChart({
       )}
     </div>
   );
-}
-
-/** Generate reference candles for non-crypto symbols using catalog snapshot prices.
-    These are NOT live data — they are based on the static reference snapshot
-    in the instrument catalog. Crypto symbols use real Bybit V5 data instead. */
-function generateReferenceCandles(
-  timeframe: Timeframe,
-  count: number,
-  midPrice: number,
-  symbol: string,
-): CandlestickData<UTCTimestamp>[] {
-  // Seed shifts per timeframe + symbol so the chart visibly changes
-  // when either is changed in the toolbar.
-  let symbolSeed = 0;
-  for (let i = 0; i < symbol.length; i++) {
-    symbolSeed = (symbolSeed * 31 + symbol.charCodeAt(i)) >>> 0;
-  }
-  const seedMap: Record<Timeframe, number> = {
-    M1: 1,
-    M5: 5,
-    M15: 15,
-    M30: 30,
-    H1: 60,
-    H4: 240,
-    D1: 1440,
-    W: 10080,
-  };
-  const seed = seedMap[timeframe] + symbolSeed;
-  const baseTime = Math.floor(Date.now() / 1000);
-  // Time delta per timeframe (in seconds)
-  const deltaMap: Record<Timeframe, number> = {
-    M1: 60,
-    M5: 300,
-    M15: 900,
-    M30: 1800,
-    H1: 3600,
-    H4: 14400,
-    D1: 86400,
-    W: 604800,
-  };
-  const delta = deltaMap[timeframe];
-
-  // Volatility scales relative to price — bigger for crypto (BTC, ETH…),
-  // tiny for forex majors. Use 0.25% by default.
-  const isCrypto =
-    symbol.startsWith("BTC") ||
-    symbol.startsWith("ETH") ||
-    symbol.startsWith("SOL") ||
-    symbol.startsWith("XRP");
-  const volPct = isCrypto ? 0.01 : 0.0025;
-  const moveScale = midPrice * volPct;
-  const wickScale = moveScale * 0.5;
-
-  let price = midPrice;
-  const out: CandlestickData<UTCTimestamp>[] = [];
-  for (let i = 0; i < count; i++) {
-    const s = (seed + i) * 9301 + 49297;
-    const rnd = ((s % 233280) / 233280) * 2 - 1; // -1..1
-    const open = price;
-    const move = rnd * moveScale;
-    const close = open + move;
-    const high = Math.max(open, close) + Math.abs(rnd) * wickScale;
-    const low = Math.min(open, close) - Math.abs(rnd) * wickScale;
-    out.push({
-      time: (baseTime - (count - i - 1) * delta) as UTCTimestamp,
-      open,
-      high,
-      low,
-      close,
-    });
-    price = close;
-  }
-  return out;
 }
 
 /* ------------------------------------------------------------------ */
