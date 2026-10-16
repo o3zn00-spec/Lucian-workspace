@@ -34,7 +34,7 @@ export async function paperSessionSnapshot(userId:string) {
 }
 export async function createPaperSession(userId:string,body:Record<string,unknown>) {
   const keys=["action","revision","confirmation","provider","model","effort"];
-  if (Object.keys(body).length!==keys.length || Object.keys(body).some(k=>!keys.includes(k)) || body.action!=="start" || body.confirmation!=="START PAPER" || typeof body.revision!=="string" || !["gemini","openai","anthropic","openrouter","deepseek"].includes(String(body.provider)) || typeof body.model!=="string" || !body.model.trim() || body.model.length>150 || !["low","medium","high"].includes(String(body.effort))) throw new PaperPlanError("Review the saved plan and type START PAPER to authorize a paper session.");
+  if (Object.keys(body).length!==keys.length || Object.keys(body).some(k=>!keys.includes(k)) || body.action!=="start" || body.confirmation!=="START PAPER" || typeof body.revision!=="string" || !["gemini","openai","anthropic","openrouter","deepseek"].includes(String(body.provider)) || typeof body.model!=="string" || !body.model.trim() || body.model.length>150 || !["none","minimal","low","medium","high","xhigh","max"].includes(String(body.effort))) throw new PaperPlanError("Review the saved plan and type START PAPER to authorize a paper session.");
   const provider=body.provider as PaperSession["provider"];
   if (!await getProvider(provider,userId)) throw new PaperPlanError("Selected model provider is not connected.",503);
   // Validate listed instruments before storing owner start authorization.

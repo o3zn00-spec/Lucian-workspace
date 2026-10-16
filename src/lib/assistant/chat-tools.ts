@@ -160,7 +160,7 @@ export async function resolveChatTool(ownerUserId: string, content: string, mode
       let result: unknown;
       if (tool === "trading.research") {
         const research = await collectPaperResearch(symbols as string[]);
-        result = { ...research, markets: research.markets.map(({ candles, ...market }) => ({ ...market, latestClosedCandle: candles.at(-1) })) };
+        result = { ...research, markets: research.markets.map(({ candles, ...market }) => ({ ...market, latestClosedCandle: candles.at(-1), chartCandles: candles.slice(-60) })) };
       }
       else {
         const terms = (query as string).toLowerCase().trim().split(/\s+/);

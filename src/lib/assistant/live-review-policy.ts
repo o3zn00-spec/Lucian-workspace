@@ -3,7 +3,7 @@ export type LiveReview = { atMs: number; stance: "hold" | "owner_review"; ration
 export type LiveReviewSession = {
   id: string; revision: string; generation: string; plan: LiveReviewPlan;
   provider: "gemini" | "openai" | "anthropic" | "openrouter" | "deepseek";
-  model: string; effort: "low" | "medium" | "high";
+  model: string; effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   status: "running" | "paused" | "stopped"; startedAtMs: number; deadlineMs: number;
   nextReviewAtMs: number; heartbeatMs: number; reviewsUsed: number;
   reviews: LiveReview[]; error: string | null; runId: string | null;
@@ -27,7 +27,7 @@ export function parseLiveReview(raw: string): Pick<LiveReview, "stance" | "ratio
 }
 export function validateLiveReviewSession(s: LiveReviewSession): LiveReviewSession {
   validateLiveReviewPlan(s.plan);
-  if (![s.id, s.revision, s.generation, s.model].every(v => typeof v === "string" && v.length > 0 && v.length <= 150) || !["running", "paused", "stopped"].includes(s.status) || !["gemini", "openai", "anthropic", "openrouter", "deepseek"].includes(s.provider) || !["low", "medium", "high"].includes(s.effort)) return fail();
+  if (![s.id, s.revision, s.generation, s.model].every(v => typeof v === "string" && v.length > 0 && v.length <= 150) || !["running", "paused", "stopped"].includes(s.status) || !["gemini", "openai", "anthropic", "openrouter", "deepseek"].includes(s.provider) || !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(s.effort)) return fail();
   for (const value of [s.startedAtMs, s.deadlineMs, s.nextReviewAtMs, s.heartbeatMs, s.reviewsUsed]) if (!Number.isSafeInteger(value) || value < 0) return fail();
   if (s.deadlineMs !== s.startedAtMs + s.plan.durationHours * 3600000 || s.reviewsUsed > s.plan.maxReviews || !Array.isArray(s.reviews) || s.reviews.length > 30 || !(s.error === null || typeof s.error === "string" && s.error.length <= 1000) || !(s.runId === null || typeof s.runId === "string" && s.runId.length <= 200)) return fail();
   if (s.lease && (typeof s.lease.token !== "string" || !s.lease.token || !Number.isSafeInteger(s.lease.untilMs) || s.lease.untilMs < 0)) return fail();

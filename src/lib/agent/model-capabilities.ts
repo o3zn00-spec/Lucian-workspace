@@ -10,7 +10,7 @@ export function imageSupport(provider: string, model: string): "supported" | "un
   if (provider === "openai" && /^(?:gpt-3|gpt-4(?:-|$)|o1-mini)/.test(id) && !/vision/.test(id)) return "unsupported";
   return "unverified";
 }
-export type ReasoningEffort = "low" | "medium" | "high";
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 // Conservative support: these OpenAI reasoning families accept all three levels.
 // A provider/model catalog entry is not proof that an account has access.
 export function supportsReasoning(provider: string, model: string) {

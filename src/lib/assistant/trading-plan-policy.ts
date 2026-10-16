@@ -4,7 +4,7 @@ import type { ProviderId } from "@/store/shared-ai-config";
 export class TradingPlanError extends Error {
   constructor(message: string, public status = 400) { super(message); }
 }
-export type TradingPlanSelection = { provider: ProviderId; model: string; effort: "low" | "medium" | "high" };
+export type TradingPlanSelection = { provider: ProviderId; model: string; effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" };
 export type TradingPlanDraft = { rules: Partial<AutonomousPlan>; selection: TradingPlanSelection | null };
 export type TradingPlanTemplate = TradingPlanDraft & { id: string; name: string; rules: AutonomousPlan; savedAt: string };
 export type TradingPlanSnapshot = {
@@ -39,7 +39,7 @@ export function validateSelection(raw: unknown): TradingPlanSelection | null {
   const s = object(raw); exact(s, ["provider", "model", "effort"]);
   if (!["gemini", "openai", "anthropic", "openrouter", "deepseek", "custom"].includes(s.provider as string) ||
       typeof s.model !== "string" || !s.model.trim() || s.model.length > 150 || /[\r\n\x00-\x1f]/.test(s.model) ||
-      !["low", "medium", "high"].includes(s.effort as string)) throw new TradingPlanError("Choose a valid provider, model and reasoning effort.");
+      !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(s.effort as string)) throw new TradingPlanError("Choose a valid provider, model and reasoning effort.");
   return { provider: s.provider as ProviderId, model: s.model.trim(), effort: s.effort as TradingPlanSelection["effort"] };
 }
 export function validateDraftRules(raw: unknown): Partial<AutonomousPlan> {

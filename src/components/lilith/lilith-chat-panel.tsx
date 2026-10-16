@@ -36,6 +36,7 @@ import {
 import { attachmentLabel, attachmentsToContext, attachmentPreviews } from "@/lib/chat/attachments";
 import { isAbortError, streamChatResponse } from "@/lib/chat/stream-response";
 import { resolvePageContext } from "@/lib/context-resolver";
+import { NaturalVoice } from "@/components/chat/natural-voice";
 import { VoiceConversation, type VoicePhase } from "@/lib/voice/conversation";
 import { useLilithVoice } from "@/hooks/use-lilith-voice";
 
@@ -117,6 +118,7 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
   const voiceBaseTextRef = useRef("");
   const voice = useLilithVoice();
   const { startListening, stopListening, speak, stopSpeaking } = voice;
+  const [naturalActive, setNaturalActive] = useState(false);
   const [voicePhase, setVoicePhase] = useState<VoicePhase>("off");
   const voiceConversationRef = useRef<VoiceConversation | null>(null);
   const voiceSendRef = useRef<(text: string) => Promise<string | undefined>>(async () => undefined);
@@ -492,7 +494,8 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
       </div>
 
       <div className="flex items-center gap-2 px-3 py-1 text-[10px] text-fg-muted">
-        <button type="button" disabled={voicePhase === "off" && (busy || !!inputText.trim())} title={inputText.trim() ? "Send or clear your draft before starting voice conversation" : "Spoken turns send automatically; browser speech processing applies"} onClick={() => {
+        <NaturalVoice onSend={text => handleSend([], text)} onCancel={() => abortRef.current?.abort()} disabled={busy || voicePhase !== "off" || voice.listening || Boolean(inputText.trim())} contextKey={activeId ?? "new"} onActive={setNaturalActive} />
+        <button type="button" disabled={naturalActive || (voicePhase === "off" && (busy || !!inputText.trim()))} title={inputText.trim() ? "Send or clear your draft before starting voice conversation" : "Spoken turns send automatically; browser speech processing applies"} onClick={() => {
           if (voicePhase !== "off") voiceConversationRef.current?.stop();
           else { setError(null); voiceConversationRef.current?.start(); }
         }} className="focus-ring rounded border border-line px-2 py-1 disabled:opacity-50">{voicePhase === "off" ? "Start voice conversation" : "End voice conversation"}</button>
@@ -513,8 +516,8 @@ export function LilithChatPanel({ orbX, orbY, orbSize }: Props) {
             <button
               type="button"
               title={voice.supported ? (voice.listening ? "Stop listening" : "Talk to Lilthe") : "Voice recognition is not supported in this browser"}
-              onClick={() => { if (!settings.pushToTalk) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
-              onPointerDown={() => { if (settings.pushToTalk && !voice.listening) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
+              onClick={() => { if (!naturalActive && !settings.pushToTalk) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
+              onPointerDown={() => { if (!naturalActive && settings.pushToTalk && !voice.listening) { voiceConversationRef.current?.stop(); handleVoiceToggle(); } }}
               onPointerUp={() => { if (settings.pushToTalk) { voice.stopListening(); setStatus("idle"); } }}
               className={cn("focus-ring flex h-7 w-7 items-center justify-center rounded-md transition-colors opacity-60 hover:bg-hover hover:opacity-100",
                 voice.listening ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "text-fg-muted")}

@@ -71,6 +71,7 @@ import {
   Layers,
   Calculator,
 } from "lucide-react";
+import { AnalysisOverlay } from "./analysis-overlay";
 import { cn } from "@/lib/utils";
 import { useMarketsStore, paneKey, type LucianTimeframe } from "@/store/markets";
 import {
@@ -2180,6 +2181,7 @@ function CandleChart({
         onUpdateDrawing={onUpdateDrawing}
         chartCoord={chartCoord}
       />
+      <AnalysisOverlay candles={liveCandles ?? []} timeframe={timeframe} coord={chartCoord} status={status} />
       {showUnavailableOverlay && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#131722]/95">
           <div className="max-w-xs rounded border border-[#ff5b5b]/30 bg-[#1a1f2c] px-4 py-3 text-center">

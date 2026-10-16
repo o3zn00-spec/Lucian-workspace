@@ -6,7 +6,7 @@ export type PaperFill = { atMs: number; symbol: string; side: "buy" | "sell"; qu
 export type PaperSession = {
   id: string; revision: string; generation: string; planRevision: string; plan: PaperPlan;
   provider: "gemini" | "openai" | "anthropic" | "openrouter" | "deepseek";
-  model: string; effort: "low" | "medium" | "high";
+  model: string; effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   status: "running" | "paused" | "closing" | "stopped";
   startedAtMs: number; updatedAtMs: number; nextTickAtMs: number; nextReviewAtMs: number;
   cashCents: number; equityCents: number; ordersPlaced: number; positions: PaperPosition[];
@@ -35,7 +35,7 @@ export function paperExitProceeds(position: Pick<PaperPosition,"quantity">, quot
 }
 export function validatePaperSession(s: PaperSession): PaperSession {
   validatePaperPlan(s.plan);
-  if (!s.id || !s.revision || !s.generation || !s.planRevision || !["running","paused","closing","stopped"].includes(s.status) || !["gemini","openai","anthropic","openrouter","deepseek"].includes(s.provider) || !["low","medium","high"].includes(s.effort) || typeof s.model !== "string" || !s.model || s.model.length>150) throw Error("Invalid session identity.");
+  if (!s.id || !s.revision || !s.generation || !s.planRevision || !["running","paused","closing","stopped"].includes(s.status) || !["gemini","openai","anthropic","openrouter","deepseek"].includes(s.provider) || !["none","minimal","low","medium","high","xhigh","max"].includes(s.effort) || typeof s.model !== "string" || !s.model || s.model.length>150) throw Error("Invalid session identity.");
   for (const n of [s.startedAtMs,s.updatedAtMs,s.nextTickAtMs,s.nextReviewAtMs,s.cashCents,s.equityCents,s.ordersPlaced]) if (!Number.isSafeInteger(n) || n < 0) throw Error("Invalid session ledger.");
   if (!Array.isArray(s.positions) || s.positions.length>10 || new Set(s.positions.map(p=>p.symbol)).size!==s.positions.length || !Array.isArray(s.fills) || s.fills.length>200 || !Array.isArray(s.history) || s.history.length>200) throw Error("Invalid history.");
   for (const p of s.positions) {

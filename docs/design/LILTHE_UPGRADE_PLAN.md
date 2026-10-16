@@ -12,3 +12,5 @@ Owner approved implementation of both requirement documents. Preserve identity, 
 8. Acceptance: actual-model dialogue, interactive choices, review/reject, permissions/model changes, responsive layouts, voice, then owner-submitted funded lifecycle and browser-closed recovery. Build/fixtures never substitute for these checks.
 
 Shipping gates: typecheck/lint, focused behavioral tests, architecture/consolidation, production build and desktop tests. No financial test dispatch from coding work. Record built/tested/deployed/runtime/funded separately.
+
+October 16 continuation: natural WebRTC voice transport and shared-chat delegation implemented, actual microphone/provider acceptance pending. OpenRouter per-model supported efforts implemented with catalog evidence. Descriptive closed-candle chart levels implemented; bounded model-generated annotated chat charts also implemented, with independent exchange-data loading; actual model pattern quality is unverified. Short/noncrypto execution and actual funded acceptance remain open, not silently removed from scope.

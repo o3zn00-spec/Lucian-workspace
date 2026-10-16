@@ -15,7 +15,7 @@ import { validateAmendedPlan, type AutonomousAmendmentReview } from "./autonomou
 import { decisionEvidence } from "./autonomous-report-data";
 import { AutonomousError, validateAutonomousPlan, parseAutonomousDecision, evaluateAutonomousEntry, moneyCents, decimal, formatDecimal, fillTotals, type AutonomousPlan, type AutonomousDecision, type ExecutionFill } from "./autonomous-policy";
 
-type Model = { provider: "openai" | "anthropic" | "gemini" | "openrouter" | "deepseek"; model: string; effort: "low" | "medium" | "high" };
+type Model = { provider: "openai" | "anthropic" | "gemini" | "openrouter" | "deepseek"; model: string; effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max" };
 type Trade = { symbol: string; entryId: string; stopId: string | null; exitId: string | null; sellIds: string[]; stopPrice: string; takeProfit: string; closing: boolean; cancelRequested: boolean; quantity: string; costCents: number; protection: string; startedAtMs: number };
 export type AutonomousSession = Model & {
   id: string; revision: string; generation: string; plan: AutonomousPlan;
@@ -52,7 +52,7 @@ export async function autonomousSnapshot(userId: string) {
   return { session: { ...session, amendmentVersion: amendmentVersion(s) } };
 }
 function modelOf(b: Record<string, unknown>): Model {
-  if (!["openai", "anthropic", "gemini", "openrouter", "deepseek"].includes(String(b.provider)) || typeof b.model !== "string" || !b.model.trim() || b.model.length > 150 || !["low", "medium", "high"].includes(String(b.effort))) throw new AutonomousError("Choose a connected model.");
+  if (!["openai", "anthropic", "gemini", "openrouter", "deepseek"].includes(String(b.provider)) || typeof b.model !== "string" || !b.model.trim() || b.model.length > 150 || !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(String(b.effort))) throw new AutonomousError("Choose a connected model.");
   return { provider: b.provider as Model["provider"], model: b.model.trim(), effort: b.effort as Model["effort"] };
 }
 async function identity(userId: string) {

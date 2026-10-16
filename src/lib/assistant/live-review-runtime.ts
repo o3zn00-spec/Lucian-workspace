@@ -35,7 +35,7 @@ export async function liveReviewSnapshot(userId: string) {
   return { session, automaticExecution: false };
 }
 export async function startLiveReview(userId: string, body: Record<string, unknown>) {
-  if (Object.keys(body).sort().join(",") !== "action,effort,model,plan,provider" || body.action !== "start" || !["gemini", "openai", "anthropic", "openrouter", "deepseek"].includes(String(body.provider)) || typeof body.model !== "string" || !body.model.trim() || body.model.length > 150 || !["low", "medium", "high"].includes(String(body.effort))) throw new LiveReviewError("Invalid live research request.");
+  if (Object.keys(body).sort().join(",") !== "action,effort,model,plan,provider" || body.action !== "start" || !["gemini", "openai", "anthropic", "openrouter", "deepseek"].includes(String(body.provider)) || typeof body.model !== "string" || !body.model.trim() || body.model.length > 150 || !["none", "minimal", "low", "medium", "high", "xhigh", "max"].includes(String(body.effort))) throw new LiveReviewError("Invalid live research request.");
   const plan = validateLiveReviewPlan(body.plan), provider = body.provider as LiveReviewSession["provider"], model = body.model.trim();
   const [config, adapter] = await Promise.all([getBybitConfig(userId), getProvider(provider, userId)]);
   if (!config.configured || config.environment !== "mainnet" || !adapter) throw new LiveReviewError("Connect Bybit Mainnet and the selected model before starting live research.", 409);

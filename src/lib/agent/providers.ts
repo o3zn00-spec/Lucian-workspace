@@ -17,6 +17,7 @@
 // adapter and API key from the environment.
 
 import { imageParts, type ImageInput } from "./image-input";
+import { routerCapability, routerModelCapability, type RouterCapability } from "./openrouter-catalog";
 import { supportsReasoning, type ReasoningEffort } from "./model-capabilities";
 import type { ProviderId } from "@/store/economic-agent-connection";
 import { readOwnerCredential } from "@/lib/security/owner-credentials";
@@ -187,6 +188,11 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
       }
       allMessages.push(...messages);
 
+      const router = providerId === "openrouter" ? await routerModelCapability(model) : undefined;
+      if (router && reasoningEffort && router.efforts.length && !router.efforts.includes(reasoningEffort)) throw Error("Selected reasoning effort is not supported by this model. Choose a supported effort in the model selector.");
+      const reasoning = providerId === "openrouter" ? (router?.efforts.length ?? 0) > 0 : supportsReasoning(providerId, model);
+      if (providerId === "openai" && reasoning && reasoningEffort && !["low", "medium", "high"].includes(reasoningEffort)) throw Error("Choose Low, Medium or High for this direct OpenAI connection; extended efforts require verified model catalog support through OpenRouter.");
+      const selectedEffort = reasoningEffort ?? (router?.efforts.includes("medium") ? "medium" : router?.efforts[0]) ?? "medium";
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         signal: AbortSignal.timeout(45000),
@@ -197,7 +203,7 @@ function createOpenAIProvider(apiKey: string, baseUrl: string, providerId: strin
         body: JSON.stringify({
           model,
           messages: allMessages.map(m => ({role:m.role, content:m.images?.length ? [{type:"text",text:m.content}, ...m.images.map(image => ({type:"image_url",image_url:{url:image.url}}))] : m.content})),
-          ...(supportsReasoning(providerId,model) ? {reasoning_effort:reasoningEffort??"medium",max_completion_tokens:8192} : {temperature:0.7,max_tokens:2048}),
+          ...(reasoning ? providerId === "openrouter" ? { reasoning: { effort: selectedEffort }, max_tokens: 8192 } : { reasoning_effort: selectedEffort, max_completion_tokens: 8192 } : {max_tokens:2048}),
         }),
       });
 
@@ -320,6 +326,7 @@ export async function discoverModels(provider: ProviderId, owner: string) {
   if (!base) throw Error("Provider URL is not configured.");
   const headers: Record<string,string> = provider === "gemini" ? {"x-goog-api-key":apiKey} : provider === "anthropic" ? {"x-api-key":apiKey,"anthropic-version":"2023-06-01"} : {Authorization:`Bearer ${apiKey}`};
   const models = new Set<string>();
+  const capabilities: Record<string, RouterCapability> = {};
   const next = new URL(`${base}/models`);
   let complete = false;
   // Bounded pagination for Gemini and Anthropic catalogs. Never follow a
@@ -332,12 +339,12 @@ export async function discoverModels(provider: ProviderId, owner: string) {
     for (const item of Array.isArray(entries) ? entries : []) {
       if (provider === "gemini" && !item.supportedGenerationMethods?.includes("generateContent")) continue;
       const id=typeof item.id === "string" ? item.id : typeof item.name === "string" ? item.name : "";
-      if (id) models.add(id.replace(/^models\//,""));
+      if (id) { models.add(id.replace(/^models\//,"")); if (provider === "openrouter") capabilities[id] = routerCapability(item); }
     }
     if (provider === "gemini" && typeof result.nextPageToken === "string" && result.nextPageToken) next.searchParams.set("pageToken",result.nextPageToken);
     else if (provider === "anthropic" && result.has_more === true && typeof result.last_id === "string") next.searchParams.set("after_id",result.last_id);
     else {complete=true;break;}
     if (models.size>=500)break;
   }
-  return {configured:true,models:[...models].slice(0,500),complete:complete && models.size<=500};
+  return {configured:true,models:[...models].slice(0,500),capabilities,complete:complete && models.size<=500};
 }

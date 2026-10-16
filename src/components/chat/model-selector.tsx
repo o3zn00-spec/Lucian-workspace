@@ -16,10 +16,13 @@ export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:Inter
   const [open, setOpen] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [models, setModels] = useState<string[]>([]);
+  const [catalog, setCatalog] = useState<{ provider: string; values: Record<string, { efforts: ReasoningEffort[]; images: boolean }> }>({ provider: "", values: {} });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const anchor = useRef<HTMLDivElement>(null);
-  const reasoning = supportsReasoning(provider, model);
+  const capability = catalog.provider === provider ? catalog.values[model] : undefined;
+  const efforts: ReasoningEffort[] = provider === "openrouter" ? capability?.efforts ?? [] : supportsReasoning(provider, model) ? ["low", "medium", "high"] : [];
+  const reasoning = efforts.length > 0;
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => { if (!anchor.current?.contains(event.target as Node) && !(event.target as Element).closest?.("[data-composer-popover]")) setOpen(false); };
@@ -33,6 +36,7 @@ export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:Inter
       const result = await response.json();
       if (!response.ok) throw Error(result.error || "Unable to load models. You can enter an exact model ID.");
       setModels(result.models);
+      setCatalog({ provider, values: result.capabilities ?? {} });
       setStatus(result.configured ? (result.complete === false ? "Partial provider catalog. You can also enter an exact model ID." : "Available models from your provider") : "Connect this provider in Settings → Connections to discover your models.");
     }).catch(error => { if (!controller.signal.aborted) setStatus(error.message); });
     return () => controller.abort();
@@ -48,7 +52,7 @@ export function ModelSelector({interfaceId="economic-agent"}:{interfaceId?:Inter
         <div role="listbox" aria-label="Available models" className="max-h-60 overflow-y-auto">{Array.from(new Set([model, ...models])).filter(id => id && id.toLowerCase().includes(query.toLowerCase())).map(id => <button role="option" aria-label={`Select model ${id}`} aria-selected={id === model} type="button" key={id} onClick={() => { setModel(id); setChoosing(false); }} className="focus-ring flex w-full items-center justify-between rounded-lg p-2 text-left text-sm hover:bg-hover"><span className="truncate">{id}</span>{id === model && <Check className="h-4 w-4"/>}</button>)}</div>
         {query.trim() && !models.includes(query.trim()) && <button type="button" className="focus-ring rounded-lg p-2 text-sm hover:bg-hover" onClick={() => { setModel(query.trim()); setChoosing(false); }}>Use model ID: {query.trim()}</button>}
         <p className="text-xs text-fg-muted" role="status">{status}</p>
-      </div> : <fieldset className="mt-3" disabled={!reasoning}><legend className="text-xs text-fg-muted">Reasoning effort</legend><div className="mt-2 grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1">{(["low", "medium", "high"] as ReasoningEffort[]).map(level => <button type="button" key={level} aria-label={`Set reasoning effort to ${level}`} aria-pressed={level === effort} onClick={() => setEffort(level)} className={`focus-ring rounded-full px-2 py-2 text-xs capitalize disabled:opacity-40 ${level === effort && reasoning ? "bg-accent text-on-accent" : "hover:bg-hover"}`}>{level}</button>)}</div>{!reasoning && <p className="mt-2 text-xs text-fg-muted">This model does not expose these reasoning controls. Choose a supported reasoning model.</p>}</fieldset>}
+      </div> : <fieldset className="mt-3" disabled={!reasoning}><legend className="text-xs text-fg-muted">Reasoning effort</legend><div className="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1">{efforts.map(level => <button type="button" key={level} aria-label={`Set reasoning effort to ${level}`} aria-pressed={level === effort} onClick={() => setEffort(level)} className={`focus-ring rounded-full px-2 py-2 text-xs capitalize disabled:opacity-40 ${level === effort && reasoning ? "bg-accent text-on-accent" : "hover:bg-hover"}`}>{level}</button>)}</div>{!reasoning && <p className="mt-2 text-xs text-fg-muted">No supported effort controls were confirmed for this model. Provider defaults apply.</p>}</fieldset>}
     </ComposerPopover>}
   </div>;
 }

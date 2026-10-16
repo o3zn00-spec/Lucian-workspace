@@ -73,8 +73,8 @@ interface OverrideConfig {
 }
 
 interface SharedAIConfigState {
-  reasoningEffort: "low" | "medium" | "high";
-  setReasoningEffort: (effort: "low" | "medium" | "high") => void;
+  reasoningEffort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+  setReasoningEffort: (effort: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") => void;
   /** Global default provider. */
   globalProvider: ProviderId;
   /** Global default model. */

@@ -18,7 +18,8 @@ const calls=[];
 const plan={mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'6',maxLoss:'1',maxRiskPerTrade:'1',maxTrades:2,reviewMinutes:5,durationHours:24,maxModelCalls:20,slippageBps:50,strategy:'Fixture strategy. Research, protect and reassess within the approved limits.'};
 let failStart=false;
 await page.route('**/api/**',async route=>{const req=route.request();const body=req.postDataJSON();calls.push({url:req.url(),body});let data;
-if(req.url().endsWith('/trading-plan'))data={ok:true,complete:true,draft:{rules:plan}};
+if(req.url().includes('/api/markets/bybit?'))data={retCode:0,result:{symbol:'BTCUSDT',list:Array.from({length:30},(_,i)=>[String((Math.floor(Date.now()/900000)*900-(30-i)*900)*1000),'100','105','95','102','1'])}};
+else if(req.url().endsWith('/trading-plan'))data={ok:true,complete:true,draft:{rules:plan}};
 else if(body?.action==='preview')data={ok:true,draft:{id:'fixture-review',plan,provider:body.provider,model:body.model,effort:body.effort,expiresAtMs:Date.now()+300000,confirmation:'APPROVE FIXTURE'}};
 else if(body?.action==='start'){if(failStart){await route.abort();return;}data={ok:true,session:{id:'fixture-session',status:'active'}};}
 else data={ok:true,session:null};await route.fulfill({json:data});});
@@ -34,5 +35,9 @@ await mkdir('outputs/ui-review',{recursive:true});await page.screenshot({path:'o
 await page.setViewportSize({width:390,height:844});await page.screenshot({path:'outputs/ui-review/lilthe-mobile.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 await page.getByRole('button',{name:'Approve session',exact:true}).click();await page.getByText(/Authorization saved/).waitFor();const start=calls.filter(c=>c.body?.action==='start');assert.equal(start.length,1);assert.equal(start[0].body.password,' fixture password ');assert.equal(start[0].body.draftId,'fixture-review');assert.equal(await page.getByLabel('Current LUCIAN password').count(),0);
 await page.getByRole('button',{name:'Load current review'}).click();await page.getByLabel('Current LUCIAN password').fill('secret');await page.getByLabel('Session confirmation phrase').fill('APPROVE FIXTURE');failStart=true;await page.getByRole('button',{name:'Approve session',exact:true}).click();await page.getByText(/No automatic retry was sent/).waitFor();assert.equal(calls.filter(c=>c.body?.action==='start').length,2);assert.equal(await page.getByLabel('Current LUCIAN password').count(),0);
+await page.getByRole('button',{name:'Load current chart',exact:true}).click();await page.getByRole('img',{name:/BTCUSDT closed candles/}).waitFor();assert.equal(await page.getByRole('img',{name:/BTCUSDT closed candles/}).locator('g').count(),31);
+await page.getByRole('button',{name:'Chart analysis',exact:true}).click();await page.getByText('30 closed exchange candles · M1').waitFor();assert.equal(await page.locator('svg[aria-label="Historical chart levels"] line').count(),3);
+await page.evaluate(()=>{Object.defineProperty(navigator,'mediaDevices',{value:{getUserMedia:async()=>{throw new Error('Fixture microphone denied')}},configurable:true})});await page.getByRole('button',{name:'Start natural voice',exact:true}).click();await page.getByText('Fixture microphone denied').waitFor();assert.equal(await page.getByRole('button',{name:'Start natural voice',exact:true}).count(),1);
+console.log('PASS chart overlay visibility and microphone denial cleanup.');
 console.log('PASS browser: real choice submission, single selection, exact server review, reject without start, changed model blocks approval, exact password, one start, ambiguous failure clears credentials/no retry, mobile no overflow. Mocked server only.');
 }finally{await browser.close();await new Promise(r=>server.close(r));}
