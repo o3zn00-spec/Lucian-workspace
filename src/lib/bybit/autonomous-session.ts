@@ -269,6 +269,19 @@ async function dispatchQueued(userId: string, snapshot: AutonomousSession, id: s
     }
     const pinned = await assertGrant(userId, latest!, preview.role === "entry");
     if (connectionIdentity(pinned) !== connectionIdentity(config)) throw new AutonomousError("Exchange connection changed before dispatch.");
+    if (preview.role === "entry") {
+      await validateTerminalOrder(userId, { mode: latest!.plan.mode, category: "spot", symbol: i.productId, side: "Buy", orderType: "Market", quantity: i.baseSize?.toString(), leverage: 1 });
+      const decision = parseAutonomousDecision(JSON.stringify({ action: "buy", symbol: i.productId, quantity: i.baseSize?.toString(), stopPrice: preview.body.sessionStop, takeProfit: preview.body.sessionTarget, rationale: "Revalidate the reserved owner-session entry." }));
+      evaluateAutonomousEntry(latest!.plan, decision, await autonomousQuote(userId, i.productId), latest!.cashCents, latest!.realizedCents, latest!.trades);
+    }
+    // Exchange reads can take time. A pause, expiry or replacement during them
+    // must still prevent the reserved HTTP request from being sent.
+    const dispatchState = await read(db as unknown as Tx, userId);
+    if (!validLease(dispatchState, snapshot) || Date.now() >= dispatchState!.managementDeadlineMs || preview.role === "entry" && (dispatchState!.status !== "running" || Date.now() >= dispatchState!.deadlineMs)) throw new AutonomousError("Session changed while validating dispatch.");
+    const finalConfig = await assertGrant(userId, dispatchState!, preview.role === "entry");
+    if (connectionIdentity(finalConfig) !== connectionIdentity(config)) throw new AutonomousError("Exchange connection changed during risk checks.");
+    const finalState = await read(db as unknown as Tx, userId);
+    if (!validLease(finalState, snapshot) || Date.now() >= finalState!.managementDeadlineMs || preview.role === "entry" && (finalState!.status !== "running" || Date.now() >= finalState!.deadlineMs)) throw new AutonomousError("Session changed before exchange dispatch.");
     const { sessionStop, sessionTarget, ...body } = preview.body; void sessionStop; void sessionTarget;
     exchangeAttempted = true;
     const r = await bybitRequest<{ orderId?: string }>(userId, "/v5/order/create", { method: "POST", body: { ...body, orderLinkId: i.clientOrderId } }, config);

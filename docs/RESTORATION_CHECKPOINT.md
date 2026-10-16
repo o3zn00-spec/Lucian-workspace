@@ -1,3 +1,11 @@
+## October 16 — final entry-dispatch revalidation
+
+Queued autonomous Spot entries now repeat current account/exchange risk validation and fresh quote/session risk evaluation immediately before dispatch. After those asynchronous reads, the worker rechecks lease, pause, deadlines, owner credential, connection identity and emergency stop. Unsent rejection releases only the unsent reservation; ambiguous attempted requests still require reconciliation and are never retried automatically. Existing grants, Spot restrictions, account limits and protective exits are preserved.
+
+Validation: isolated local PostgreSQL lifecycle suite passes, including new changed-limit, invalidating price movement and pause-during-validation cases proving no financial HTTP request. Typecheck, lint, architecture, consolidation, production build and ten desktop tests passed. Exchange/model services are mocked; no funded trade, paid inference or production browser access occurred.
+
+Short execution is still unimplemented, not blocked merely by approval: it needs separate linear position ownership, reduce-only protection, funding/fee accounting and lifecycle/recovery tests. Do not enable it by changing the current Spot-only lock. Actual selected-model/search, microphone, production visual and funded lifecycle acceptance remain unverified. Saved browser denial remains in force; do not bypass it. Release identifiers belong in the chat completion record.
+
 ## October 16 — chart stability and automatic connection refresh
 
 Owner clarified Bybit first; other brokers may be added later. Automatic credential recognition is possible for supported adapters, not arbitrary broker APIs. No new financial permissions or unsupported broker execution were enabled.
