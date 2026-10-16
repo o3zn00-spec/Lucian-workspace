@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Bot, CirclePause, Play, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { useSharedAIConfig } from "@/store/shared-ai-config";
 import { startVisiblePolling } from "@/lib/visible-polling";
-import type { AutonomousPlan } from "@/lib/bybit/autonomous-policy";
+import { validateAutonomousPlan, type AutonomousPlan } from "@/lib/bybit/autonomous-policy";
 import type { AutonomousSession } from "@/lib/bybit/autonomous-session";
 import { TradingPlanLibrary } from "./trading-plan-library";
 import { AutonomousSessionAmendment } from "./autonomous-session-amendment";
@@ -91,6 +91,26 @@ export function AutonomousTradingCard() {
       setError(e instanceof Error ? `${e.message} No automatic retry was sent. Review the saved status before another action.` : "Request outcome unavailable. No automatic retry was sent; refresh the saved status before another action.");
     } finally { acting.current = false; setBusy(false); }
   }
+  async function reviewSavedPlan() {
+    if (acting.current || !loaded || (s && (s.status !== "stopped" || s.active))) return;
+    acting.current = true; setBusy(true); setError(null);
+    const currentFormVersion = formVersion.current;
+    try {
+      const response = await fetch("/api/assistant/trading-plan", { cache: "no-store", signal: AbortSignal.timeout(20000) });
+      const saved = await response.json();
+      if (!response.ok || !saved.ok) throw Error(saved.error ?? "Saved plan unavailable.");
+      if (!saved.complete) throw Error("Ask Lilthe to finish your plan in chat first. Your saved details are still there.");
+      if (currentFormVersion !== formVersion.current) throw Error("The form changed while loading. Review the saved plan again.");
+      const nextPlan = validateAutonomousPlan(saved.draft.rules);
+      ++formVersion.current; setPlan(nextPlan); clearAuthorization();
+      if (saved.draft.selection) {
+        setOverride("economic-agent", { provider: saved.draft.selection.provider, model: saved.draft.selection.model });
+        setEffort(saved.draft.selection.effort);
+      }
+      setNotice("Lilthe’s plan is loaded. Review the rules, then authorize the session."); setOpen(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Saved plan unavailable."); }
+    finally { acting.current = false; setBusy(false); }
+  }
   const changeOpen = (value: boolean) => { if (!busy) { setOpen(value); clearAuthorization(); } };
   const active = s && (s.status !== "stopped" || s.active);
   const selectionChanged = draft && (draft.provider !== provider || draft.model !== model || draft.effort !== effort);
@@ -101,6 +121,8 @@ export function AutonomousTradingCard() {
       <span className="rounded-full border border-line px-3 py-1 text-sm">{s ? s.status : loaded ? "Ready to set up" : "Loading session"}</span>
     </div>
     {error && <p role="alert" className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm">{error}</p>}
+    {!active && <button id="lilthe-plan" type="button" className={`${button} mt-3`} disabled={busy || !loaded} onClick={() => void reviewSavedPlan()}>Review Lilthe’s saved plan</button>}
+    {s?.status === "stopped" && !s.active && <p className="mt-3 text-sm">This session has ended. Would you like Lilthe to prepare another? Tell her in chat; a new session needs your review.</p>}
     {notice && <p role="status" className="mt-3 rounded-xl bg-surface-2 p-3 text-sm">{notice}</p>}
     {s && <>
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">{[["Session funds after settled trades", `${(s.cashCents / 100).toFixed(2)} USDT`], ["Realized result", `${(s.realizedCents / 100).toFixed(2)} USDT`], ["Completed trades", `${s.trades} / ${s.plan.maxTrades}`], ["Model calls", `${s.modelCalls} / ${s.plan.maxModelCalls}`]].map(([label, value]) => <div key={label} className="min-w-0 rounded-xl bg-surface-2 p-3"><p className="text-xs text-fg-muted">{label}</p><p className="mt-1 break-words font-semibold">{value}</p></div>)}</div>

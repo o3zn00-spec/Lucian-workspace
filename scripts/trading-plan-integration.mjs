@@ -32,6 +32,11 @@ try {
  for(const args of [{revision:s.revision,changes:{password:'x'}},{revision:s.revision,changes:{capital:'999'},action:'start'},{revision:s.revision,changes:{capital:'10'},ownerUserId:other}])assert.match(await chat.resolveChatTool(owner,JSON.stringify({lucian_tool:'trading.plan.update',arguments:args})),/unavailable/);
  assert.equal(await db.liveTradeIntent.count({where:{userId:{in:owners}}}),0);assert.equal(await db.assistantMemory.count({where:{userId:{in:owners},key:{startsWith:'_live_session:'}}}),0);
  assert.equal((await lib.tradingPlanSnapshot(other)).revision,null);
+ const turn=await bundle('src/lib/assistant/chat-turn.ts');let step=0;
+ const conversational=await turn.runChatTurn({chat:async()=>({content: ++step===1 ? JSON.stringify({lucian_tool:'trading.plan.read',arguments:{}}) : step===2 ? JSON.stringify({lucian_tool:'trading.plan.update',arguments:{revision:null,changes:{capital:'10',mode:'bybit_live'}}}) : 'Your $10 budget is saved. Which assets should I research?'})},{model:'fixture',messages:[{role:'user',content:'$10 from my Bybit balance'}]},request=>chat.resolveChatTool(other,request));
+ assert.match(conversational,/Which assets/);assert.doesNotMatch(conversational,/revision|lucian_tool/);
+ assert.deepEqual((await lib.tradingPlanSnapshot(other)).draft.rules,{capital:'10',mode:'bybit_live'});
+ assert.equal(await db.liveTradeIntent.count({where:{userId:other}}),0);
  const stored=await db.assistantMemory.findUnique({where:{userId_key:{userId:owner,key:'_trading_plan:library'}}});await db.assistantMemory.update({where:{id:stored.id},data:{value:'invalid'}});await assert.rejects(()=>lib.tradingPlanSnapshot(owner),/unreadable/);assert.equal((await db.assistantMemory.findUnique({where:{id:stored.id}})).value,'invalid');await db.assistantMemory.update({where:{id:stored.id},data:{value:stored.value}});
  assert.throws(()=>policy.chatPlanCommand('trading.template.load',{revision:null,templateId:template.id,action:'start'}));
  process.env.AUTH_APP_URL='https://example.test';const request=(body,origin='https://example.test')=>new Request('https://example.test/api/assistant/trading-plan',{method:'POST',headers:{origin},body:typeof body==='string'?body:JSON.stringify(body)});

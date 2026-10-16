@@ -5,6 +5,7 @@ import { getProvider, isProviderConfigured, type ChatMessage } from "@/lib/agent
 import { db } from "@/lib/db";
 import { requireOwnerId } from "@/lib/auth/owner";
 import { PRIVATE_MEMORY_FILTER } from "@/lib/assistant/private-state";
+import { runChatTurn } from "@/lib/assistant/chat-turn";
 import { CHAT_TOOL_INSTRUCTIONS, resolveChatTool } from "@/lib/assistant/chat-tools";
 import type { ProviderId } from "@/store/shared-ai-config";
 import {
@@ -209,14 +210,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await adapter.chat({
+    const content = await runChatTurn(adapter, {
       messages: chatMessages,
       model: model || "gpt-4o-mini",
       systemPrompt: fullSystemPrompt + "\n" + CHAT_TOOL_INSTRUCTIONS,
       reasoningEffort: body.reasoningEffort,
-    });
-    if (!result.content.trim()) throw Error("Provider returned an empty response.");
-    const content = await resolveChatTool(authenticatedOwner, result.content);
+    }, (request) => resolveChatTool(authenticatedOwner, request));
     return successResponse(body.stream, content, provider, model || "gpt-4o-mini");
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);

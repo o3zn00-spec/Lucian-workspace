@@ -1,3 +1,17 @@
+## October 16 — conversational trading repair
+
+Owner screenshots demonstrate failed production conversation acceptance: “start a trade” returned a setup tutorial; “$10 from my Bybit balance” returned raw planning JSON without saving the budget. Root cause: a single model call was followed by direct tool-result delivery, and the tool instructions explicitly selected the static setup response.
+
+Implemented bounded tool/model continuation (at most three tools/four inference calls), duplicate request suppression, and truthful post-tool failure fallback. Planning now asks at most two questions, preserves supplied budget, distinguishes one trade from timed repeat trading, and proposes clearly unapproved defaults for review. Added public market-research and external publisher-feed headline-search tools with audited, bounded inputs and explicit incomplete coverage. This is not unrestricted full-web search. Added a direct saved-plan review button and an ended-session prompt for another reviewed session. Existing background trading engine and financial authorization/limits are unchanged.
+
+Verification: conversational orchestration fixtures; real local PostgreSQL read→save $10 flow with no financial intent; existing chat tool permissions/auth/origin tests; paper research tests; typecheck; lint; architecture; consolidation; production build; 10 desktop tests all passed. Fixtures use mocked inference; actual selected-model conversational quality and authenticated production UI still need verification. Funded entry/fill/protection/exit/repeat/recovery acceptance remains open. No live trade or account change performed. Release identifiers recorded separately after publication.
+
+## Production release verified — 2026-10-14
+
+- Fresh Vercel connector evidence verifies deployment `dpl_BM1zgi1Mf9pFLFqhtRTdqhC9gyvN` READY in production, GitHub commit `569c4dd0f47c027d25e62d2bde0ec67844735c67`, aliases including `lucian-workspace.vercel.app`, region cpt1, build approximately 103 seconds. This is the exact tested Markets product batch (local `821b65fe`, tree `42eb334d`). No redundant redeployment performed.
+- Connector discrepancy resolved diagnostically: explicit teamId yields 403, while connected-account project listing identifies the same exact project/account, and get_project/get_deployment without optional teamId succeed. Do not ask the owner to reconnect again based on the scoped 403. Previous post-reconnection Unknown tool errors are no longer current.
+- Deployed does not mean production-observed or funded-verified. Authenticated UI/model planning, current-password/order resolution and real funded lifecycle/recovery remain open. No new exchange read or financial request. Saved built-in browser block remains unresolved; do not bypass. Next simple owner step: open Markets and show its current trading screen. Full acceptance record remains in this chat's outputs/LUCIAN_MARKETS_COMPLETION.md.
+
 ## Markets product completion batch — 2026-10-13, 12:08 UTC
 
 This section supersedes older implementation-status claims. Exact local/GitHub commit and deployment evidence are maintained in `/Users/mac/Documents/Codex/2026-10-10/um-why-do-you-get-dumber/outputs/LUCIAN_MARKETS_COMPLETION.md` after release. The following changes are locally built and tested; production and funded acceptance remain separate.
