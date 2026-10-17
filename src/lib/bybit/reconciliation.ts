@@ -103,7 +103,9 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
     for(const row of pageRows(page)){
       if(!matches(row) || row.orderId!==order.orderId || typeof row.execId!=="string" || !row.execId || row.execType!=="Trade") throw Error("Unexpected execution identity/type. Reservation retained.");
       decimal(row.execQty,true);decimal(row.execPrice,true);
-      const time=Number(row.execTime);if(!Number.isSafeInteger(time) || time<window.startTime || time>window.endTime) throw Error("Invalid fill timestamp.");
+      // Exact order-ID lookups may return fills outside the requested page window.
+      // Validate the full reservation lifetime and deduplicate across windows.
+      const time=Number(row.execTime);if(!Number.isSafeInteger(time) || time<startTime || time>now+30000) throw Error("Invalid fill timestamp.");
       if(typeof row.execFee!=="string" || !/^-?\d+(\.\d+)?$/.test(row.execFee) || !Number.isFinite(Number(row.execFee))) throw Error("Malformed fill fee.");
       const fingerprint=JSON.stringify([row.orderId,row.execQty,row.execPrice,row.execFee,row.feeCurrency,row.execTime]);
       if(seen.has(row.execId)){if(seen.get(row.execId)!==fingerprint) throw Error("Conflicting duplicate execution.");continue;}

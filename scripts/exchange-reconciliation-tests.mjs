@@ -53,7 +53,7 @@ assert.equal((await reconcileTerminalOrder('owner','one')).report.fills.length,2
 // A later history-page failure must leave the reservation untouched.
 f=setup();f.intent.createdAt=new Date(Date.now()-9*86400000);f.responses=[{category:'spot',list:[]},{category:'spot',list:[]}];
 await assert.rejects(reconcileTerminalOrder('owner','one'));assert.equal(f.writes,0);
-// A fill cannot claim a timestamp outside the queried window.
+// A fill cannot claim a timestamp before the reservation lifetime.
 f=setup();f.responses[1].list[0].execTime=String(f.intent.createdAt.getTime()-120000);
 await assert.rejects(reconcileTerminalOrder('owner','one'),/timestamp/);assert.equal(f.writes,0);
 console.log('PASS historical reconciliation: gap-free seven-day requests, old filled orders, multi-window fills, exact identity, retained missing/failed history.');
@@ -61,3 +61,10 @@ console.log('PASS historical reconciliation: gap-free seven-day requests, old fi
 f=setup('Cancelled','0','0');f.intent.createdAt=new Date(Date.now()-9*86400000);f.responses=[f.responses[0],{category:'spot',list:[]},{category:'spot',list:[]}];
 assert.equal((await reconcileTerminalOrder('owner','one')).state,'cancelled');assert.equal(f.saved.execution.reconciliation.fills.length,0);
 console.log('PASS old confirmed cancellation releases only on matched exchange evidence.');
+
+// Exact-ID queries can repeat historical fills outside the requested date window.
+f=setup();f.intent.createdAt=new Date(Date.now()-9*86400000);
+const repeatedOldFill={...f.responses[1].list[0],execQty:'0.003',execTime:String(f.intent.createdAt.getTime()+1000)};
+f.responses=[f.responses[0],{category:'spot',list:[repeatedOldFill]},{category:'spot',list:[repeatedOldFill]}];
+assert.equal((await reconcileTerminalOrder('owner','one')).report.fills.length,1);
+console.log('PASS exact-ID fill responses use lifetime bounds and cross-window deduplication.');
