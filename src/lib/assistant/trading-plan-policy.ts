@@ -1,4 +1,4 @@
-import { AutonomousError, moneyCents, validateAutonomousPlan, type AutonomousPlan } from "@/lib/bybit/autonomous-policy";
+import { AutonomousError, moneyCents, validateShortSettings, validateAutonomousPlan, type AutonomousPlan } from "@/lib/bybit/autonomous-policy";
 import type { ProviderId } from "@/store/shared-ai-config";
 
 export class TradingPlanError extends Error {
@@ -26,7 +26,7 @@ export type TradingPlanTool = typeof tradingPlanTools[number];
 export const isTradingPlanTool = (tool: string): tool is TradingPlanTool => tradingPlanTools.some(t => t === tool);
 const moneyFields = ["capital", "maxOrder", "maxLoss", "maxRiskPerTrade"] as const;
 const counts = { maxTrades: [1, 10000], reviewMinutes: [1, 1440], durationHours: [1, 168], maxModelCalls: [1, 10000], slippageBps: [1, 500] } as const;
-const fields = new Set<keyof AutonomousPlan>([...TRADING_PLAN_FIELDS.map(f => f.key), "webResearch", "product"]);
+const fields = new Set<keyof AutonomousPlan>([...TRADING_PLAN_FIELDS.map(f => f.key), "webResearch", "product", "shortSettings"]);
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TradingPlanError("Use a valid planning object.");
   return value as Record<string, unknown>;
@@ -47,6 +47,7 @@ export function validateDraftRules(raw: unknown): Partial<AutonomousPlan> {
   if (Object.keys(input).some(k => !fields.has(k as keyof AutonomousPlan))) throw new TradingPlanError("Unknown session rule. Credentials and authorization do not belong in a draft.");
   const p = { ...input } as Partial<AutonomousPlan>;
   try {
+    if (p.shortSettings !== undefined) { if (!p.symbols) throw new TradingPlanError("Reviewed account settings require symbols."); validateShortSettings(p.shortSettings, {product:p.product,symbols:p.symbols}); }
     if (p.product !== undefined && !["spot", "linear_short"].includes(p.product)) throw new TradingPlanError("Choose Spot or perpetual shorts.");
     if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new TradingPlanError("Web research must be a boolean.");
     if (p.mode !== undefined && !["bybit_live", "bybit_testnet"].includes(p.mode)) throw new TradingPlanError("Choose Bybit Live or Testnet; paper practice has its own setup.");
@@ -68,6 +69,7 @@ export function applyDraftChanges(previous: Partial<AutonomousPlan>, raw: unknow
   const changes = object(raw), merged: Record<string, unknown> = { ...previous };
   if (Object.keys(changes).some(k => !fields.has(k as keyof AutonomousPlan))) throw new TradingPlanError("Unknown session rule. Credentials and authorization do not belong in a draft.");
   for (const [key, value] of Object.entries(changes)) { if (value === null) delete merged[key]; else merged[key] = value; }
+  if (Object.hasOwn(changes, "product") || Object.hasOwn(changes, "symbols")) delete merged.shortSettings;
   return validateDraftRules(merged);
 }
 export type TradingPlanCommand =

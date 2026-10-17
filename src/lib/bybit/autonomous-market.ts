@@ -15,8 +15,9 @@ export async function autonomousQuote(userId: string, symbol: string, category: 
   const i = one(instrument), t = one(ticker), f = one(rates);
   if (i.status !== "Trading" || i.quoteCoin !== "USDT" || category === "linear" && (i.settleCoin !== "USDT" || i.contractType !== "LinearPerpetual")) throw Error("Spot instrument is not trading.");
   const lot = i.lotSizeFilter as Record<string, string>, price = i.priceFilter as Record<string, string>;
-  const q = { ask: t.ask1Price as string, bid: t.bid1Price as string, last: t.lastPrice as string, step: category === "linear" ? lot.qtyStep : lot.basePrecision, tick: price.tickSize, minQty: lot.minOrderQty, minNotional: category === "linear" ? lot.minNotionalValue : lot.minOrderAmt, fee: f.takerFeeRate as string, atMs: Date.now() };
+  const q = { ask: t.ask1Price as string, bid: t.bid1Price as string, last: t.lastPrice as string, ...(category === "linear" ? { mark: t.markPrice as string } : {}), step: category === "linear" ? lot.qtyStep : lot.basePrecision, tick: price.tickSize, minQty: lot.minOrderQty, minNotional: category === "linear" ? lot.minNotionalValue : lot.minOrderAmt, fee: f.takerFeeRate as string, atMs: Date.now() };
   for (const v of [q.ask, q.bid, q.last, q.step, q.tick, q.minQty, q.minNotional]) decimal(v); decimal(q.fee, true);
+  if (category === "linear") decimal(q.mark);
   return q;
 }
 export async function autonomousWallet(userId: string) {

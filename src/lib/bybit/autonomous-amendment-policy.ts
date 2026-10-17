@@ -18,6 +18,7 @@ export function validateAmendedPlan(session: AmendmentState, raw: unknown, now =
   const plan = validateAutonomousPlan(raw);
   if (Boolean(plan.webResearch) !== Boolean(session.plan.webResearch)) throw new AutonomousError("Web research permission stays fixed for this session. Review a new session to change it.");
   if ((plan.product ?? "spot") !== (session.plan.product ?? "spot")) throw new AutonomousError("Product and direction require a new reviewed session.");
+  if (JSON.stringify(plan.shortSettings) !== JSON.stringify(session.plan.shortSettings)) throw new AutonomousError("Margin, leverage and position settings require a new reviewed session.");
   for (const field of ["mode", "symbols", "capital", "durationHours", "slippageBps"] as const) {
     if (JSON.stringify(plan[field]) !== JSON.stringify(session.plan[field])) throw new AutonomousError("Exchange, assets, capital, original duration and slippage stay fixed for this session.");
   }

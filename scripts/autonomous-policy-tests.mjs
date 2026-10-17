@@ -25,3 +25,16 @@ assert.throws(()=>p.validateAutonomousPlan({...plan,product:'unknown'}));assert.
 assert.deepEqual(p.linearFillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.005',feeCurrency:'USDT'}]),{quantity:50000000000n,quote:5000000000000n,fees:5000000000n});
 assert.throws(()=>p.linearFillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.005',feeCurrency:'BTC'}]));assert.equal(p.floorCents(-1n),-1);
 console.log('PASS strict short/cover decisions, product isolation, stop direction, conservative risk and signed fee accounting.');
+
+const detected={marginMode:'REGULAR_MARGIN',positions:{BTCUSDT:{leverage:'10',positionIdx:2,autoAddMargin:0}}};
+const adaptive={...shortPlan,shortSettings:detected};
+const closeStop={...short,stopPrice:'105'};
+const ten=p.evaluateAutonomousEntry(adaptive,closeStop,{...quote,mark:'100'},2000,0,0);
+const one=p.evaluateAutonomousEntry({...adaptive,shortSettings:{...detected,positions:{BTCUSDT:{...detected.positions.BTCUSDT,leverage:'1'}}}},closeStop,{...quote,mark:'100'},2000,0,0);
+assert.ok(ten.debitCents<one.debitCents);assert.equal(ten.riskCents,one.riskCents);
+assert.throws(()=>p.evaluateAutonomousEntry(adaptive,{...closeStop,quantity:'0.5'},quote,2000,0,0),/exposure/);
+assert.throws(()=>p.evaluateAutonomousEntry(adaptive,closeStop,quote,ten.debitCents-1,0,0));
+assert.throws(()=>p.validateAutonomousPlan({...adaptive,shortSettings:{...detected,positions:{}}}));
+assert.throws(()=>p.validateAutonomousPlan({...adaptive,product:'spot'}));
+assert.deepEqual(p.shortAccountFor(shortPlan),{marginMode:'ISOLATED_MARGIN',positions:{BTCUSDT:{leverage:'1',positionIdx:0,autoAddMargin:0}}});
+console.log('PASS leverage changes margin reservation without multiplying order allowance or reducing stop risk; legacy settings remain pinned.');

@@ -1,5 +1,5 @@
 export const getBybitConfig=async()=>({configured:true,environment:'mainnet',apiKey:globalThis.autoFixture.key,apiSecret:'fixture'});
-export async function bybitPublicRequest(_e,path,q){const f=globalThis.autoFixture;return {list:[path.includes('instruments-info')?{symbol:q.symbol,status:'Trading',quoteCoin:'USDT',settleCoin:'USDT',contractType:'LinearPerpetual',lotSizeFilter:{qtyStep:'0.00001',minOrderQty:'0.00001',minNotionalValue:'1',maxMktOrderQty:'10'},priceFilter:{tickSize:'0.01'}}:{symbol:q.symbol,ask1Price:String(f.last),bid1Price:String(f.last-0.1),lastPrice:String(f.last)}]};}
+export async function bybitPublicRequest(_e,path,q){const f=globalThis.autoFixture;if(path.includes('risk-limit'))return {list:[{symbol:q.symbol,riskLimitValue:'1000000',maintenanceMargin:0.005,initialMargin:0.01,maxLeverage:'100'}]};return {list:[path.includes('instruments-info')?{symbol:q.symbol,status:'Trading',quoteCoin:'USDT',settleCoin:'USDT',contractType:'LinearPerpetual',lotSizeFilter:{qtyStep:'0.00001',minOrderQty:'0.00001',minNotionalValue:'1',maxMktOrderQty:'10'},priceFilter:{tickSize:'0.01'}}:{symbol:q.symbol,ask1Price:String(f.last),bid1Price:String(f.last-0.1),lastPrice:String(f.last),markPrice:String(f.mark??f.last)}]};}
 function fill(f,o,quantity,price){
   const fee=quantity*price*.001,qty=String(quantity),cashFlow=o.side==='Buy'?quantity*(100-price):0;
   f.position=Number((f.position+(o.side==='Sell'?quantity:-quantity)).toFixed(8));
@@ -22,8 +22,8 @@ export async function bybitRequest(_u,path,options={}){
     if(f.failSubmit){f.failSubmit=false;throw Error('lost acknowledgement');}return {orderId:id};
   }
   if(path==='/v5/account/info')return {marginMode:f.marginMode??'ISOLATED_MARGIN'};
-  if(path==='/v5/position/list')return {list:[{symbol:q.symbol,positionIdx:f.positionIdx??0,side:f.position?'Sell':'',size:String(f.position),positionStatus:'Normal',leverage:f.leverage??'1',autoAddMargin:f.autoAddMargin??0,avgPrice:f.position?'100':'0',liqPrice:'190'}]};
-  if(path.includes('wallet-balance'))return {list:[{accountType:'UNIFIED',coin:[{coin:'USDT',walletBalance:'1000',locked:'0',spotBorrow:'0',bonus:'0',totalPositionIM:String(f.position*100),totalOrderIM:'0'}]}]};
+  if(path==='/v5/position/list'){const list=[{symbol:q.symbol,positionIdx:f.positionIdx??0,side:f.position?'Sell':'',size:String(f.position),positionStatus:'Normal',leverage:f.leverage??'1',autoAddMargin:f.autoAddMargin??0,avgPrice:f.position?'100':'0',liqPrice:f.liq??'190'}];if(f.positionIdx===2)list.unshift({...list[0],positionIdx:1,side:'',size:'0'});return {list};}
+  if(path.includes('wallet-balance'))return {list:[{accountType:'UNIFIED',totalAvailableBalance:f.crossAvailable??'1000',accountIMRate:'0.01',accountMMRate:'0.005',coin:[{coin:'USDT',walletBalance:'1000',equity:'1000',usdValue:'1000',locked:'0',spotBorrow:'0',bonus:'0',totalPositionIM:String(f.position*100),totalOrderIM:'0'}]}]};
   if(path.includes('fee-rate'))return {list:[{symbol:q.symbol,takerFeeRate:'0.001'}]};
   if(path.includes('transaction-log'))return {list:f.ledgerFail?[]:f.ledger.filter(r=>Number(r.transactionTime)>=q.startTime&&Number(r.transactionTime)<=q.endTime),nextPageCursor:''};
   if(path.includes('execution/list'))return {category:'linear',list:q.orderId?(f.fills.get(q.orderId)??[]):[...f.fills.values()].flat().filter(e=>Number(e.execTime)>=q.startTime&&Number(e.execTime)<=q.endTime),nextPageCursor:''};

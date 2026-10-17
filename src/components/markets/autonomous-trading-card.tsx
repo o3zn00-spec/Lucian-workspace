@@ -11,7 +11,9 @@ import { AutonomousSessionAmendment } from "./autonomous-session-amendment";
 import { AutonomousReportButton } from "./autonomous-report";
 
 type Snapshot = Omit<AutonomousSession, "connection" | "credential" | "grant" | "generation" | "lease"> & { amendmentVersion?: string };
-type Draft = { id: string; plan: AutonomousPlan; provider: string; model: string; effort: string; expiresAtMs: number; confirmation: string };
+import { ShortAccountSummary, type SessionAccountLimits } from "./short-account-summary";
+
+type Draft = { accountLimits?: SessionAccountLimits; id: string; plan: AutonomousPlan; provider: string; model: string; effort: string; expiresAtMs: number; confirmation: string };
 const defaults: AutonomousPlan = {
   mode: "bybit_live", symbols: ["BTCUSDT", "ETHUSDT"], capital: "10", maxOrder: "6", maxLoss: "1", maxRiskPerTrade: "1",
   maxTrades: 20, reviewMinutes: 5, durationHours: 24, maxModelCalls: 200, slippageBps: 50,
@@ -25,7 +27,7 @@ const countFields = [["maxTrades", "Maximum completed trades", 10000], ["duratio
 function PlanSummary({ plan }: { plan: AutonomousPlan }) {
   const fields = [
     ["Exchange", plan.mode === "bybit_live" ? "Bybit Live · real funds" : "Bybit Testnet"],
-    ["Product", plan.product === "linear_short" ? "USDT perpetual · Short · isolated 1x" : "Spot · Buy and sell"],
+    ["Product", plan.product === "linear_short" ? "USDT perpetual · Short" : "Spot · Buy and sell"],
     ["Assets", plan.symbols.join(", ")],
     ...moneyFields.map(([key, label]) => [label.replace(" (USDT)", ""), `${plan[key]} USDT`]),
     ["Public web research", plan.webResearch ? "Enabled · 2 model calls per review plus search credits" : "Off · market data and feeds"],
@@ -33,7 +35,7 @@ function PlanSummary({ plan }: { plan: AutonomousPlan }) {
     ["Duration from original start", `${plan.durationHours} hours`], ["Research interval", `${plan.reviewMinutes} minutes`],
     ["Slippage allowance", `${plan.slippageBps} basis points`],
   ];
-  return <div className="space-y-3"><dl className="grid gap-3 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className="min-w-0 rounded-lg bg-surface-2 p-3"><dt className="text-xs text-fg-muted">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>)}</dl><p className="whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3"><strong className="mb-1 block">Trading instructions</strong>{plan.strategy}</p></div>;
+  return <div className="space-y-3"><dl className="grid gap-3 sm:grid-cols-2">{fields.map(([label, value]) => <div key={label} className="min-w-0 rounded-lg bg-surface-2 p-3"><dt className="text-xs text-fg-muted">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>)}</dl><ShortAccountSummary plan={plan} /><p className="whitespace-pre-wrap break-words rounded-lg bg-surface-2 p-3"><strong className="mb-1 block">Trading instructions</strong>{plan.strategy}</p></div>;
 }
 
 export function AutonomousTradingCard() {
@@ -68,7 +70,7 @@ export function AutonomousTradingCard() {
     return () => { controller.abort(); readAbort.current?.abort(); stop(); };
   }, [refresh]);
   const clearAuthorization = () => { setDraft(null); setPassword(""); setConfirmation(""); };
-  const edit = <K extends keyof AutonomousPlan>(key: K, value: AutonomousPlan[K]) => { ++formVersion.current; setPlan(p => ({ ...p, [key]: value })); clearAuthorization(); setNotice(null); };
+  const edit = <K extends keyof AutonomousPlan>(key: K, value: AutonomousPlan[K]) => { ++formVersion.current; setPlan(p => { const next = { ...p, [key]: value }; delete next.shortSettings; return next; }); clearAuthorization(); setNotice(null); };
   async function action(action: string) {
     if (acting.current || !loaded) return;
     acting.current = true; ++version.current; readAbort.current?.abort(); readAbort.current = null;
@@ -148,7 +150,7 @@ export function AutonomousTradingCard() {
     </div>
     <Dialog.Root open={open} onOpenChange={changeOpen}><Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[180] bg-black/60" /><Dialog.Content className="themed fixed left-1/2 top-1/2 z-[181] max-h-[90dvh] w-[min(52rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-fg shadow-pop">
       <Dialog.Title className="pr-8 text-xl font-semibold">Autonomous trading session</Dialog.Title>
-      <Dialog.Description className="mt-2 text-sm text-fg-muted">Approve once for this session. Lilthe can research, trade the reviewed product repeatedly, cancel its own stops and close its own holdings while you are away. Native stops stay on Bybit; targets are monitored by the background worker. Short sessions require isolated 1x, one-way mode and automatic margin additions off. Account settings are never changed by starting a session. No transfers or withdrawals.</Dialog.Description>
+      <Dialog.Description className="mt-2 text-sm text-fg-muted">Approve once for this session. Lilthe can research, trade the reviewed product repeatedly, cancel its own stops and close its own holdings while you are away. Native stops stay on Bybit; targets are monitored by the background worker. Short account settings are detected and shown in the review. Account settings are never changed by starting a session. No transfers or withdrawals.</Dialog.Description>
       <Dialog.Close asChild><button type="button" aria-label="Close autonomous session" disabled={busy} className="absolute right-3 top-3 rounded-lg p-2"><X size={18} /></button></Dialog.Close>
       {error && <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>}
       {active ? <div className="mt-4 space-y-4 text-sm">
@@ -171,7 +173,7 @@ export function AutonomousTradingCard() {
         <fieldset disabled={busy} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">Exchange mode<select className={input} value={plan.mode} onChange={e => edit("mode", e.target.value as AutonomousPlan["mode"])}><option value="bybit_live">Bybit Live · real funds</option><option value="bybit_testnet">Bybit Testnet</option></select></label>
-            <label className="text-sm">Product<select className={input} value={plan.product ?? "spot"} onChange={e => edit("product", e.target.value as AutonomousPlan["product"])}><option value="spot">Spot · Buy and sell</option><option value="linear_short">USDT perpetual · Short · isolated 1x</option></select></label>
+            <label className="text-sm">Product<select className={input} value={plan.product ?? "spot"} onChange={e => edit("product", e.target.value as AutonomousPlan["product"])}><option value="spot">Spot · Buy and sell</option><option value="linear_short">USDT perpetual · Short</option></select></label>
             <label className="text-sm">Allowed symbols<input className={input} value={plan.symbols.join(", ")} onChange={e => edit("symbols", e.target.value.split(",").map(value => value.trim().toUpperCase()))} /></label>
             {moneyFields.map(([key, label]) => <label key={key} className="text-sm">{label}<input inputMode="decimal" className={input} value={plan[key]} onChange={e => edit(key, e.target.value)} /></label>)}
             {countFields.map(([key, label, max]) => <label key={key} className="text-sm">{label}<input type="number" min="1" max={max} step="1" className={input} value={plan[key]} onChange={e => edit(key, Number(e.target.value))} /></label>)}
@@ -184,6 +186,7 @@ export function AutonomousTradingCard() {
         {draft && <div className="space-y-3 rounded-xl border border-line p-4 text-sm">
           <h3 className="font-semibold">Owner authorization · {draft.model}</h3>
           <PlanSummary plan={draft.plan} />
+          {draft.accountLimits && <p>Account limits: {draft.accountLimits.maxOrder} USDT/order · {draft.accountLimits.maxExposure} USDT exposure · {draft.accountLimits.maxDailyLoss} USDT daily loss stop · {draft.accountLimits.maxPositions} position(s) · {draft.accountLimits.maxLeverage}× leverage.</p>}
           <p>Authorization includes entries, native stop creation/cancellation, managed targets and exits for session-owned inventory. Entry permission ends at the session deadline; closing may continue for up to 30 minutes. Rules change only through a separate reviewed amendment. Repeated model decisions do not require another password.</p>
           <p className="text-fg-muted">This review expires {new Date(draft.expiresAtMs).toLocaleTimeString()}.</p>
           {selectionChanged && <p role="alert">The selected model changed. Review the session again before authorizing it.</p>}

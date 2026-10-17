@@ -227,7 +227,13 @@ export async function validateTerminalOrder(userId: string, input: Record<string
   if (instruments.list[0].quoteCoin !== "USDT" || (category === "linear" && instruments.list[0].settleCoin !== "USDT")) throw new Error("This terminal risk policy supports USDT-quoted Spot and USDT-settled Linear only.");
   const marketPrice = riskNumber(ticker.list[0].lastPrice, "Market price");
   if (marketPrice <= 0) throw new Error("Bybit did not return a current market price.");
-  const notional = quantity * (limitPrice ?? marketPrice);
+  let exposurePrice = limitPrice ?? marketPrice;
+  if (input.autonomousShort === true && category === "linear") {
+    const slippageBps = input.slippageBps === undefined ? 0 : Number(input.slippageBps);
+    if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 500) throw new Error("Invalid short slippage allowance.");
+    exposurePrice = Math.max(exposurePrice, riskNumber(ticker.list[0].ask1Price, "Short ask"), riskNumber(ticker.list[0].markPrice, "Short mark")) * (1 + slippageBps / 10000);
+  }
+  const notional = quantity * exposurePrice;
   const fees = completeRiskRows(feeResult, "Fee rate");
   if (fees.length !== 1 || fees[0].symbol !== symbol) throw new Error("Exchange fee identity is unavailable or mismatched.");
   const feeRate = Math.max(riskNumber(fees[0].takerFeeRate,"Taker fee"),riskNumber(fees[0].makerFeeRate,"Maker fee"),0);

@@ -1,8 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { bybitRequest } from "./client";
+import { bybitRequest, bybitPublicRequest, getBybitConfig } from "./client";
 import { readCompleteBybitList } from "./pagination";
-import { AutonomousError, decimal, floorCents, linearFillTotals, signedDecimal, type ExecutionFill } from "./autonomous-policy";
+import { AutonomousError, decimal, floorCents, linearFillTotals, signedDecimal, shortSettingsFor, shortAccountFor, formatDecimal, type AutonomousPlan, type AutonomousDecision, type ShortAccountSettings, type ExecutionFill } from "./autonomous-policy";
 type Row = Record<string, unknown>;
 const scale = 1000000000000n;
 const fail = (message: string): never => { throw new AutonomousError(message); };
@@ -12,41 +12,88 @@ async function rows(userId: string, path: string, query: Record<string, string |
 export function assertShortEnabled(mode: string) {
   if (mode === "bybit_live" && process.env.BYBIT_LIVE_SPOT_ONLY !== "false") fail("Live account remains Spot-only. Short sessions require separately configured derivatives access; existing limits are unchanged.");
 }
-// Never mutate leverage, margin mode or position mode as a side effect of a session.
-export async function shortPosition(userId: string, symbol: string) {
+// Reading an account must never change its leverage, margin or position mode.
+export async function shortPosition(userId: string, symbol: string, positionIdx?: 0 | 2) {
   const list = await rows(userId, "/v5/position/list", { category: "linear", symbol, limit: 200 });
-  if (list.length !== 1 || list[0].symbol !== symbol || list[0].positionIdx !== 0) fail("Short sessions require an existing one-way USDT perpetual position slot.");
-  const p = list[0], quantity = decimal(p.size, true);
-  if (quantity > 0n && (p.side !== "Sell" || p.positionStatus !== "Normal")) fail("Short position side/status differs from the owned journal. Reconcile on Bybit.");
-  return { quantity, row: p };
+  if (!list.length || list.some(p => p.symbol !== symbol) || new Set(list.map(p => p.positionIdx)).size !== list.length) fail("Ambiguous perpetual position slots.");
+  const mode = list.map(p => p.positionIdx).sort().join(",");
+  if (mode !== "0" && mode !== "1,2") fail("Unsupported or incomplete perpetual position mode.");
+  const idx = positionIdx ?? (mode === "0" ? 0 : 2);
+  const p = list.find(p => p.positionIdx === idx);
+  if (!p) fail("Reviewed perpetual position mode changed. Existing orders remain reserved.");
+  // A second leg on the same symbol would make the shared symbol ledger ambiguous.
+  if (list.some(other => other !== p && decimal(other.size, true) !== 0n)) fail("An unrelated hedge position exists on this symbol. Ownership requires reconciliation.");
+  const quantity = decimal(p!.size, true);
+  if (quantity > 0n && (p!.side !== "Sell" || p!.positionStatus !== "Normal")) fail("Short position side/status differs from the owned journal. Reconcile on Bybit.");
+  return { quantity, row: p!, positionIdx: idx };
 }
-export async function assertShortAccount(userId: string, symbol: string, flat = false) {
-  const [info, p] = await Promise.all([bybitRequest<Row>(userId, "/v5/account/info", {}), shortPosition(userId, symbol)]);
+export async function assertShortAccount(userId: string, symbol: string, flat = false, expected?: ShortAccountSettings) {
+  const [info, p] = await Promise.all([bybitRequest<Row>(userId, "/v5/account/info", {}), shortPosition(userId, symbol, expected?.positions[symbol]?.positionIdx)]);
   const blockers: string[] = [];
-  if (info.marginMode !== "ISOLATED_MARGIN") {
-    const current = info.marginMode === "REGULAR_MARGIN" ? "Cross" : info.marginMode === "PORTFOLIO_MARGIN" ? "Portfolio" : "unavailable";
-    blockers.push(`Account margin mode is ${current}; Isolated is required`);
-  }
+  const marginMode = info.marginMode;
+  if (marginMode !== "ISOLATED_MARGIN" && marginMode !== "REGULAR_MARGIN") blockers.push(`Account margin mode is ${marginMode === "PORTFOLIO_MARGIN" ? "Portfolio" : "unavailable"}; this engine supports Cross and Isolated`);
   let leverage: bigint | null = null;
-  try { leverage = decimal(p.row.leverage); } catch { /* Missing exchange data must remain blocked. */ }
-  if (leverage !== scale) {
-    const current = typeof p.row.leverage === "string" && /^\d{1,4}(?:\.\d{1,8})?$/.test(p.row.leverage) ? `${p.row.leverage}x` : "unavailable";
-    blockers.push(`${symbol} leverage is ${current}; 1x is required`);
-  }
-  if (p.row.autoAddMargin !== 0) blockers.push(`${symbol} automatic margin additions are ${p.row.autoAddMargin === 1 ? "on" : "unavailable"}; off is required`);
-  if (blockers.length) fail(`Short setup blocked: ${blockers.join(". ")}. No account settings were changed and no order was sent by this check.`);
-  if (flat && p.quantity !== 0n) fail("Selected perpetual already has a position. Short sessions start flat.");
-  return p;
+  try { leverage = decimal(p.row.leverage); } catch { /* Missing data is not 1x. */ }
+  if (leverage === null || leverage < scale || leverage > 1000n * scale) blockers.push(`${symbol} leverage is unavailable or outside supported numeric bounds`);
+  if (marginMode === "ISOLATED_MARGIN" && p.row.autoAddMargin !== 0 && p.row.autoAddMargin !== 1) blockers.push(`${symbol} automatic margin additions are unavailable`);
+  if (flat && p.quantity !== 0n) blockers.push(`${symbol} already has a position; short sessions start flat`);
+  if (flat && p.row.isReduceOnly === true) blockers.push(`${symbol} is restricted to reduce-only by Bybit`);
+  if (blockers.length) fail(`Short setup blocked: ${blockers.join(". ")}. No settings changed or order sent by this check.`);
+  const settings = { leverage: formatDecimal(leverage!), positionIdx: p.positionIdx, autoAddMargin: (marginMode === "REGULAR_MARGIN" ? 0 : p.row.autoAddMargin) as 0 | 1 };
+  const pinned = expected?.positions[symbol];
+  if (expected && (!pinned || expected.marginMode !== marginMode || decimal(pinned.leverage) !== leverage || pinned.positionIdx !== settings.positionIdx || pinned.autoAddMargin !== settings.autoAddMargin)) fail(`${symbol} margin, leverage or automatic margin settings changed since review. New entries require a fresh reviewed session; owned exits remain available.`);
+  return { ...p, settings, marginMode: marginMode as ShortAccountSettings["marginMode"] };
 }
-export async function shortAvailable(userId: string) {
+export async function detectShortAccount(userId: string, symbols: string[]) {
+  const positions: ShortAccountSettings["positions"] = {};
+  const results = await Promise.allSettled(symbols.map(symbol => assertShortAccount(userId, symbol, true)));
+  const blockers = results.flatMap(r => r.status === "rejected" ? [r.reason instanceof Error ? r.reason.message : "Account settings unavailable"] : []);
+  if (blockers.length) fail(blockers.join("; "));
+  const accounts = results.map(r => (r as PromiseFulfilledResult<Awaited<ReturnType<typeof assertShortAccount>>>).value);
+  if (accounts.some(p => p.marginMode !== accounts[0].marginMode)) fail("Margin mode changed during account detection. Load a fresh review.");
+  accounts.forEach((p, i) => { positions[symbols[i]] = p.settings; });
+  return { marginMode: accounts[0].marginMode, positions };
+}
+export async function shortAvailable(userId: string, marginMode: ShortAccountSettings["marginMode"] = "ISOLATED_MARGIN") {
   const b = await bybitRequest<{list?: Row[]}>(userId, "/v5/account/wallet-balance", {query:{accountType:"UNIFIED"}});
   if (b.list?.length !== 1 || b.list[0].accountType !== "UNIFIED" || !Array.isArray(b.list[0].coin)) fail("Unified margin balance unavailable.");
-  const coins = (b.list![0].coin as Row[]).filter(c=>c.coin === "USDT");
+  const account = b.list![0], coins = (account.coin as Row[]).filter(c=>c.coin === "USDT");
   if (coins.length !== 1) fail("USDT margin balance unavailable.");
   const c=coins[0];
-  const available=decimal(c.walletBalance,true)-decimal(c.locked,true)-decimal(c.totalPositionIM,true)-decimal(c.totalOrderIM,true)-decimal(c.spotBorrow??"0",true)-decimal(c.bonus,true);
-  if(available<0n)fail("USDT margin liabilities exceed wallet balance.");
-  return available;
+  let available=decimal(c.walletBalance,true)-decimal(c.locked,true)-decimal(c.totalPositionIM,true)-decimal(c.totalOrderIM,true)-decimal(c.spotBorrow??"0",true)-decimal(c.bonus,true);
+  if (marginMode === "REGULAR_MARGIN") {
+    // Account-wide cross collateral is USD; convert using the reported USDT
+    // equity valuation, then cap by unborrowed USDT. Never spend other coins.
+    const equity = signedDecimal(c.equity), usd = signedDecimal(c.usdValue);
+    if (equity <= 0n || usd <= 0n) return 0n;
+    const cross = signedDecimal(account.totalAvailableBalance) * equity / usd;
+    available = cross < available ? cross : available;
+    if (decimal(account.accountIMRate,true) >= scale || decimal(account.accountMMRate,true) >= scale) return 0n;
+  }
+  return available > 0n ? available : 0n;
+}
+export async function assertShortEntryMargin(userId: string, plan: AutonomousPlan, d: AutonomousDecision, q: {ask:string;bid:string;mark?:string;fee:string}) {
+  if (!plan.shortSettings) return; // Legacy grants keep their original checks.
+  const config = await getBybitConfig(userId), symbol = d.symbol!;
+  const result = await readCompleteBybitList<Row>(cursor => bybitPublicRequest(config.environment, "/v5/market/risk-limit", {category:"linear",symbol,...(cursor ? {cursor} : {})}), "Short risk tiers");
+  const qty=decimal(d.quantity), stop=decimal(d.stopPrice), ask=decimal(q.ask), mark=decimal(q.mark), fee=decimal(q.fee,true);
+  const basis = mark > ask ? mark : ask;
+  const stressed = qty * (stop > basis ? stop : basis) * BigInt(10000 + plan.slippageBps) / (scale * 10000n);
+  const tiers = result.list!.filter(t => t.symbol === symbol && decimal(t.riskLimitValue) >= stressed).sort((a,b) => Number(decimal(a.riskLimitValue)-decimal(b.riskLimitValue)));
+  if (!tiers.length) fail("Short size exceeds available exchange risk tiers.");
+  const tier = tiers[0], leverage = decimal(shortSettingsFor(plan,symbol).leverage);
+  if (leverage > decimal(tier.maxLeverage)) fail("Detected leverage exceeds the exchange risk tier for this size.");
+  const mm = decimal(String(tier.maintenanceMargin),true), im = decimal(String(tier.initialMargin));
+  if (mm >= scale || im > scale || im < mm) fail("Invalid exchange margin rates.");
+  const initial = qty*basis/leverage;
+  // Conservative standalone solvency at the adverse stop, ignoring deductions
+  // and unrelated collateral. Exchange liquidation remains monitored after fill.
+  const loss = (qty*stop*BigInt(10000+plan.slippageBps)/10000n - qty*decimal(q.bid)*BigInt(10000-plan.slippageBps)/10000n)/scale;
+  const maintenance = stressed*mm/scale;
+  const fees = stressed*2n*fee/scale;
+  if (initial < qty*basis/scale*im/scale || initial <= loss+maintenance+fees) fail("Stop distance, fees and exchange maintenance margin exceed the detected leverage margin. Choose a closer valid stop or review different account settings.");
+  const available = await shortAvailable(userId, shortAccountFor(plan).marginMode);
+  if (available < initial+loss+fees) fail("Available margin no longer covers this entry and its stop reserve.");
 }
 export async function assertOwnedShortOrders(userId: string, symbol: string, ids: string[]) {
   const orders=await rows(userId,"/v5/order/realtime",{category:"linear",symbol,openOnly:0,limit:50});

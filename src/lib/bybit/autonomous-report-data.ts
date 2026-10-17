@@ -1,5 +1,5 @@
 import type { PaperResearch } from "@/lib/assistant/paper-research";
-import { decimal, fillTotals, formatDecimal, type AutonomousDecision, type ExecutionFill } from "./autonomous-policy";
+import { decimal, fillTotals, formatDecimal, type ShortAccountSettings, type AutonomousDecision, type ExecutionFill } from "./autonomous-policy";
 export type ResearchSource = { title: string; url: string; atMs: number; summary: string; kind?: "web" };
 export type DecisionEvidence = { atMs: number; researchAtMs: number; decision: AutonomousDecision | null; outcome: string; sources: ResearchSource[]; warnings: string[] };
 export function researchSourceUrl(value: unknown, web = false): string | null {
@@ -34,7 +34,7 @@ export function estimateUnrealized(symbol: string, entries: ExecutionFill[], exi
   if (!Number.isSafeInteger(remainingBasisCents) || !Number.isSafeInteger(estimatedProceedsCents)) throw Error("Valuation bounds exceeded.");
   return { quantity: formatDecimal(remaining), remainingBasisCents, estimatedProceedsCents, unrealizedCents: estimatedProceedsCents - remainingBasisCents, bid: mark.bid, atMs: mark.atMs, fee: mark.fee };
 }
-export type SessionSummary = { product?: "spot" | "linear_short"; id: string; status: string; mode: string; model: string; startedAtMs: number; deadlineMs: number; cashCents: number; realizedCents: number; trades: number; modelCalls: number; error: string | null; protection: string | null };
+export type SessionSummary = { shortSettings?: ShortAccountSettings; product?: "spot" | "linear_short"; id: string; status: string; mode: string; model: string; startedAtMs: number; deadlineMs: number; cashCents: number; realizedCents: number; trades: number; modelCalls: number; error: string | null; protection: string | null };
 export type SettledReport = { product?: "linear_short"; netCents?:number; fundingCents?:number; feesCents?:number; id: string; atMs: number; symbol: string; entryId: string; costCents: number; proceedsCents: number; remainingQuantity: string; orders: ReportOrder[]; fillsComplete: boolean };
 export type AutonomousReport = {
   sessions: SessionSummary[]; moreSessions: boolean; session: SessionSummary | null;

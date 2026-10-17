@@ -63,8 +63,8 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   if (intent.initiatedBy === "owner_session" && sessionPreview?.role === "stop" && decimal(order.triggerPrice, true) !== decimal(sessionPreview.body?.triggerPrice, true)) throw Error("Tracked native stop trigger does not match its reserved price.");
   if(intent.initiatedBy==="owner_session" && category==="linear") {
     const body=sessionPreview?.body;
-    if(!body || order.reduceOnly!==body.reduceOnly || order.positionIdx!==0 || body.positionIdx!==0)throw Error("Perpetual reduce-only/position identity mismatch. Reservation retained.");
-    if(sessionPreview?.role==="stop" && (order.closeOnTrigger!==true || order.triggerDirection!==1 || order.triggerBy!=="LastPrice"))throw Error("Short stop protection flags do not match the reserved order.");
+    if(!body || order.reduceOnly!==body.reduceOnly || ![0,2].includes(Number(body.positionIdx)) || order.positionIdx!==body.positionIdx)throw Error("Perpetual reduce-only/position identity mismatch. Reservation retained.");
+    if(sessionPreview?.role==="stop" && (order.closeOnTrigger!==true || order.triggerDirection!==1 || !["LastPrice","MarkPrice"].includes(String(body.triggerBy)) || order.triggerBy!==body.triggerBy))throw Error("Short stop protection flags do not match the reserved order.");
   }
   const cumulative=decimal(order.cumExecQty),leaves=decimal(order.leavesQty);
   const requested=decimal(intent.baseSize?.toString(),true);
