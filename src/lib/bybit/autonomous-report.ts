@@ -3,13 +3,14 @@ import { db } from "@/lib/db";
 import { validateSession, type AutonomousSession } from "./autonomous-session";
 import { autonomousQuote, autonomousWallet, connectionIdentity } from "./autonomous-market";
 import { getBybitConfig } from "./client";
-import { AutonomousError, decimal, parseAutonomousDecision, type ExecutionFill } from "./autonomous-policy";
+import { shortPosition, shortLedger, shortMark } from "./autonomous-short";
+import { AutonomousError, decimal, formatDecimal, parseAutonomousDecision, type ExecutionFill } from "./autonomous-policy";
 import { estimateUnrealized, projectOrder, researchSourceUrl, type AutonomousReport, type DecisionEvidence, type SessionSummary } from "./autonomous-report-data";
 const pageSize = 10;
 const activeKey = "_live_session:active", archivePrefix = "_live_session:archive:";
 const safeId = (s: string) => /^[a-f0-9-]{36}$/.test(s);
 function summary(s: AutonomousSession): SessionSummary {
-  return { id: s.id, status: s.status, mode: s.plan.mode, model: s.model, startedAtMs: s.startedAtMs, deadlineMs: s.deadlineMs, cashCents: s.cashCents, realizedCents: s.realizedCents, trades: s.trades, modelCalls: s.modelCalls, error: s.error, protection: s.active?.protection ?? null };
+  return { product: s.plan.product ?? "spot", id: s.id, status: s.status, mode: s.plan.mode, model: s.model, startedAtMs: s.startedAtMs, deadlineMs: s.deadlineMs, cashCents: s.cashCents, realizedCents: s.realizedCents, trades: s.trades, modelCalls: s.modelCalls, error: s.error, protection: s.active?.protection ?? null };
 }
 const materialSession = (s: AutonomousSession | null) => JSON.stringify(s ? [summary(s), s.plan, s.active, s.dust, s.connection] : null);
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -51,8 +52,9 @@ export async function readAutonomousReport(userId: string, options: { sessionId?
   const settled = await Promise.all(trades.slice(0, pageSize).map(async row => {
     const t = object(row.details);
     if (typeof t.entryId !== "string" || !Array.isArray(t.sellIds) || !Number.isSafeInteger(t.costCents) || !Number.isSafeInteger(t.proceedsCents) || typeof t.remainingQuantity !== "string") throw Error("Incomplete settlement record.");
+    if(t.product === "linear_short" && ![t.netCents,t.fundingCents,t.feesCents].every(Number.isSafeInteger))throw Error("Incomplete short settlement accounting.");
     const ids = [t.entryId, ...t.sellIds] as string[], orders = await ordersFor(ids);
-    return { id: row.id, atMs: row.createdAt.getTime(), symbol: row.symbol ?? "Unknown", entryId: t.entryId, costCents: t.costCents as number, proceedsCents: t.proceedsCents as number, remainingQuantity: t.remainingQuantity, orders: orders.map(projectOrder), fillsComplete: orders.length === ids.length && orders.every(order => Array.isArray(object(object(order.execution).reconciliation).fills) && (object(object(order.execution).reconciliation).fills as unknown[]).length <= 200) };
+    return { ...(t.product === "linear_short" ? {product:"linear_short" as const,netCents:t.netCents as number,fundingCents:t.fundingCents as number,feesCents:t.feesCents as number} : {}), id: row.id, atMs: row.createdAt.getTime(), symbol: row.symbol ?? "Unknown", entryId: t.entryId, costCents: t.costCents as number, proceedsCents: t.proceedsCents as number, remainingQuantity: t.remainingQuantity, orders: orders.map(projectOrder), fillsComplete: orders.length === ids.length && orders.every(order => Array.isArray(object(object(order.execution).reconciliation).fills) && (object(object(order.execution).reconciliation).fills as unknown[]).length <= 200) };
   }));
   let held: AutonomousReport["active"] = null;
   if (session.active) {
@@ -67,14 +69,21 @@ export async function readAutonomousReport(userId: string, options: { sessionId?
       const exits = reports.filter(({ order }) => order.id !== session.active!.entryId);
       if (exits.some(({ order }) => !["filled", "cancelled", "rejected", "cancelled_with_fills", "session_settled", "exchange_open"].includes(order.state))) throw Error("Pending exit outcome.");
       if (exits.some(({ order, report }) => order.state === "exchange_open" && (typeof report.observedAt !== "string" || !Number.isFinite(Date.parse(report.observedAt)) || Date.now() - Date.parse(report.observedAt) > 120000 || Date.parse(report.observedAt) > Date.now() + 1000))) throw Error("Open-order evidence is stale.");
+      if(session.plan.product === "linear_short") {
+        const [quote, position, ledger] = await Promise.all([autonomousQuote(userId,session.active.symbol,"linear"),shortPosition(userId,session.active.symbol),shortLedger(userId,session.active.symbol,session.active.startedAtMs,[...entry.report.fills as ExecutionFill[],...exits.flatMap(({report})=>report.fills as ExecutionFill[])])]);
+        const marked=shortMark(entry.report.fills as ExecutionFill[],exits.flatMap(({report})=>report.fills as ExecutionFill[]),quote.ask,quote.fee,ledger.fundingCents);
+        if(position.quantity!==marked.quantity)throw Error("Perpetual position differs from owned fills.");
+        held={orders:held.orders,unrealized:null,unavailable:null,shortValuation:{quantity:formatDecimal(marked.quantity),netCents:marked.netCents,fundingCents:ledger.fundingCents,ask:quote.ask,atMs:quote.atMs}};
+      } else {
       const [quote, wallet] = await Promise.all([autonomousQuote(userId, session.active.symbol), autonomousWallet(userId)]);
       const estimate = estimateUnrealized(session.active.symbol, entry.report.fills as ExecutionFill[], exits.flatMap(({ report }) => report.fills as ExecutionFill[]), quote);
       const total = wallet.find(c => c.coin === session.active!.symbol.slice(0, -4))?.total;
       if (total !== decimal(estimate.quantity) + decimal(session.dust[session.active.symbol] ?? "0", true)) throw Error("Wallet differs.");
+        held = { orders: held.orders, unrealized: estimate, unavailable: null };
+      }
       const latest = await db.assistantMemory.findUnique({ where: { userId_key: { userId, key: activeKey } }, select: { value: true } });
       if (!latest || materialSession(validateSession(JSON.parse(latest.value))) !== materialSession(session) || connectionIdentity(await getBybitConfig(userId)) !== session.connection) throw Error("Session changed during valuation.");
-      held = { orders: held.orders, unrealized: estimate, unavailable: null };
-    } catch { /* Keep the partial report; never label an unknown valuation zero. */ }
+    } catch { held = { orders: held.orders, unrealized: null, unavailable: session.plan.product === "linear_short" ? "Short valuation unavailable until owned fills, position and funding records agree." : "Unrealized result unavailable until entry, exits, wallet and a fresh mark agree." }; }
   }
   // A concurrent settlement must not pair new trade details with old totals.
   // Heartbeat-only revisions do not change any reported material values.

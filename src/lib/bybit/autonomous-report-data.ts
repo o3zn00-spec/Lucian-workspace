@@ -34,12 +34,12 @@ export function estimateUnrealized(symbol: string, entries: ExecutionFill[], exi
   if (!Number.isSafeInteger(remainingBasisCents) || !Number.isSafeInteger(estimatedProceedsCents)) throw Error("Valuation bounds exceeded.");
   return { quantity: formatDecimal(remaining), remainingBasisCents, estimatedProceedsCents, unrealizedCents: estimatedProceedsCents - remainingBasisCents, bid: mark.bid, atMs: mark.atMs, fee: mark.fee };
 }
-export type SessionSummary = { id: string; status: string; mode: string; model: string; startedAtMs: number; deadlineMs: number; cashCents: number; realizedCents: number; trades: number; modelCalls: number; error: string | null; protection: string | null };
-export type SettledReport = { id: string; atMs: number; symbol: string; entryId: string; costCents: number; proceedsCents: number; remainingQuantity: string; orders: ReportOrder[]; fillsComplete: boolean };
+export type SessionSummary = { product?: "spot" | "linear_short"; id: string; status: string; mode: string; model: string; startedAtMs: number; deadlineMs: number; cashCents: number; realizedCents: number; trades: number; modelCalls: number; error: string | null; protection: string | null };
+export type SettledReport = { product?: "linear_short"; netCents?:number; fundingCents?:number; feesCents?:number; id: string; atMs: number; symbol: string; entryId: string; costCents: number; proceedsCents: number; remainingQuantity: string; orders: ReportOrder[]; fillsComplete: boolean };
 export type AutonomousReport = {
   sessions: SessionSummary[]; moreSessions: boolean; session: SessionSummary | null;
   decisions: Array<DecisionEvidence & { id: string }>; moreDecisions: boolean;
   trades: SettledReport[]; moreTrades: boolean;
-  active: { orders: ReportOrder[]; unrealized: ReturnType<typeof estimateUnrealized> | null; unavailable: string | null } | null;
+  active: { shortValuation?: { quantity:string; netCents:number; fundingCents:number; ask:string; atMs:number }; orders: ReportOrder[]; unrealized: ReturnType<typeof estimateUnrealized> | null; unavailable: string | null } | null;
   recordedAtMs: number;
 };

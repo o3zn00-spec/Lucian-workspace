@@ -16,3 +16,12 @@ assert.equal(p.validateAutonomousPlan({...plan,webResearch:true}).webResearch,tr
 assert.equal(p.validateAutonomousPlan(plan).webResearch,undefined);
 assert.throws(()=>p.validateAutonomousPlan({...plan,webResearch:'true'}));
 assert.throws(()=>p.validateAutonomousPlan({...plan,webResearch:true,maxModelCalls:1}));
+
+const shortPlan={...plan,product:'linear_short'},short={...decision,action:'short',stopPrice:'110',takeProfit:'90'};
+assert.equal(p.parseAutonomousDecision(JSON.stringify(short)).action,'short');assert.ok(p.evaluateAutonomousEntry(shortPlan,short,quote,2000,0,0).riskCents>50);
+for(const changed of [{...short,stopPrice:'99'},{...short,takeProfit:'101'},{...short,quantity:'1'},{...short,action:'buy'},{...short,quantity:'0.000001'}])assert.throws(()=>p.evaluateAutonomousEntry(shortPlan,changed,quote,2000,0,0));
+assert.throws(()=>p.evaluateAutonomousEntry(plan,short,quote,2000,0,0));
+assert.throws(()=>p.validateAutonomousPlan({...plan,product:'unknown'}));assert.throws(()=>p.parseAutonomousDecision(JSON.stringify({action:'cover',symbol:'BTCUSDT',quantity:'1',rationale:'close'})));
+assert.deepEqual(p.linearFillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.005',feeCurrency:'USDT'}]),{quantity:50000000000n,quote:5000000000000n,fees:5000000000n});
+assert.throws(()=>p.linearFillTotals([{execQty:'0.05',execPrice:'100',execFee:'0.005',feeCurrency:'BTC'}]));assert.equal(p.floorCents(-1n),-1);
+console.log('PASS strict short/cover decisions, product isolation, stop direction, conservative risk and signed fee accounting.');

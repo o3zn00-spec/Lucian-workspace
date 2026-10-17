@@ -15,7 +15,7 @@ const page=await browser.newPage({viewport:{width:1440,height:1100}});
 page.on("pageerror", error => console.error("Fixture browser error:", error.message));
 page.setDefaultTimeout(10000);
 const calls=[];
-const plan={mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'6',maxLoss:'1',maxRiskPerTrade:'1',maxTrades:2,reviewMinutes:5,durationHours:24,maxModelCalls:20,slippageBps:50,strategy:'Fixture strategy. Research, protect and reassess within the approved limits.'};
+const plan={...(process.env.SHORT_REVIEW_FIXTURE==='1'?{product:'linear_short'}:{}),mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'6',maxLoss:'1',maxRiskPerTrade:'1',maxTrades:2,reviewMinutes:5,durationHours:24,maxModelCalls:20,slippageBps:50,strategy:'Fixture strategy. Research, protect and reassess within the approved limits.'};
 let failStart=false;
 await page.route('**/api/**',async route=>{const req=route.request();const body=req.postDataJSON();calls.push({url:req.url(),body});let data;
 if(req.url().includes('/api/markets/bybit?'))data={retCode:0,result:{symbol:'BTCUSDT',list:Array.from({length:30},(_,i)=>[String((Math.floor(Date.now()/900000)*900-(30-i)*900)*1000),'100','105','95','102','1'])}};
@@ -26,7 +26,7 @@ else data={ok:true,session:null};await route.fulfill({json:data});});
 const load=()=>page.goto(`http://127.0.0.1:${server.address().port}`);
 try{
 await load();await page.getByRole('button',{name:'Today',exact:true}).click();assert.match(await page.locator('#selection').innerText(),/Today/);assert.equal(await page.getByRole('button',{name:'One week',exact:true}).isDisabled(),true);
-await page.getByRole('button',{name:'Load current review'}).click();await page.getByLabel('Current LUCIAN password').waitFor();assert.equal(await page.getByRole('button',{name:'Approve session',exact:true}).isDisabled(),true);
+await page.getByRole('button',{name:'Load current review'}).click();await page.getByLabel('Current LUCIAN password').waitFor();if(plan.product==='linear_short')await page.getByText('USDT perpetual · Short · isolated 1x',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Approve session',exact:true}).isDisabled(),true);
 await page.getByRole('button',{name:'Reject',exact:true}).click();assert.equal(calls.filter(c=>c.body?.action==='start').length,0);
 await page.getByRole('button',{name:'Load current review'}).click();await page.getByLabel('Current LUCIAN password').fill(' fixture password ');await page.getByLabel('Session confirmation phrase').fill('APPROVE FIXTURE');
 await page.evaluate(()=>window.changeFixtureModel());assert.equal(await page.getByRole('button',{name:'Approve session',exact:true}).isDisabled(),true);

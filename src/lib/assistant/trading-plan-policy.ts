@@ -13,7 +13,7 @@ export type TradingPlanSnapshot = {
   status: "unapproved_draft"; sessionStarted: false;
 };
 export const TRADING_PLAN_FIELDS: { key: keyof AutonomousPlan; label: string }[] = [
-  { key: "mode", label: "Live or Testnet" }, { key: "symbols", label: "USDT Spot symbols" },
+  { key: "mode", label: "Live or Testnet" }, { key: "symbols", label: "USDT symbols" },
   { key: "capital", label: "Session capital (USDT)" }, { key: "maxOrder", label: "Maximum order including costs (USDT)" },
   { key: "maxLoss", label: "Session loss limit (USDT)" }, { key: "maxRiskPerTrade", label: "Maximum risk per trade (USDT)" },
   { key: "maxTrades", label: "Maximum trades" }, { key: "reviewMinutes", label: "Review interval (minutes)" },
@@ -26,7 +26,7 @@ export type TradingPlanTool = typeof tradingPlanTools[number];
 export const isTradingPlanTool = (tool: string): tool is TradingPlanTool => tradingPlanTools.some(t => t === tool);
 const moneyFields = ["capital", "maxOrder", "maxLoss", "maxRiskPerTrade"] as const;
 const counts = { maxTrades: [1, 10000], reviewMinutes: [1, 1440], durationHours: [1, 168], maxModelCalls: [1, 10000], slippageBps: [1, 500] } as const;
-const fields = new Set<keyof AutonomousPlan>([...TRADING_PLAN_FIELDS.map(f => f.key), "webResearch"]);
+const fields = new Set<keyof AutonomousPlan>([...TRADING_PLAN_FIELDS.map(f => f.key), "webResearch", "product"]);
 export function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TradingPlanError("Use a valid planning object.");
   return value as Record<string, unknown>;
@@ -47,9 +47,10 @@ export function validateDraftRules(raw: unknown): Partial<AutonomousPlan> {
   if (Object.keys(input).some(k => !fields.has(k as keyof AutonomousPlan))) throw new TradingPlanError("Unknown session rule. Credentials and authorization do not belong in a draft.");
   const p = { ...input } as Partial<AutonomousPlan>;
   try {
+    if (p.product !== undefined && !["spot", "linear_short"].includes(p.product)) throw new TradingPlanError("Choose Spot or perpetual shorts.");
     if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new TradingPlanError("Web research must be a boolean.");
     if (p.mode !== undefined && !["bybit_live", "bybit_testnet"].includes(p.mode)) throw new TradingPlanError("Choose Bybit Live or Testnet; paper practice has its own setup.");
-    if (p.symbols !== undefined && (!Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s)))) throw new TradingPlanError("Choose 1–10 unique USDT Spot symbols.");
+    if (p.symbols !== undefined && (!Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s)))) throw new TradingPlanError("Choose 1–10 unique USDT symbols.");
     for (const key of moneyFields) if (p[key] !== undefined) moneyCents(p[key]);
     for (const key of Object.keys(counts) as (keyof typeof counts)[]) {
       const value = p[key], [min, max] = counts[key];

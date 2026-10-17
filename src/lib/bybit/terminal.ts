@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { bybitPublicRequest, bybitRequest, getBybitConfig, type BybitEnvironment } from "@/lib/bybit/client";
 import { getTradingProfile } from "@/lib/bybit/trading";
+import { shortFundingLoss } from "./autonomous-short";
 import { accountExposure } from "@/lib/bybit/exposure";
 import { readCompleteBybitList } from "@/lib/bybit/pagination";
 import { readSpotRisk } from "@/lib/bybit/spot-risk";
@@ -257,7 +258,8 @@ export async function validateTerminalOrder(userId: string, input: Record<string
   const addsExposure = category === "spot" ? side === "Buy" : !reduceOnly;
   // A live entry must never interpret missing Spot cost basis as zero loss.
   const spotRisk = mode === "bybit_live" && addsExposure ? await readSpotRisk(userId, config) : null;
-  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + riskNumber(row.closedPnl, "Daily closed P/L"), 0) + (spotRisk?.dailyRealized ?? 0);
+  const fundingLoss = input.autonomousShort === true && category === "linear" && addsExposure ? await shortFundingLoss(userId) : 0;
+  const dailyClosedPnl = closedPnl.reduce((sum, row) => sum + riskNumber(row.closedPnl, "Daily closed P/L"), 0) + (spotRisk?.dailyRealized ?? 0) - fundingLoss;
   const filters = instruments.list?.[0] ?? null;
   const lot = (filters?.lotSizeFilter ?? {}) as Record<string, string>;
   const priceFilter = (filters?.priceFilter ?? {}) as Record<string, string>;

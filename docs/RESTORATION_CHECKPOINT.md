@@ -1,3 +1,7 @@
+## October 16 — autonomous Bybit short lifecycle
+
+Implemented reviewed USDT perpetual shorts (isolated, one-way, 1x) with exact reduce-only protection/covers, partial-fill and acknowledgement recovery, funding/fee settlement, repeated entries and account-risk revalidation. Existing Spot sessions and production switches remain unchanged. See `docs/design/BYBIT_SHORTS.md` for scope, evidence and activation boundaries. Local mocked lifecycle/terminal risk/Spot regression/report-race tests, typecheck, lint, architecture and consolidation pass; isolated short review browser fixture passes. No funded or production-browser acceptance claimed. Release commit/tree and deployment identity are recorded in the chat completion record after publication.
+
 ## October 16 — final entry-dispatch revalidation
 
 Queued autonomous Spot entries now repeat current account/exchange risk validation and fresh quote/session risk evaluation immediately before dispatch. After those asynchronous reads, the worker rechecks lease, pause, deadlines, owner credential, connection identity and emergency stop. Unsent rejection releases only the unsent reservation; ambiguous attempted requests still require reconciliation and are never retried automatically. Existing grants, Spot restrictions, account limits and protective exits are preserved.

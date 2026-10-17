@@ -1,10 +1,11 @@
 export type AutonomousPlan = {
+  product?: "spot" | "linear_short";
   mode: "bybit_live" | "bybit_testnet"; symbols: string[]; capital: string;
   maxOrder: string; maxLoss: string; maxRiskPerTrade: string;
   maxTrades: number; reviewMinutes: number; durationHours: number;
   webResearch?: boolean; maxModelCalls: number; slippageBps: number; strategy: string;
 };
-export type AutonomousDecision = { action: "hold" | "buy" | "sell"; rationale: string; symbol?: string; quantity?: string; stopPrice?: string; takeProfit?: string };
+export type AutonomousDecision = { action: "hold" | "buy" | "sell" | "short" | "cover"; rationale: string; symbol?: string; quantity?: string; stopPrice?: string; takeProfit?: string };
 export class AutonomousError extends Error { constructor(message: string, public status = 400) { super(message); } }
 export const decimal = (raw: unknown, zero = false): bigint => {
   if (typeof raw !== "string" || !/^\d{1,12}(\.\d{1,12})?$/.test(raw)) throw new AutonomousError("Invalid decimal amount.");
@@ -19,11 +20,13 @@ export const moneyCents = (raw: unknown) => {
 export function validateAutonomousPlan(raw: unknown): AutonomousPlan {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new AutonomousError("Choose session rules.");
   const p = raw as AutonomousPlan;
-  if (Object.keys(p).filter(k => k !== "webResearch").sort().join(",") !== "capital,durationHours,maxLoss,maxModelCalls,maxOrder,maxRiskPerTrade,maxTrades,mode,reviewMinutes,slippageBps,strategy,symbols") throw new AutonomousError("Unexpected session rule fields.");
-  if (!["bybit_live", "bybit_testnet"].includes(p.mode) || !Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s))) throw new AutonomousError("Choose unique Bybit USDT Spot symbols.");
+  if (Object.keys(p).filter(k => k !== "webResearch" && k !== "product").sort().join(",") !== "capital,durationHours,maxLoss,maxModelCalls,maxOrder,maxRiskPerTrade,maxTrades,mode,reviewMinutes,slippageBps,strategy,symbols") throw new AutonomousError("Unexpected session rule fields.");
+  if (!["bybit_live", "bybit_testnet"].includes(p.mode) || !Array.isArray(p.symbols) || !p.symbols.length || p.symbols.length > 10 || new Set(p.symbols).size !== p.symbols.length || p.symbols.some(s => typeof s !== "string" || !/^[A-Z0-9]{2,16}USDT$/.test(s))) throw new AutonomousError("Choose unique Bybit USDT symbols.");
+  if (p.product !== undefined && !["spot", "linear_short"].includes(p.product)) throw new AutonomousError("Choose Spot or USDT perpetual shorts.");
   const capital = moneyCents(p.capital), order = moneyCents(p.maxOrder), loss = moneyCents(p.maxLoss), risk = moneyCents(p.maxRiskPerTrade);
   if (order > capital || loss > capital || risk > loss) throw new AutonomousError("Order and loss limits must fit capital; trade risk must fit the loss limit.");
   for (const [n, min, max] of [[p.maxTrades, 1, 10000], [p.reviewMinutes, 1, 1440], [p.durationHours, 1, 168], [p.maxModelCalls, 1, 10000], [p.slippageBps, 1, 500]]) if (!Number.isInteger(n) || n < min || n > max) throw new AutonomousError("Session counts, interval, duration or slippage allowance are invalid.");
+  if (p.product === "linear_short" && p.durationHours > 144) throw new AutonomousError("Short sessions are limited to six days so all order history remains reconcilable.");
   if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new AutonomousError("Web research must be enabled or disabled explicitly.");
   if (p.webResearch && p.maxModelCalls < 2) throw new AutonomousError("Web research needs at least two model calls per review.");
   if (typeof p.strategy !== "string" || !p.strategy.trim() || p.strategy.length > 3000) throw new AutonomousError("Describe the trading strategy.");
@@ -32,15 +35,16 @@ export function validateAutonomousPlan(raw: unknown): AutonomousPlan {
 export function parseAutonomousDecision(raw: string): AutonomousDecision {
   if (raw.length > 5000) throw new AutonomousError("Model decision too large.");
   const d = JSON.parse(raw) as AutonomousDecision;
-  if (!d || typeof d !== "object" || Array.isArray(d) || !["buy", "sell", "hold"].includes(d.action) || typeof d.rationale !== "string" || !d.rationale.trim() || d.rationale.length > 1500) throw new AutonomousError("Invalid structured trading decision.");
-  const keys = d.action === "buy" ? "action,quantity,rationale,stopPrice,symbol,takeProfit" : d.action === "sell" ? "action,rationale,symbol" : "action,rationale";
+  if (!d || typeof d !== "object" || Array.isArray(d) || !["buy", "sell", "short", "cover", "hold"].includes(d.action) || typeof d.rationale !== "string" || !d.rationale.trim() || d.rationale.length > 1500) throw new AutonomousError("Invalid structured trading decision.");
+  const keys = ["buy", "short"].includes(d.action) ? "action,quantity,rationale,stopPrice,symbol,takeProfit" : ["sell", "cover"].includes(d.action) ? "action,rationale,symbol" : "action,rationale";
   if (Object.keys(d).sort().join(",") !== keys) throw new AutonomousError("Unexpected model decision fields.");
   if (d.action !== "hold" && !/^[A-Z0-9]{2,16}USDT$/.test(d.symbol ?? "")) throw new AutonomousError("Invalid decision symbol.");
-  if (d.action === "buy") { decimal(d.quantity); decimal(d.stopPrice); decimal(d.takeProfit); }
+  if (["buy", "short"].includes(d.action)) { decimal(d.quantity); decimal(d.stopPrice); decimal(d.takeProfit); }
   return d;
 }
 export function evaluateAutonomousEntry(p: AutonomousPlan, d: AutonomousDecision, q: { ask: string; bid: string; step: string; tick: string; minQty: string; minNotional: string; fee: string; atMs: number }, cash: number, realized: number, trades: number, now = Date.now()) {
   validateAutonomousPlan(p);
+  if (p.product === "linear_short") return evaluateShortEntry(p, d, q, cash, realized, trades, now);
   if (d.action !== "buy" || !p.symbols.includes(d.symbol!) || trades >= p.maxTrades || realized <= -moneyCents(p.maxLoss)) throw new AutonomousError("Entry exceeds approved session symbols, trade count or loss limit.");
   if (!Number.isSafeInteger(q.atMs) || q.atMs > now + 1000 || now - q.atMs > 10000) throw new AutonomousError("Fresh exchange quote required.");
   const qty = decimal(d.quantity), ask = decimal(q.ask), bid = decimal(q.bid), stop = decimal(d.stopPrice), target = decimal(d.takeProfit), step = decimal(q.step), tick = decimal(q.tick), fee = decimal(q.fee, true), scale = 1000000000000n;
@@ -70,3 +74,34 @@ export function fillTotals(fills: ExecutionFill[], symbol: string, side: "buy" |
   if (!Number.isSafeInteger(cents)) throw new AutonomousError("Execution totals exceed precise accounting bounds.");
   return { quantity, quote, cents };
 }
+
+export const isShortPlan = (p: AutonomousPlan) => p.product === "linear_short";
+export const sessionCategory = (p: AutonomousPlan): "spot" | "linear" => isShortPlan(p) ? "linear" : "spot";
+export function evaluateShortEntry(p: AutonomousPlan, d: AutonomousDecision, q: {ask:string;bid:string;step:string;tick:string;minQty:string;minNotional:string;fee:string;atMs:number}, cash:number, realized:number, trades:number, now=Date.now()) {
+  if (d.action !== "short" || !p.symbols.includes(d.symbol!) || trades >= p.maxTrades || realized <= -moneyCents(p.maxLoss)) throw new AutonomousError("Short entry exceeds reviewed session limits.");
+  if (!Number.isSafeInteger(q.atMs) || q.atMs > now+1000 || now-q.atMs>10000) throw new AutonomousError("Fresh perpetual quote required.");
+  const scale=1000000000000n, qty=decimal(d.quantity), ask=decimal(q.ask), bid=decimal(q.bid), stop=decimal(d.stopPrice), target=decimal(d.takeProfit), fee=decimal(q.fee,true);
+  if (bid>ask || stop<=ask || target>=bid || qty%decimal(q.step)!==0n || stop%decimal(q.tick)!==0n || target%decimal(q.tick)!==0n || qty<decimal(q.minQty) || qty*bid<decimal(q.minNotional)*scale || fee>scale/10n) throw new AutonomousError("Invalid short size, stop, target or increments.");
+  const ceil=(n:bigint,d:bigint)=>(n+d-1n)/d;
+  // 1x initial margin, both trade fees and adverse price slippage. Funding is
+  // separately reconciled and debited from remaining session risk while held.
+  const margin=ceil(qty*ask*100n*BigInt(10000+p.slippageBps)*(scale+2n*fee),scale**3n*10000n);
+  const entry=qty*bid*100n*BigInt(10000-p.slippageBps)*(scale-fee)/(scale**3n*10000n);
+  const cover=ceil(qty*stop*100n*BigInt(10000+p.slippageBps)*(scale+fee),scale**3n*10000n);
+  const risk=cover-entry;
+  if (![cash,realized].every(Number.isSafeInteger) || margin>BigInt(Math.min(cash,moneyCents(p.maxOrder))) || risk>BigInt(moneyCents(p.maxRiskPerTrade)) || risk+BigInt(Math.max(0,-realized))>BigInt(moneyCents(p.maxLoss))) throw new AutonomousError("Short margin, fees or stop risk exceed reviewed limits.");
+  return {debitCents:Number(margin),riskCents:Number(risk)};
+}
+export function linearFillTotals(fills: ExecutionFill[]) {
+  const scale=1000000000000n;let quantity=0n,quote=0n,fees=0n;
+  for(const f of fills){
+    if(f.feeCurrency!=="USDT")throw new AutonomousError("Perpetual execution fee currency must be USDT.");
+    quantity+=decimal(f.execQty);quote+=decimal(f.execQty)*decimal(f.execPrice)/scale;fees+=signedDecimal(f.execFee);
+  }
+  return {quantity,quote,fees};
+}
+export function signedDecimal(value:unknown){
+  if(typeof value!=="string" || !/^-?\d{1,12}(\.\d{1,12})?$/.test(value))throw new AutonomousError("Invalid signed exchange amount.");
+  return value.startsWith("-")?-decimal(value.slice(1),true):decimal(value,true);
+}
+export function floorCents(value:bigint){const n=value*100n,scale=1000000000000n;const result=Number(n>=0n?n/scale:-((-n+scale-1n)/scale));if(!Number.isSafeInteger(result))throw new AutonomousError("Accounting bounds exceeded.");return result;}

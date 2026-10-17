@@ -25,6 +25,7 @@ const countFields = [["maxTrades", "Maximum completed trades", 10000], ["duratio
 function PlanSummary({ plan }: { plan: AutonomousPlan }) {
   const fields = [
     ["Exchange", plan.mode === "bybit_live" ? "Bybit Live · real funds" : "Bybit Testnet"],
+    ["Product", plan.product === "linear_short" ? "USDT perpetual · Short · isolated 1x" : "Spot · Buy and sell"],
     ["Assets", plan.symbols.join(", ")],
     ...moneyFields.map(([key, label]) => [label.replace(" (USDT)", ""), `${plan[key]} USDT`]),
     ["Public web research", plan.webResearch ? "Enabled · 2 model calls per review plus search credits" : "Off · market data and feeds"],
@@ -147,12 +148,12 @@ export function AutonomousTradingCard() {
     </div>
     <Dialog.Root open={open} onOpenChange={changeOpen}><Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[180] bg-black/60" /><Dialog.Content className="themed fixed left-1/2 top-1/2 z-[181] max-h-[90dvh] w-[min(52rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-line bg-surface p-5 text-fg shadow-pop">
       <Dialog.Title className="pr-8 text-xl font-semibold">Autonomous trading session</Dialog.Title>
-      <Dialog.Description className="mt-2 text-sm text-fg-muted">Approve once for this session. Lilthe can research, place repeated Spot trades, cancel its own stops and close its own holdings while you are away. Native stops stay on Bybit; targets are monitored by the background worker. No leverage, transfers or withdrawals.</Dialog.Description>
+      <Dialog.Description className="mt-2 text-sm text-fg-muted">Approve once for this session. Lilthe can research, trade the reviewed product repeatedly, cancel its own stops and close its own holdings while you are away. Native stops stay on Bybit; targets are monitored by the background worker. Short sessions require isolated 1x, one-way mode and automatic margin additions off. Account settings are never changed by starting a session. No transfers or withdrawals.</Dialog.Description>
       <Dialog.Close asChild><button type="button" aria-label="Close autonomous session" disabled={busy} className="absolute right-3 top-3 rounded-lg p-2"><X size={18} /></button></Dialog.Close>
       {error && <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>}
       {active ? <div className="mt-4 space-y-4 text-sm">
         <PlanSummary plan={s.plan} />
-        <p>Pause blocks new entries while managing the current trade. Close and end cancels the session stop, confirms its outcome, sells the remaining owned quantity and ends the session. At expiry the same closure process has a fixed 30-minute management window; unresolved holdings are reported and existing stops are retained.</p>
+        <p>Pause blocks new entries while managing the current trade. Close and end cancels the session stop, confirms its outcome, closes the remaining owned quantity and ends the session. At expiry the same closure process has a fixed 30-minute management window; unresolved holdings are reported and existing stops are retained.</p>
         {s.status === "stopped" && s.active ? <div className="space-y-3 rounded-xl border border-line p-3">
           <p>The original management window expired. Authorize 30 minutes to reconcile and close this existing owned trade. This does not permit new entries.</p>
           <label className="block">Type REAUTHORIZE EXIT MANAGEMENT {s.id.slice(0, 8)}<input autoComplete="off" className={input} value={confirmation} disabled={busy} onChange={e => setConfirmation(e.target.value)} /></label>
@@ -170,6 +171,7 @@ export function AutonomousTradingCard() {
         <fieldset disabled={busy} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">Exchange mode<select className={input} value={plan.mode} onChange={e => edit("mode", e.target.value as AutonomousPlan["mode"])}><option value="bybit_live">Bybit Live · real funds</option><option value="bybit_testnet">Bybit Testnet</option></select></label>
+            <label className="text-sm">Product<select className={input} value={plan.product ?? "spot"} onChange={e => edit("product", e.target.value as AutonomousPlan["product"])}><option value="spot">Spot · Buy and sell</option><option value="linear_short">USDT perpetual · Short · isolated 1x</option></select></label>
             <label className="text-sm">Allowed symbols<input className={input} value={plan.symbols.join(", ")} onChange={e => edit("symbols", e.target.value.split(",").map(value => value.trim().toUpperCase()))} /></label>
             {moneyFields.map(([key, label]) => <label key={key} className="text-sm">{label}<input inputMode="decimal" className={input} value={plan[key]} onChange={e => edit(key, e.target.value)} /></label>)}
             {countFields.map(([key, label, max]) => <label key={key} className="text-sm">{label}<input type="number" min="1" max={max} step="1" className={input} value={plan[key]} onChange={e => edit(key, Number(e.target.value))} /></label>)}

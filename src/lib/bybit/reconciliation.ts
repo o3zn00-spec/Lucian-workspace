@@ -59,8 +59,13 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const side=intent.side.toLowerCase()==="buy"?"Buy":"Sell";
   const matches=(row:Row)=>row.symbol===symbol && row.side===side && row.orderLinkId===orderLinkId && typeof row.orderId==="string" && !!row.orderId && (!intent.providerOrderId || row.orderId===intent.providerOrderId);
   if(!matches(order) || typeof order.orderStatus!=="string") throw Error("Exchange order identity mismatch. Reservation retained.");
-  const sessionPreview = intent.preview as { role?: string; body?: { triggerPrice?: unknown } } | null;
+  const sessionPreview = intent.preview as { role?: string; body?: { triggerPrice?: unknown; reduceOnly?: unknown; positionIdx?: unknown; closeOnTrigger?: unknown; triggerDirection?: unknown; triggerBy?: unknown } } | null;
   if (intent.initiatedBy === "owner_session" && sessionPreview?.role === "stop" && decimal(order.triggerPrice, true) !== decimal(sessionPreview.body?.triggerPrice, true)) throw Error("Tracked native stop trigger does not match its reserved price.");
+  if(intent.initiatedBy==="owner_session" && category==="linear") {
+    const body=sessionPreview?.body;
+    if(!body || order.reduceOnly!==body.reduceOnly || order.positionIdx!==0 || body.positionIdx!==0)throw Error("Perpetual reduce-only/position identity mismatch. Reservation retained.");
+    if(sessionPreview?.role==="stop" && (order.closeOnTrigger!==true || order.triggerDirection!==1 || order.triggerBy!=="LastPrice"))throw Error("Short stop protection flags do not match the reserved order.");
+  }
   const cumulative=decimal(order.cumExecQty),leaves=decimal(order.leavesQty);
   const requested=decimal(intent.baseSize?.toString(),true);
   const tolerance=Math.max(1e-12,requested*1e-9);
@@ -83,7 +88,7 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
       const fingerprint=JSON.stringify([row.orderId,row.execQty,row.execPrice,row.execFee,row.feeCurrency,row.execTime]);
       if(seen.has(row.execId)){if(seen.get(row.execId)!==fingerprint) throw Error("Conflicting duplicate execution.");continue;}
       seen.set(row.execId,fingerprint);
-      fills.push({execId:row.execId,orderId:row.orderId,execQty:row.execQty,execPrice:row.execPrice,execFee:row.execFee,feeCurrency:typeof row.feeCurrency==="string"?row.feeCurrency:null,execTime:row.execTime});
+      fills.push({execId:row.execId,orderId:row.orderId,execQty:row.execQty,execPrice:row.execPrice,execFee:row.execFee,feeCurrency:typeof row.feeCurrency==="string"&&row.feeCurrency?row.feeCurrency:intent.initiatedBy==="owner_session"&&category==="linear"&&symbol.endsWith("USDT")?"USDT":null,execTime:row.execTime});
     }
     cursor=page.nextPageCursor??"";if(!cursor) break;
     if(cursors.has(cursor) || i===3) throw Error("Execution history is incomplete. Reservation retained.");cursors.add(cursor);
