@@ -23,7 +23,7 @@ async function owner(){const id=randomUUID();owners.push(id);await db.user.creat
 async function start(id,selectedPlan=plan){const {draft}=await runtime.previewAutonomousSession(id,{action:'preview',plan:selectedPlan,provider:'openai',model:'fixture',effort:'low'});return runtime.startAutonomousSession(id,{action:'start',draftId:draft.id,password:'fixture',confirmation:draft.confirmation});}
 async function state(id){return JSON.parse((await db.assistantMemory.findUnique({where:{userId_key:{userId:id,key:'_live_session:active'}}})).value);}
 async function tick(id){const s=await state(id);await runtime.tickAutonomousSession(id,s.id,s.generation);return state(id);}
-function reset(){Object.assign(f,{writes:[],orders:new Map(),fills:new Map(),ledger:[],position:0,partialEntry:1,partialExit:1,ledgerFail:false,maxLeverage:100,crossAvailable:'1000',mark:null,liq:null,marginMode:'ISOLATED_MARGIN',autoAddMargin:0,leverage:'1',positionIdx:0,wallet:0,usdt:1000,last:100,key:'fixture',password:true,calls:0,modelFail:false,validations:0,validationDefer:null,rejectDispatch:false,dispatchPrice:null,webCalls:0,webFail:false,webDefer:null,failSubmit:false,failSettlement:false,cancelRace:false,defer:null});}
+function reset(){Object.assign(f,{writes:[],orders:new Map(),fills:new Map(),ledger:[],position:0,partialEntry:1,partialExit:1,ledgerFail:false,minQty:'0.00001',maxLeverage:100,crossAvailable:'1000',mark:null,liq:null,marginMode:'ISOLATED_MARGIN',autoAddMargin:0,leverage:'1',positionIdx:0,wallet:0,usdt:1000,last:100,key:'fixture',password:true,calls:0,modelFail:false,validations:0,validationDefer:null,rejectDispatch:false,dispatchPrice:null,webCalls:0,webFail:false,webDefer:null,failSubmit:false,failSettlement:false,cancelRace:false,defer:null});}
 
 const realNow=Date.now;let clock=realNow();Date.now=()=>clock;const advance=(ms=61000)=>clock+=ms;
 async function settle(id){await tick(id);advance();return tick(id);}
@@ -32,6 +32,15 @@ reset();delete process.env.BYBIT_LIVE_SPOT_ONLY;const locked=await owner();await
 for(const [field,value,message] of [['marginMode','PORTFOLIO_MARGIN',/Portfolio/],['leverage','',/leverage is unavailable/],['autoAddMargin',2,/margin additions are unavailable/],['positionIdx',1,/position mode/],['position',.1,/already has a position/]]){reset();f[field]=value;await assert.rejects(()=>start(locked),message);assert.equal(f.writes.length,0);}
 reset();f.marginMode='REGULAR_MARGIN';f.leverage='10';f.maxLeverage=1;f.crossAvailable='1';await assert.rejects(()=>start(locked),e=>/10x exceeds/.test(e.message)&&/capital exceeds/.test(e.message));assert.equal(f.writes.length,0);
 console.log('PASS exact unsupported/account-cap/balance blockers aggregate without mutations.');
+reset();f.last=81450;f.mark='81450';f.minQty='0.001';const tiny=await owner();
+const blocked=await runtime.prepareAutonomousSession(tiny,{action:'preview',plan,provider:'openai',model:'fixture',effort:'low'});
+assert.equal(blocked.readiness.status,'needs_attention');assert.match(blocked.readiness.message,/exchange minimum/);assert.equal(f.calls,0);assert.equal(f.writes.length,0);
+assert.equal(await db.assistantMemory.findUnique({where:{userId_key:{userId:tiny,key:'_live_session:draft'}}}),null);
+reset();const existing=await owner();await start(existing);await tick(existing);await tick(existing);const beforeWrites=f.writes.length,beforeCalls=f.calls;
+const existingReview=await runtime.prepareAutonomousSession(existing,{action:'preview',plan,provider:'openai',model:'fixture',effort:'low'});
+assert.equal(existingReview.readiness.status,'existing_session');assert.match(existingReview.readiness.message,/BTCUSDT/);assert.equal(f.writes.length,beforeWrites);assert.equal(f.calls,beforeCalls);
+console.log('PASS impossible sizes yield actionable readiness without drafts/inference; active trade returns existing session without duplicate orders.');
+
 for(const [mode,leverage,idx,auto] of [['REGULAR_MARGIN','10',0,0],['ISOLATED_MARGIN','5',0,1],['REGULAR_MARGIN','10',2,0],['ISOLATED_MARGIN','2',2,0]]){
  reset();f.marginMode=mode;f.leverage=leverage;f.positionIdx=idx;f.autoAddMargin=auto;f.decision={action:'short',symbol:'BTCUSDT',quantity:'0.05',stopPrice:'105',takeProfit:'90',rationale:'Adaptive fixture'};
  const adaptive=await owner();let a=await start(adaptive);assert.equal(a.plan.shortSettings.marginMode,mode);assert.equal(a.plan.shortSettings.positions.BTCUSDT.leverage,leverage);

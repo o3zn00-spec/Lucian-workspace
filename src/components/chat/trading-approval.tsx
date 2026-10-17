@@ -2,6 +2,8 @@
 import { useRef, useState } from "react";
 import { ShieldCheck, Check, X, Loader2 } from "lucide-react";
 import { useSharedAIConfig, type InterfaceId } from "@/store/shared-ai-config";
+import { SessionReadinessNotice } from "@/components/markets/session-readiness";
+import type { SessionReadiness } from "@/lib/bybit/session-readiness-policy";
 import type { AutonomousPlan } from "@/lib/bybit/autonomous-policy";
 
 import { ShortAccountSummary, type SessionAccountLimits } from "@/components/markets/short-account-summary";
@@ -9,7 +11,7 @@ import { ShortAccountSummary, type SessionAccountLimits } from "@/components/mar
 type Review = { accountLimits?: SessionAccountLimits; id: string; plan: AutonomousPlan; provider: string; model: string; effort: string; expiresAtMs: number; confirmation: string };
 const control = "focus-ring rounded-lg border border-line px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40";
 async function request(url: string, body?: unknown) {
-  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(30000), ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(body && (body as {action?:string}).action === "preview" ? 120000 : 30000), ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
   const data = await response.json();
   if (!response.ok || !data.ok) throw Error(data.error || "The request could not be confirmed.");
   return data;
@@ -17,6 +19,7 @@ async function request(url: string, body?: unknown) {
 export function TradingApproval({ interfaceId = "economic-agent", disabled = false }: { interfaceId?: InterfaceId; disabled?: boolean }) {
   const shared = useSharedAIConfig();
   const selected = shared.resolve(interfaceId);
+  const [readiness, setReadiness] = useState<SessionReadiness | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [password, setPassword] = useState(""), [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -25,12 +28,17 @@ export function TradingApproval({ interfaceId = "economic-agent", disabled = fal
   const changed = review && (review.provider !== selected.provider || review.model !== selected.model || review.effort !== shared.reasoningEffort);
   async function load() {
     if (lock.current || disabled) return;
-    lock.current = true; setBusy(true); setError(""); setStatus(""); setReview(null); setPassword(""); setConfirmation("");
+    lock.current = true; setBusy(true); setError(""); setStatus(""); setReadiness(null); setReview(null); setPassword(""); setConfirmation("");
     try {
+      const current = await request("/api/bybit/autonomous-session");
+      if(current.session && (current.session.status !== "stopped" || current.session.active)) {
+        const s=current.session;
+        setReadiness({status:"existing_session",title:"Your existing session comes first",message:`Session ${s.id.slice(0,8)} is ${s.status}. ${s.active ? `${s.active.symbol}: ${s.active.quantity}. ${s.active.protection}` : "No owned trade is currently recorded."} Completed trades: ${s.trades}. No duplicate session was created.`,nextAction:"Open session controls to inspect the current trade, protection, worker status or review amended rules."});return;
+      }
       const saved = await request("/api/assistant/trading-plan");
       if (!saved.complete) throw Error("The saved plan is incomplete. Ask Lilthe to finish the missing details here first.");
       const result = await request("/api/bybit/autonomous-session", { action: "preview", plan: saved.draft.rules, provider: selected.provider, model: selected.model, effort: shared.reasoningEffort });
-      setReview(result.draft);
+      setReadiness(result.readiness ?? null); setReview(result.draft ?? null);
     } catch (e) { setError(e instanceof Error ? e.message : "Review unavailable."); }
     finally { lock.current = false; setBusy(false); }
   }
@@ -54,7 +62,8 @@ export function TradingApproval({ interfaceId = "economic-agent", disabled = fal
   return <section aria-label="Trading authorization" className="my-4 overflow-hidden rounded-xl border border-line bg-surface">
     <div className="flex items-center gap-2 border-b border-line-muted px-4 py-3 text-sm font-medium"><ShieldCheck size={16} className="text-fg-muted" />Review trading session</div>
     <div className="space-y-4 p-4">
-      {!review && !status && <p className="text-sm text-fg-muted">Load your saved plan and current server checks. Nothing starts until you approve the exact session.</p>}
+      {!review && !status && !readiness && <p className="text-sm text-fg-muted">Load your saved plan and current server checks. Nothing starts until you approve the exact session.</p>}
+      {readiness && <SessionReadinessNotice value={readiness} />}
       {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
       {status && <p role="status" className="text-sm">{status}</p>}
       {review && <>

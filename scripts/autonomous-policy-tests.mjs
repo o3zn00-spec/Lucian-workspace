@@ -38,3 +38,7 @@ assert.throws(()=>p.validateAutonomousPlan({...adaptive,shortSettings:{...detect
 assert.throws(()=>p.validateAutonomousPlan({...adaptive,product:'spot'}));
 assert.deepEqual(p.shortAccountFor(shortPlan),{marginMode:'ISOLATED_MARGIN',positions:{BTCUSDT:{leverage:'1',positionIdx:0,autoAddMargin:0}}});
 console.log('PASS leverage changes margin reservation without multiplying order allowance or reducing stop risk; legacy settings remain pinned.');
+
+assert.equal(p.validateAutonomousPlan({...adaptive,capital:'100',maxOrder:'1000'}).maxOrder,'1000');
+assert.throws(()=>p.validateAutonomousPlan({...plan,capital:'100',maxOrder:'1000'}));
+console.log('PASS short gross notional may exceed margin allocation; Spot still requires full capital.');

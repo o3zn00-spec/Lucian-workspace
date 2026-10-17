@@ -6,7 +6,8 @@ const url=new URL(process.env.DATABASE_URL??'http://invalid');
 assert(['localhost','127.0.0.1'].includes(url.hostname)&&url.pathname==='/lucian_restoration_dev_20261007','Named local test database required');
 const client=new PrismaClient();globalThis.editFixtureDB=client;
 const user=randomUUID(),other=randomUUID(),projectId=randomUUID();globalThis.editFixtureUser=user;
-const mocks={'server-only':'','@/lib/db':'export const db=globalThis.editFixtureDB;',
+const mocks={
+ '@/lib/bybit/autonomous-session':`export async function autonomousSnapshot(){return {session:globalThis.chatSessionFixture??null};}`,'server-only':'','@/lib/db':'export const db=globalThis.editFixtureDB;',
  '@/lib/auth/owner':"export const requireOwnerId=async()=>{if(!globalThis.editFixtureUser)throw Error('unauthorized');return globalThis.editFixtureUser;};export const ownerErrorResponse=()=>Response.json({ok:false},{status:403});"};
 const bundle=async(entry)=>{const result=await build({entryPoints:[entry],bundle:true,write:false,platform:'node',format:'esm',packages:'external',plugins:[{name:'fixtures',setup(b){b.onResolve({filter:/.*/},a=>a.path in mocks?{path:a.path,namespace:'mock'}:undefined);b.onLoad({filter:/.*/,namespace:'mock'},a=>({contents:mocks[a.path],resolveDir:process.cwd()}));}}]});return import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));};
 const edits=await bundle('src/lib/assistant/workspace-edits.ts');

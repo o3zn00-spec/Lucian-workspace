@@ -1,4 +1,5 @@
 import "server-only";
+import { autonomousSnapshot } from "@/lib/bybit/autonomous-session";
 import { searchPublicWeb } from "./web-research";
 import { collectPaperResearch } from "./paper-research";
 import { rssAggregatorProvider } from "@/lib/markets/news-providers";
@@ -38,14 +39,31 @@ For an explicit request for Bybit open orders or positions, return only:
 This needs separate order/position permission and reads bounded spot open orders
 and USDT-settled linear open orders/positions. No other products, history or
 financial execution. Respect partial/unavailable results; never call them empty.
-For an explicit request to trade or set up a trading session, first read the draft:
+For an explicit request to trade, check the existing saved session first:
+{"lucian_tool":"trading.session.read","arguments":{}}
+This reads only the owner's saved LUCIAN session status, holdings and protection
+observations, not a fresh exchange snapshot. Quote the heartbeat age; do not call old
+protection evidence current. If a session is running, paused, closing or has an unresolved
+owned holding, continue that session through its controls or a reviewed amendment.
+Never propose a duplicate session, adopt a manual trade, reset its ledger or cancel an
+outside order. A request for another trade does not override its remaining trade count,
+deadline or limits. Once flat and stopped, prepare the next reviewed session.
+If no existing session needs attention, read the draft:
 {"lucian_tool":"trading.plan.read","arguments":{}}
 This reads the saved planning state so you can continue the conversation; no session
 starts. The Lilthe trading card supports Bybit Live or Testnet autonomous Spot or reviewed account settings USDT perpetual short
 sessions. The owner reviews model, capital, assets, strategy, timing and risk limits,
 then authorizes the exact session with their password and confirmation phrase.
 Eligible trades can then run within that session without per-order approval.
-Existing account limits and current server checks still apply and can block a start.
+Existing account limits and current server checks still apply. Review now checks
+exchange minimum quantity/notional, fees and effective order/exposure limits before
+approval, and refreshes a bounded old manual-order reservation without placing orders.
+Use the resulting readiness guidance to propose an adjustment; do not repeat an
+impossible size, claim unlimited spending, or suggest increasing leverage to lower
+minimum order notional. A leveraged short order's notional may exceed its allocated
+margin, but fees, stop reserves and all approved dollar limits must still fit.
+Use current server-detected settings in the draft wording; do not carry obsolete
+Isolated/1x restrictions into a new account-adaptive proposal.
 To help the owner draft a session conversationally, first read their planning state:
 {"lucian_tool":"trading.plan.read","arguments":{}}
 Lead a short conversation, not a form tutorial. Ask at most two short questions per
@@ -135,6 +153,15 @@ export async function resolveChatTool(ownerUserId: string, content: string, mode
   const validEnvelope = Object.keys(proposal).every(key => ["lucian_tool", "arguments"].includes(key)) &&
     args !== null && typeof args === "object" && !Array.isArray(args);
   const values = validEnvelope ? args as Record<string, unknown> : {};
+  if (validEnvelope && tool === "trading.session.read") {
+    if(Object.keys(values).length)return "Session status takes no arguments. No financial action was performed.";
+    try {
+      await db.assistantActivity.create({data:{userId:ownerUserId,tool,module:"markets",status:"started",reason:"Read saved owner session status only; no exchange request or financial action."}});
+      const {session:s}=await autonomousSnapshot(ownerUserId);
+      if(!s)return "No saved LUCIAN session. This does not establish that the exchange account is flat. Prepare a draft and use its current review checks.";
+      return JSON.stringify({source:"saved LUCIAN session; not fresh exchange evidence",session:{id:s.id,status:s.status,heartbeatAt:new Date(s.heartbeatMs).toISOString(),deadlineAt:new Date(s.deadlineMs).toISOString(),trades:s.trades,maxTrades:s.plan.maxTrades,active:s.active?{symbol:s.active.symbol,quantity:s.active.quantity,protection:s.active.protection,closing:s.active.closing}:null,error:s.error},nextAction:s.status!=="stopped"||s.active?"Use existing session controls or a reviewed amendment. Do not create a duplicate session.":"Review a new draft against current exchange and account checks.",financialAction:false});
+    }catch{return "Saved session status is unavailable. Do not assume no trade exists; open session controls and refresh before proposing another start.";}
+  }
   if (validEnvelope && tool === "research.web.search") {
     if (Object.keys(values).length !== 1 || typeof values.query !== "string" || !values.query.trim() || values.query.length > 300) return "Use one short public web-search query.";
     if (modelContext?.provider !== "openrouter") return "Broader web research currently requires an OpenRouter model. External publisher-feed research remains available.";

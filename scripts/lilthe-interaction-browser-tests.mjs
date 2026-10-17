@@ -16,13 +16,14 @@ page.on("pageerror", error => console.error("Fixture browser error:", error.mess
 page.setDefaultTimeout(10000);
 const calls=[];
 const plan={...(process.env.SHORT_REVIEW_FIXTURE==='1'?{product:'linear_short',shortSettings:{marginMode:'REGULAR_MARGIN',positions:{BTCUSDT:{leverage:'10',positionIdx:0,autoAddMargin:0}}}}:{}),mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'6',maxLoss:'1',maxRiskPerTrade:'1',maxTrades:2,reviewMinutes:5,durationHours:24,maxModelCalls:20,slippageBps:50,strategy:'Fixture strategy. Research, protect and reassess within the approved limits.'};
-let failStart=false;
+let failStart=false, readiness=null, existingSession=null;
 await page.route('**/api/**',async route=>{const req=route.request();const body=req.postDataJSON();calls.push({url:req.url(),body});let data;
 if(req.url().includes('/api/markets/bybit?'))data={retCode:0,result:{symbol:'BTCUSDT',list:Array.from({length:30},(_,i)=>[String((Math.floor(Date.now()/900000)*900-(30-i)*900)*1000),'100','105','95','102','1'])}};
 else if(req.url().endsWith('/trading-plan'))data={ok:true,complete:true,draft:{rules:plan}};
+else if(body?.action==='preview' && readiness)data={ok:true,readiness};
 else if(body?.action==='preview')data={ok:true,draft:{id:'fixture-review',plan,provider:body.provider,model:body.model,effort:body.effort,expiresAtMs:Date.now()+300000,confirmation:'APPROVE FIXTURE'}};
 else if(body?.action==='start'){if(failStart){await route.abort();return;}data={ok:true,session:{id:'fixture-session',status:'active'}};}
-else data={ok:true,session:null};await route.fulfill({json:data});});
+else data={ok:true,session:existingSession};await route.fulfill({json:data});});
 const load=()=>page.goto(`http://127.0.0.1:${server.address().port}`);
 try{
 await load();await page.getByRole('button',{name:'Today',exact:true}).click();assert.match(await page.locator('#selection').innerText(),/Today/);assert.equal(await page.getByRole('button',{name:'One week',exact:true}).isDisabled(),true);
@@ -38,6 +39,14 @@ await page.getByRole('button',{name:'Load current review'}).click();await page.g
 await page.getByRole('button',{name:'Load current chart',exact:true}).click();await page.getByRole('img',{name:/BTCUSDT closed candles/}).waitFor();assert.equal(await page.getByRole('img',{name:/BTCUSDT closed candles/}).locator('g').count(),31);
 await page.getByRole('button',{name:'Chart analysis',exact:true}).click();await page.getByText('30 closed exchange candles · M1').waitFor();assert.equal(await page.locator('svg[aria-label="Historical chart levels"] line').count(),3);
 await page.evaluate(()=>{Object.defineProperty(navigator,'mediaDevices',{value:{getUserMedia:async()=>{throw new Error('Fixture microphone denied')}},configurable:true})});await page.getByRole('button',{name:'Start natural voice',exact:true}).click();await page.getByText('Fixture microphone denied').waitFor();assert.equal(await page.getByRole('button',{name:'Start natural voice',exact:true}).count(),1);
+readiness={status:'needs_attention',title:'Adjust the order size',message:'BTCUSDT minimum is 0.001 BTC; the current limit is too small.',nextAction:'Review the instrument or saved limits.'};
+await page.getByRole('button',{name:'Load current review'}).click();await page.getByText('Adjust the order size',{exact:true}).waitFor();assert.equal(await page.getByLabel('Current LUCIAN password').count(),0);assert.equal(await page.getByRole('region',{name:'Trading authorization'}).getByRole('alert').count(),0);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+for(const state of ['running','paused','stopped']) {
+existingSession={id:'existing-123',status:state,trades:1,active:{symbol:'BTCUSDT',quantity:'0.001',protection:'confirmed'}};
+const before=calls.length;await page.getByRole('button',{name:'Load current review'}).click();await page.getByText('Your existing session comes first',{exact:true}).waitFor();assert.equal(calls.slice(before).filter(c=>c.body?.action==='preview'||c.url.endsWith('/trading-plan')).length,0);assert.equal(await page.getByLabel('Current LUCIAN password').count(),0);
+}
+assert.equal(calls.filter(c=>c.body?.action==='start').length,2);
+console.log('PASS readiness notice and active/paused/stopped-held sessions: no new plan, preview, authorization or duplicate start; mobile no overflow.');
 console.log('PASS chart overlay visibility and microphone denial cleanup.');
 console.log('PASS browser: real choice submission, single selection, exact server review, reject without start, changed model blocks approval, exact password, one start, ambiguous failure clears credentials/no retry, mobile no overflow. Mocked server only.');
 }finally{await browser.close();await new Promise(r=>server.close(r));}

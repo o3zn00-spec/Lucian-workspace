@@ -1,7 +1,7 @@
 import { requireOwnerId } from "@/lib/auth/owner";
 import { AuthError } from "@/lib/auth/errors";
 import { AutonomousError } from "@/lib/bybit/autonomous-policy";
-import { autonomousSnapshot, previewAutonomousSession, startAutonomousSession, controlAutonomousSession, renewAutonomousExit, recordAutonomousRun, previewAutonomousAmendment, applyAutonomousAmendment } from "@/lib/bybit/autonomous-session";
+import { autonomousSnapshot, prepareAutonomousSession, startAutonomousSession, controlAutonomousSession, renewAutonomousExit, recordAutonomousRun, previewAutonomousAmendment, applyAutonomousAmendment } from "@/lib/bybit/autonomous-session";
 import { autonomousTradingWorkflow, autonomousTradingSupervisor } from "@/workflows/autonomous-trading";
 import { start } from "workflow/api";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     if (req.headers.get("origin") !== new URL(process.env.AUTH_APP_URL ?? req.url).origin) return Response.json({ ok: false, error: "Same-origin request required." }, { status: 403, headers });
     const raw = await req.text(); if (raw.length > 10000) throw new AutonomousError("Session request too large.");
     let b; try { b = JSON.parse(raw); } catch { throw new AutonomousError("Invalid session JSON."); } if (!b || typeof b !== "object" || Array.isArray(b)) throw new AutonomousError("Invalid session request.");
-    if (b.action === "preview") return Response.json({ ok: true, ...await previewAutonomousSession(userId, b) }, { headers });
+    if (b.action === "preview") return Response.json({ ok: true, ...await prepareAutonomousSession(userId, b) }, { headers });
     if (b.action === "amend_preview") return Response.json({ ok: true, ...await previewAutonomousAmendment(userId, b) }, { headers });
     const s = b.action === "start" ? await startAutonomousSession(userId, b) : b.action === "amend" ? await applyAutonomousAmendment(userId, b) : b.action === "renew_exit" ? await renewAutonomousExit(userId, b) : await controlAutonomousSession(userId, b);
     if (s.status !== "stopped") {

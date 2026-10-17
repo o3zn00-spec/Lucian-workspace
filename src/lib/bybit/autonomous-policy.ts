@@ -28,7 +28,7 @@ export function validateAutonomousPlan(raw: unknown): AutonomousPlan {
   if (p.product !== undefined && !["spot", "linear_short"].includes(p.product)) throw new AutonomousError("Choose Spot or USDT perpetual shorts.");
   if (p.shortSettings !== undefined) validateShortSettings(p.shortSettings, p);
   const capital = moneyCents(p.capital), order = moneyCents(p.maxOrder), loss = moneyCents(p.maxLoss), risk = moneyCents(p.maxRiskPerTrade);
-  if (order > capital || loss > capital || risk > loss) throw new AutonomousError("Order and loss limits must fit capital; trade risk must fit the loss limit.");
+  if ((p.product !== "linear_short" && order > capital) || loss > capital || risk > loss) throw new AutonomousError("Order and loss limits must fit capital; trade risk must fit the loss limit.");
   for (const [n, min, max] of [[p.maxTrades, 1, 10000], [p.reviewMinutes, 1, 1440], [p.durationHours, 1, 168], [p.maxModelCalls, 1, 10000], [p.slippageBps, 1, 500]]) if (!Number.isInteger(n) || n < min || n > max) throw new AutonomousError("Session counts, interval, duration or slippage allowance are invalid.");
   if (p.product === "linear_short" && p.durationHours > 144) throw new AutonomousError("Short sessions are limited to six days so all order history remains reconcilable.");
   if (p.webResearch !== undefined && typeof p.webResearch !== "boolean") throw new AutonomousError("Web research must be enabled or disabled explicitly.");

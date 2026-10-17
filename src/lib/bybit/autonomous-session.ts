@@ -10,6 +10,7 @@ import { getTradingProfile } from "./trading";
 import { validateTerminalOrder } from "./terminal";
 import { reconcileTerminalOrder } from "./reconciliation";
 import { collectPaperResearch } from "@/lib/assistant/paper-research";
+import { checkSessionMinimum, type SessionReadiness } from "./session-readiness-policy";
 import { autonomousQuote, autonomousWallet, connectionIdentity } from "./autonomous-market";
 import { validateAmendedPlan, type AutonomousAmendmentReview } from "./autonomous-amendment-policy";
 import { searchPublicWeb } from "@/lib/assistant/web-research";
@@ -83,13 +84,14 @@ export async function previewAutonomousSession(userId: string, b: Record<string,
     if (plan.shortSettings) {
       for (const symbol of plan.symbols) {
         if (decimal(shortSettingsFor(plan,symbol).leverage) > decimal(accountLimits.maxLeverage)) blockers.push(`${symbol} leverage ${shortSettingsFor(plan,symbol).leverage}x exceeds your saved LUCIAN account limit ${accountLimits.maxLeverage}x`);
-        try { await assertOwnedShortOrders(userId, symbol, []); await autonomousQuote(userId, symbol, "linear"); } catch (e) { blockers.push(`${symbol}: ${(e as Error).message}`); }
+        try { await assertOwnedShortOrders(userId, symbol, []); const quote=await autonomousQuote(userId, symbol, "linear"); checkSessionMinimum(plan,symbol,quote,accountLimits); } catch (e) { blockers.push(`${symbol}: ${(e as Error).message}`); }
       }
       try { if (await shortAvailable(userId, plan.shortSettings.marginMode) * 100n / 1000000000000n < BigInt(moneyCents(plan.capital))) blockers.push("Session capital exceeds available unborrowed USDT margin"); } catch (e) { blockers.push((e as Error).message); }
     }
     if (profile.emergencyStop) blockers.push("LUCIAN emergency stop is active");
     if (blockers.length) throw new AutonomousError(blockers.join("; "));
   }
+  if (!isShortPlan(plan)) for (const symbol of plan.symbols) checkSessionMinimum(plan,symbol,await autonomousQuote(userId,symbol),accountLimits);
   const wallet = isShortPlan(plan) ? [] : await autonomousWallet(userId), usdt = wallet.find(c => c.coin === "USDT");
   if (!isShortPlan(plan) && (!usdt || usdt.available * 100n / 1000000000000n < BigInt(moneyCents(plan.capital)))) throw new AutonomousError("Approved session capital exceeds available Unified USDT.");
   if (wallet.some(c => plan.symbols.includes(c.coin + "USDT") && c.total !== decimal(previous?.status === "stopped" && !previous.active ? previous.dust[c.coin + "USDT"] ?? "0" : "0", true))) throw new AutonomousError("The selected symbols already have inventory. Choose flat symbols so the session can identify its own fills and exits.");
@@ -97,6 +99,32 @@ export async function previewAutonomousSession(userId: string, b: Record<string,
   const draft: Draft = { ...model, accountLimits, id: randomUUID(), plan, connection: account.connection, credential: account.credential, expiresAtMs: Date.now() + 300000 };
   await lock(userId, async tx => { const active = await read(tx, userId); if (active && (active.status !== "stopped" || active.active)) throw new AutonomousError("A session or unresolved owned holding already exists. Use its controls.", 409); await tx.assistantMemory.upsert({ where: scope(userId, draftKey), create: { userId, key: draftKey, value: JSON.stringify(draft) }, update: { value: JSON.stringify(draft) } }); });
   return { draft: { id: draft.id, plan, accountLimits, ...model, expiresAtMs: draft.expiresAtMs, confirmation: `START ${plan.mode === "bybit_live" ? "BYBIT LIVE" : "BYBIT TESTNET"} AUTONOMOUS SESSION ${draft.id.slice(0, 8)}` } };
+}
+// Preparation is non-financial: never starts a worker, retries an order or
+// adopts outside holdings. An existing session takes priority over a new draft.
+export async function prepareAutonomousSession(userId:string,b:Record<string,unknown>) {
+  const existing=async()=>{
+    const {session}=await autonomousSnapshot(userId);
+    if(!session || session.status==="stopped"&&!session.active)return null;
+    const trade=session.active;
+    const readiness:SessionReadiness={status:"existing_session",title:"Your existing session comes first",message:`Session ${session.id.slice(0,8)} is ${session.status}. ${trade?`${trade.symbol}: ${trade.quantity}, ${trade.protection}.`:"No owned trade is currently recorded."} ${session.trades}/${session.plan.maxTrades} trades completed. Last heartbeat ${new Date(session.heartbeatMs).toISOString()}. No duplicate session was created.`,nextAction:"Open session controls to inspect protection, pause entries, recover its worker or review amended rules. An outside/manual trade is never silently adopted."};
+    return {readiness};
+  };
+  const current=await existing();if(current)return current;
+  if (Object.keys(b).sort().join(",") !== "action,effort,model,plan,provider") throw new AutonomousError("Invalid session preview.");
+  validateAutonomousPlan(b.plan); modelOf(b);
+  // Only reconcile owner-initiated historical reservations. Active session
+  // workers own their own recovery. Fresh in-flight submissions are retained.
+  const pending=await db.liveTradeIntent.findMany({where:{userId,initiatedBy:"user",state:{in:["executing","submitted","reconciliation_required","partially_filled","exchange_open","cancelled_with_fills"]}},orderBy:{createdAt:"asc"},take:2,select:{id:true}});
+  for(const intent of pending.slice(0,1)){
+    try{await reconcileTerminalOrder(userId,intent.id);}catch{ /* Preview retains and explains any unresolved reservation. */ }
+  }
+  try{return await previewAutonomousSession(userId,b);}catch(e){
+    const changed=await existing();if(changed)return changed;
+    if(!(e instanceof AutonomousError)||e.status>=500||e.status===403)throw e;
+    const readiness:SessionReadiness={status:"needs_attention",title:"Let’s adjust the plan before trading",message:e.message,nextAction:"Update the saved plan with Lilthe or open session controls to review its rules. Existing limits and holdings stay unchanged. No trading session was started."};
+    return {readiness};
+  }
 }
 export async function startAutonomousSession(userId: string, b: Record<string, unknown>) {
   if (Object.keys(b).sort().join(",") !== "action,confirmation,draftId,password") throw new AutonomousError("Invalid session authorization.");
@@ -110,6 +138,7 @@ export async function startAutonomousSession(userId: string, b: Record<string, u
   if (d.plan.mode === "bybit_live" && (process.env.BYBIT_LIVE_MODE_ENABLED !== "true" || process.env.LIVE_TRADING_ENABLED !== "true")) throw new AutonomousError("Existing live execution server switches are disabled.");
   if (d.accountLimits && digest(d.accountLimits) !== digest(limitsOf(await getTradingProfile(userId)))) throw new AutonomousError("Account risk limits changed since review. Load a fresh review.", 409);
   if (isShortPlan(d.plan)) { assertShortEnabled(d.plan.mode); for (const symbol of d.plan.symbols) { await assertShortAccount(userId, symbol, true, shortAccountFor(d.plan)); await assertOwnedShortOrders(userId, symbol, []); } }
+  for (const symbol of d.plan.symbols) checkSessionMinimum(d.plan,symbol,await autonomousQuote(userId,symbol,isShortPlan(d.plan)?"linear":"spot"),limitsOf(await getTradingProfile(userId)));
   return lock(userId, async tx => {
     const latest = await tx.assistantMemory.findUnique({ where: scope(userId, draftKey) }); if (!latest || latest.value !== row!.value || d.expiresAtMs <= Date.now()) throw new AutonomousError("Session preview changed or expired.", 409);
     const previous = await read(tx, userId); if (previous && (previous.status !== "stopped" || previous.active)) throw new AutonomousError("Session or unresolved owned holding already active.", 409);

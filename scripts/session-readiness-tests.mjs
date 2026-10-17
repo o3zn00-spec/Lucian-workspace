@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const b=await build({entryPoints:['src/lib/bybit/session-readiness-policy.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+const {checkSessionMinimum}=await import('data:text/javascript;base64,'+Buffer.from(b.outputFiles[0].text).toString('base64'));
+const p={product:'linear_short',mode:'bybit_live',symbols:['BTCUSDT'],capital:'10',maxOrder:'10',maxLoss:'0.5',maxRiskPerTrade:'0.25',maxTrades:1,reviewMinutes:5,durationHours:1,maxModelCalls:24,slippageBps:10,strategy:'Fixture',shortSettings:{marginMode:'REGULAR_MARGIN',positions:{BTCUSDT:{leverage:'10',positionIdx:0,autoAddMargin:0}}}};
+const q={ask:'81450.1',bid:'81450',mark:'81450',step:'0.001',tick:'0.1',minQty:'0.001',minNotional:'5',fee:'0.00055',atMs:Date.now()};
+const limits={maxOrder:'6',maxExposure:'10',maxDailyLoss:'1',maxPositions:1,maxLeverage:'10'};
+assert.throws(()=>checkSessionMinimum(p,'BTCUSDT',q,limits),/minimum is 0.001 BTC.*effective.*6.00/);
+assert.throws(()=>checkSessionMinimum({...p,shortSettings:{...p.shortSettings,positions:{BTCUSDT:{leverage:'100',positionIdx:0,autoAddMargin:0}}}},'BTCUSDT',q,limits),/leverage does not reduce/);
+const enough={...limits,maxOrder:'100',maxExposure:'100'};
+const result=checkSessionMinimum({...p,maxOrder:'100'},'BTCUSDT',q,enough);assert.equal(result.minimumQuantity,'0.001');assert.ok(Number(result.minimumOrder)>81.45);
+assert.throws(()=>checkSessionMinimum({...p,maxOrder:'100',capital:'1'},'BTCUSDT',q,enough),/capital before stop reserves/);
+assert.throws(()=>checkSessionMinimum(p,'BTCUSDT',{...q,atMs:Date.now()-12000},limits),/fresh/);
+assert.throws(()=>checkSessionMinimum(p,'BTCUSDT',{...q,bid:'90000'},limits),/inconsistent/);
+const low={...q,ask:'100',bid:'99.99',mark:'100',minNotional:'5'};
+const small=checkSessionMinimum({...p,maxOrder:'6'},'BTCUSDT',low,limits);assert.equal(small.minimumQuantity,'0.051');assert.ok(Number(small.minimumOrder)<6);
+assert.throws(()=>checkSessionMinimum({...p,maxOrder:'100'},'BTCUSDT',q,{...enough,maxExposure:'5'}),/5.00/);
+console.log('PASS readiness: real BTC minimum vs small budget, leverage-notional separation, adverse prices/fees, quantity rounding, capital and exposure bounds, stale/inconsistent data.');

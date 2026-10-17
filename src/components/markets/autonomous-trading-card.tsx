@@ -6,6 +6,8 @@ import { useSharedAIConfig } from "@/store/shared-ai-config";
 import { startVisiblePolling } from "@/lib/visible-polling";
 import { validateAutonomousPlan, type AutonomousPlan } from "@/lib/bybit/autonomous-policy";
 import type { AutonomousSession } from "@/lib/bybit/autonomous-session";
+import { SessionReadinessNotice } from "./session-readiness";
+import type { SessionReadiness } from "@/lib/bybit/session-readiness-policy";
 import { TradingPlanLibrary } from "./trading-plan-library";
 import { AutonomousSessionAmendment } from "./autonomous-session-amendment";
 import { AutonomousReportButton } from "./autonomous-report";
@@ -40,6 +42,7 @@ function PlanSummary({ plan }: { plan: AutonomousPlan }) {
 
 export function AutonomousTradingCard() {
   const [s, setSession] = useState<Snapshot | null>(null), [open, setOpen] = useState(false), [plan, setPlan] = useState(defaults);
+  const [readiness, setReadiness] = useState<SessionReadiness | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null), [password, setPassword] = useState(""), [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null), [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false), [loaded, setLoaded] = useState(false);
@@ -70,20 +73,20 @@ export function AutonomousTradingCard() {
     return () => { controller.abort(); readAbort.current?.abort(); stop(); };
   }, [refresh]);
   const clearAuthorization = () => { setDraft(null); setPassword(""); setConfirmation(""); };
-  const edit = <K extends keyof AutonomousPlan>(key: K, value: AutonomousPlan[K]) => { ++formVersion.current; setPlan(p => { const next = { ...p, [key]: value }; delete next.shortSettings; return next; }); clearAuthorization(); setNotice(null); };
+  const edit = <K extends keyof AutonomousPlan>(key: K, value: AutonomousPlan[K]) => { ++formVersion.current; setPlan(p => { const next = { ...p, [key]: value }; delete next.shortSettings; return next; }); clearAuthorization(); setNotice(null); setReadiness(null); };
   async function action(action: string) {
     if (acting.current || !loaded) return;
     acting.current = true; ++version.current; readAbort.current?.abort(); readAbort.current = null;
-    setBusy(true); setError(null); setNotice(null);
+    setBusy(true); setError(null); setNotice(null); setReadiness(null);
     const reviewedFormVersion = formVersion.current;
     try {
       const body = action === "preview" ? { action, plan, provider, model, effort } : action === "start" ? { action, draftId: draft?.id, confirmation, password } : action === "renew_exit" ? { action, id: s?.id, revision: s?.revision, confirmation, password } : { action, id: s?.id, revision: s?.revision };
-      const r = await fetch("/api/bybit/autonomous-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+      const r = await fetch("/api/bybit/autonomous-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(action === "preview" ? 120000 : 30000) });
       const b = await r.json();
       if (!r.ok || !b.ok) throw Error(b.error ?? "Session action failed. Refresh its saved state before retrying.");
       if (action === "preview") {
         if (reviewedFormVersion !== formVersion.current) { clearAuthorization(); setNotice("The form changed while review was loading. Review the current rules again."); }
-        else { setDraft(b.draft); setPassword(""); setConfirmation(""); }
+        else { setReadiness(b.readiness ?? null); setDraft(b.draft ?? null); setPassword(""); setConfirmation(""); }
       }
       else {
         setSession(b.session); clearAuthorization();
@@ -153,6 +156,7 @@ export function AutonomousTradingCard() {
       <Dialog.Description className="mt-2 text-sm text-fg-muted">Approve once for this session. Lilthe can research, trade the reviewed product repeatedly, cancel its own stops and close its own holdings while you are away. Native stops stay on Bybit; targets are monitored by the background worker. Short account settings are detected and shown in the review. Account settings are never changed by starting a session. No transfers or withdrawals.</Dialog.Description>
       <Dialog.Close asChild><button type="button" aria-label="Close autonomous session" disabled={busy} className="absolute right-3 top-3 rounded-lg p-2"><X size={18} /></button></Dialog.Close>
       {error && <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>}
+      {readiness && <SessionReadinessNotice value={readiness} />}
       {active ? <div className="mt-4 space-y-4 text-sm">
         <PlanSummary plan={s.plan} />
         <p>Pause blocks new entries while managing the current trade. Close and end cancels the session stop, confirms its outcome, closes the remaining owned quantity and ends the session. At expiry the same closure process has a fixed 30-minute management window; unresolved holdings are reported and existing stops are retained.</p>

@@ -1,3 +1,11 @@
+## October 17 — readiness and existing-session routing
+
+Session preparation now returns actionable readiness when the proposed instrument minimum cannot fit reviewed limits, rather than offering an unusable authorization. Integer sizing checks fresh quotes, quantity increments, price allowance, fees, exposure caps and initial margin, and repeats at authorization. Perpetual gross notional may exceed margin capital; Spot cannot. Dispatch still separately checks actual stop risk and current account conditions.
+
+Review first identifies existing running, paused or stopped-with-holding sessions and opens their controls without making a duplicate draft or adopting manual positions. Lilthe has a sanitized read-only session tool and instructions to check it before planning. One historical owner-initiated reservation can reconcile during preparation through bounded exchange reads; unresolved evidence remains reserved. Expected plan constraints use a neutral actionable notice, while genuine service/authentication failures remain errors. No financial approval, spending-limit increase or exchange-setting mutation is automated by this change.
+
+Local PostgreSQL short and Spot lifecycle suites pass, including protection, partial fills, acknowledgement/cancellation races, recovery and repeat. New fixtures cover impossible minimum sizes before inference/draft creation, existing-session routing and public tool output without authority secrets. Typecheck, lint, architecture and consolidation pass. Production build/browser/release verification is recorded in the current chat output; no funded end-to-end lifecycle certification is implied.
+
 ## October 17 — historical order reconciliation
 
 Removed the mistaken seven-day reservation-age rejection. Realtime lookup remains first; order history and execution history now use gap-free, paginated windows no longer than seven days across a bounded two-year range. Exact owner/environment/order identity, quantity reconciliation, timestamp validation, concurrency checks and partial-fill reservations remain enforced. Reads have count/time budgets and never place, cancel or retry an exchange order. Missing older history explicitly remains unresolved because Bybit may no longer expose unfilled cancelled/rejected records. It is not proof of cancellation.
