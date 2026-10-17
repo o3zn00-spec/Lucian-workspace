@@ -1,3 +1,11 @@
+## October 17 — historical order reconciliation
+
+Removed the mistaken seven-day reservation-age rejection. Realtime lookup remains first; order history and execution history now use gap-free, paginated windows no longer than seven days across a bounded two-year range. Exact owner/environment/order identity, quantity reconciliation, timestamp validation, concurrency checks and partial-fill reservations remain enforced. Reads have count/time budgets and never place, cancel or retry an exchange order. Missing older history explicitly remains unresolved because Bybit may no longer expose unfilled cancelled/rejected records. It is not proof of cancellation.
+
+Regression fixtures cover nine-day filled and cancelled records, fills across windows, missing historical records, later-window failure, query boundaries and out-of-window timestamps. Production acceptance is recorded separately in the current chat outputs. The built-in production browser now works; earlier access-denial notes below are historical. The owner-approved app leverage cap is now 10×, verified in production; dollar limits remain unchanged.
+
+API references: https://bybit-exchange.github.io/docs/v5/order/order-list and https://bybit-exchange.github.io/docs/v5/order/execution .
+
 ## October 17 — account-adaptive short sessions
 
 New short reviews detect Cross/Isolated margin, per-symbol leverage and one-way/hedge short slots; the owner reviews these with existing account limits and shared-collateral disclosure. The server replaces stale client settings and binds the detected settings to the plan/grant. Approval, pre-inference and dispatch revalidate; drift blocks entries without disabling owned exits. Existing grants remain pinned to their original settings. No account settings are mutated.

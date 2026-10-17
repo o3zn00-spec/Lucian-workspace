@@ -36,11 +36,23 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   if(intent.state==="executing" && Date.now()-intent.updatedAt.getTime()<120000) throw Error("Submission may still be in progress. Wait before reconciliation.");
   if(!["spot","linear"].includes(intent.category) || !["bybit_live","bybit_testnet"].includes(intent.tradingMode)) throw Error("Unsupported reservation category or environment.");
   const now=Date.now(),startTime=intent.createdAt.getTime()-60000;
-  if(now-startTime>7*86400000 || startTime>now) throw Error("Reservation is outside the supported seven-day reconciliation window. Review older history manually; it has not been released.");
+  const week=7*86400000;
+  if(!Number.isSafeInteger(startTime) || startTime<0 || startTime>now || now-startTime>730*86400000) throw Error("Reservation is outside the supported two-year history range. Exchange evidence is required; it has not been released.");
+  // Seven days is the API request span, not the maximum reservation age.
+  // Inclusive millisecond windows cover the entire lifetime without gaps.
+  const windows:Array<{startTime:number;endTime:number}>=[];
+  for(let end=now;end>=startTime;){
+    const start=Math.max(startTime,end-week+1);
+    windows.push({startTime:start,endTime:end});end=start-1;
+  }
   const config=await getBybitConfig(userId);
   if(!config.configured || config.environment!==(intent.tradingMode==="bybit_live"?"mainnet":"testnet")) throw Error("Saved exchange environment does not match this reservation.");
   const category=intent.category,symbol=intent.productId,orderLinkId=intent.clientOrderId;
-  const read = (path:string,query:Record<string,string|number>)=>bybitRequest<Page>(userId,path,{query:{category,symbol,orderLinkId,...query}},config);
+  let requests=0;
+  const read = (path:string,query:Record<string,string|number>)=>{
+    if(++requests>240 || Date.now()-now>80000) throw Error("Historical reconciliation exceeded its bounded read budget. Reservation retained; no order was changed.");
+    return bybitRequest<Page>(userId,path,{query:{category,symbol,orderLinkId,...(intent.providerOrderId?{orderId:intent.providerOrderId}:{}),...query}},config);
+  };
   const pageRows=(page:Page)=>{if(page.category!==category || !Array.isArray(page.list) || page.list.length>100 || (page.nextPageCursor!==undefined && typeof page.nextPageCursor!=="string")) throw Error("Malformed exchange records.");return page.list;};
   // Order history is the fallback when Bybit's recent closed-order cache is cleared.
   const orderPages=async(path:string,query:Record<string,string|number>)=>{
@@ -52,8 +64,14 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
     return result.list!;
   };
   let source="realtime",orderRows=await orderPages("/v5/order/realtime",{limit:50});
-  if(!orderRows.length){source="history";orderRows=await orderPages("/v5/order/history",{limit:50,startTime,endTime:now});}
-  if(!orderRows.length) return {intentId,state:intent.state,resolved:false,message:"No matching exchange order yet. Reservation retained; no resubmission is permitted."};
+  if(!orderRows.length){
+    source="history";
+    for(const window of windows){
+      orderRows=await orderPages("/v5/order/history",{limit:50,...window});
+      if(orderRows.length) break;
+    }
+  }
+  if(!orderRows.length) return {intentId,state:intent.state,resolved:false,message:windows.length>1?"No matching order in realtime or the searched historical windows. Bybit may no longer return older unfilled cancelled/rejected orders. Absence is not proof of cancellation: reservation retained; exchange order evidence is required.":"No matching exchange order yet. Reservation retained; no resubmission is permitted."};
   if(orderRows.length!==1) throw Error("Ambiguous exchange order identity. Reservation retained.");
   const order=orderRows[0];
   const side=intent.side.toLowerCase()==="buy"?"Buy":"Sell";
@@ -77,13 +95,15 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
   const last=previous.reconciliation;
   if(last && typeof last==="object" && !Array.isArray(last) && typeof last.updatedTime==="string" && updated<Number(last.updatedTime)) throw Error("Exchange order snapshot regressed. Reservation retained.");
   if(last && typeof last === "object" && !Array.isArray(last) && typeof last.cumExecQty === "string" && cumulative + tolerance < decimal(last.cumExecQty)) throw Error("Exchange filled quantity regressed. Reservation retained.");
-  const fills:Row[]=[],seen=new Map<string,string>(),cursors=new Set<string>();let cursor="";
-  for(let i=0;i<4;i++){
-    const page=await read("/v5/execution/list",{orderId:order.orderId as string,startTime,endTime:now,limit:100,...(cursor?{cursor}:{})});
+  const fills:Row[]=[],seen=new Map<string,string>();
+  for(const window of windows){
+    const cursors=new Set<string>();let cursor="";
+    for(let i=0;i<4;i++){
+    const page=await read("/v5/execution/list",{orderId:order.orderId as string,...window,limit:100,...(cursor?{cursor}:{})});
     for(const row of pageRows(page)){
       if(!matches(row) || row.orderId!==order.orderId || typeof row.execId!=="string" || !row.execId || row.execType!=="Trade") throw Error("Unexpected execution identity/type. Reservation retained.");
       decimal(row.execQty,true);decimal(row.execPrice,true);
-      const time=Number(row.execTime);if(!Number.isSafeInteger(time) || time<startTime || time>now+30000) throw Error("Invalid fill timestamp.");
+      const time=Number(row.execTime);if(!Number.isSafeInteger(time) || time<window.startTime || time>window.endTime) throw Error("Invalid fill timestamp.");
       if(typeof row.execFee!=="string" || !/^-?\d+(\.\d+)?$/.test(row.execFee) || !Number.isFinite(Number(row.execFee))) throw Error("Malformed fill fee.");
       const fingerprint=JSON.stringify([row.orderId,row.execQty,row.execPrice,row.execFee,row.feeCurrency,row.execTime]);
       if(seen.has(row.execId)){if(seen.get(row.execId)!==fingerprint) throw Error("Conflicting duplicate execution.");continue;}
@@ -92,6 +112,7 @@ export async function reconcileTerminalOrder(userId: string, intentId: string) {
     }
     cursor=page.nextPageCursor??"";if(!cursor) break;
     if(cursors.has(cursor) || i===3) throw Error("Execution history is incomplete. Reservation retained.");cursors.add(cursor);
+  }
   }
   const filled=fills.reduce((sum,f)=>sum+Number(f.execQty),0);
   if(!Number.isFinite(filled) || Math.abs(filled-cumulative)>Math.max(1e-12,cumulative*1e-9)) throw Error("Order and execution quantities disagree. Reservation retained; retry after exchange records settle.");
