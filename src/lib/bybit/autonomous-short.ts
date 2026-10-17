@@ -22,7 +22,19 @@ export async function shortPosition(userId: string, symbol: string) {
 }
 export async function assertShortAccount(userId: string, symbol: string, flat = false) {
   const [info, p] = await Promise.all([bybitRequest<Row>(userId, "/v5/account/info", {}), shortPosition(userId, symbol)]);
-  if (info.marginMode !== "ISOLATED_MARGIN" || decimal(p.row.leverage) !== scale || p.row.autoAddMargin !== 0) fail("Short sessions require isolated margin, 1x leverage and automatic margin additions off. No account settings were changed.");
+  const blockers: string[] = [];
+  if (info.marginMode !== "ISOLATED_MARGIN") {
+    const current = info.marginMode === "REGULAR_MARGIN" ? "Cross" : info.marginMode === "PORTFOLIO_MARGIN" ? "Portfolio" : "unavailable";
+    blockers.push(`Account margin mode is ${current}; Isolated is required`);
+  }
+  let leverage: bigint | null = null;
+  try { leverage = decimal(p.row.leverage); } catch { /* Missing exchange data must remain blocked. */ }
+  if (leverage !== scale) {
+    const current = typeof p.row.leverage === "string" && /^\d{1,4}(?:\.\d{1,8})?$/.test(p.row.leverage) ? `${p.row.leverage}x` : "unavailable";
+    blockers.push(`${symbol} leverage is ${current}; 1x is required`);
+  }
+  if (p.row.autoAddMargin !== 0) blockers.push(`${symbol} automatic margin additions are ${p.row.autoAddMargin === 1 ? "on" : "unavailable"}; off is required`);
+  if (blockers.length) fail(`Short setup blocked: ${blockers.join(". ")}. No account settings were changed and no order was sent by this check.`);
   if (flat && p.quantity !== 0n) fail("Selected perpetual already has a position. Short sessions start flat.");
   return p;
 }

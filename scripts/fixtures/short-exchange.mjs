@@ -22,7 +22,7 @@ export async function bybitRequest(_u,path,options={}){
     if(f.failSubmit){f.failSubmit=false;throw Error('lost acknowledgement');}return {orderId:id};
   }
   if(path==='/v5/account/info')return {marginMode:f.marginMode??'ISOLATED_MARGIN'};
-  if(path==='/v5/position/list')return {list:[{symbol:q.symbol,positionIdx:f.positionIdx??0,side:f.position?'Sell':'',size:String(f.position),positionStatus:'Normal',leverage:f.leverage??'1',autoAddMargin:0,avgPrice:f.position?'100':'0',liqPrice:'190'}]};
+  if(path==='/v5/position/list')return {list:[{symbol:q.symbol,positionIdx:f.positionIdx??0,side:f.position?'Sell':'',size:String(f.position),positionStatus:'Normal',leverage:f.leverage??'1',autoAddMargin:f.autoAddMargin??0,avgPrice:f.position?'100':'0',liqPrice:'190'}]};
   if(path.includes('wallet-balance'))return {list:[{accountType:'UNIFIED',coin:[{coin:'USDT',walletBalance:'1000',locked:'0',spotBorrow:'0',bonus:'0',totalPositionIM:String(f.position*100),totalOrderIM:'0'}]}]};
   if(path.includes('fee-rate'))return {list:[{symbol:q.symbol,takerFeeRate:'0.001'}]};
   if(path.includes('transaction-log'))return {list:f.ledgerFail?[]:f.ledger.filter(r=>Number(r.transactionTime)>=q.startTime&&Number(r.transactionTime)<=q.endTime),nextPageCursor:''};
