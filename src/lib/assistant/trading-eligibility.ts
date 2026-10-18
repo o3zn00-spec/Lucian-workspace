@@ -4,7 +4,7 @@ import { getBybitConfig } from "@/lib/bybit/client";
 import { getTradingProfile } from "@/lib/bybit/trading";
 import { autonomousSnapshot } from "@/lib/bybit/autonomous-session";
 import { autonomousQuote, autonomousWallet, connectionIdentity } from "@/lib/bybit/autonomous-market";
-import { assertShortEnabled, detectShortAccount, shortAvailable, assertOwnedShortOrders } from "@/lib/bybit/autonomous-short";
+import { assertShortEnabled, detectShortAccount, shortAvailable, assertOwnedShortOrders, shortResearchEvidence } from "@/lib/bybit/autonomous-short";
 import { AutonomousError, validateAutonomousPlan, isShortPlan, decimal, formatDecimal, moneyCents } from "@/lib/bybit/autonomous-policy";
 import { checkSessionMinimum } from "@/lib/bybit/session-readiness-policy";
 import { tradingPlanSnapshot } from "./trading-plan";
@@ -53,7 +53,15 @@ export async function readTradingEligibility(owner: string, args: Record<string,
         if(available*100n/1000000000000n<BigInt(moneyCents(candidate.capital)))throw new AutonomousError("Draft capital exceeds available unborrowed USDT.");
         const quote=await autonomousQuote(owner,symbol,isShortPlan(candidate)?"linear":"spot");
         const minimum=checkSessionMinimum(candidate,symbol,quote,limits);
-        results.push({status:"minimum_size_fits",...minimum,availableUSDT:formatDecimal(available),shortSettings:candidate.shortSettings??null,observedAt:new Date(quote.atMs).toISOString(),remainingChecks:"Full review must still pass; an actual entry/stop/target must fit risk, fees, exchange tiers, open orders and current limits. This is not a trade recommendation or an authorization."});
+        // Preserve the actual evidence already fetched, rather than making the
+        // model spend another turn asking for fees, funding and margin facts.
+        let accountEvidence = null;
+        let accountEvidenceError: string | null = null;
+        if (isShortPlan(candidate)) {
+          try { accountEvidence = await shortResearchEvidence(owner,candidate); }
+          catch (e) { accountEvidenceError = e instanceof AutonomousError ? e.message : "Current collateral, order and risk-tier evidence unavailable."; }
+        }
+        results.push({status:"minimum_size_fits",...minimum,availableUSDT:formatDecimal(available),shortSettings:candidate.shortSettings??null,quote,accountEvidence,accountEvidenceError,observedAt:new Date(quote.atMs).toISOString(),remainingChecks:"Session review and execution must refresh these observations and validate the chosen quantity, stop and target against current limits. Quote fee is the account taker rate; funding null means unavailable, not zero. Bid/ask is a snapshot, not a guaranteed fill or measured market impact. Protection is planned until exchange acknowledgement. No authorization is granted."});
       } catch(e) {
         results.push({symbol,status:e instanceof AutonomousError?"blocked":"unavailable",reason:e instanceof AutonomousError?e.message:"Current instrument/account data could not be verified. No eligibility assumed."});
       }
@@ -62,7 +70,7 @@ export async function readTradingEligibility(owner: string, args: Record<string,
     if(!await allowed(owner))return {status:"permission_revoked",message:"Read permission changed; results withheld."};
     if(latest.revision!==saved.revision||connectionIdentity(latestConfig)!==connectionIdentity(config)||JSON.stringify(latestProfile)!==JSON.stringify(profile)||current.session&&(current.session.status!=="stopped"||current.session.active))return {status:"state_changed",message:"Plan, account limits, connection or session changed during checks. Read again before proposing a draft."};
     await db.assistantActivity.create({data:{userId:owner,tool:"trading.eligibility.read",module:"markets",status:"completed",reason:`Checked ${results.length} candidates; no draft, financial request or account setting changed.`}});
-    return {status:"checked",revision:saved.revision,product:plan.product??"spot",accountLimits:limits,globalBlockers,results,coverage:"Bounded candidate sample, not every exchange instrument. Minimum-size fit is not full trading eligibility. Values can change; session review and execution recheck them.",nextAction:"If the owner requested an alternative and a candidate fits, update only the unapproved draft symbols and obsolete settings wording using this revision; preserve dollar limits. Name the evidence and remaining checks. If none fit, report exact blockers; do not invent an alternative or raise limits.",financialAction:false};
+    return {status:"checked",revision:saved.revision,product:plan.product??"spot",draftRules:plan,session:{status:session?.status??"none",hasOwnedHolding:false},accountLimits:limits,globalBlockers,results,coverage:"Bounded candidate sample, not every exchange instrument. Minimum-size fit is not full trading eligibility. Values can change; session review and execution recheck them.",nextAction:"If the owner requested an alternative and a candidate fits, update only the unapproved draft symbols and obsolete settings wording using this revision; preserve dollar limits. Name the evidence and remaining checks. If none fit, report exact blockers; do not invent an alternative or raise limits.",financialAction:false};
   } catch {
     return {status:"unavailable",message:"Eligibility data unavailable. Do not claim a fitting instrument or expose provider errors. No financial action occurred."};
   }

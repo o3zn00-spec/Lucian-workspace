@@ -30,3 +30,16 @@ const result=await runChatTurn({chat:async()=>({content})},params,async()=>{thro
 const oversized=await runChatTurn({chat:async()=>({content:JSON.stringify({lilthe_ui:'trade_review',summary:'x'.repeat(4001)})})},params,async()=>{});assert.match(oversized,/couldn’t format/);
 const unsafe=await runChatTurn({chat:async()=>({content:JSON.stringify({lilthe_ui:'trade_review',summary:'x',execute:true})})},params,async()=>{});assert.match(unsafe,/couldn’t format/);
 console.log('PASS longer/fenced review summaries render; oversized and extra-authority fields still rejected.');
+
+// A complete draft reaches review within the unchanged cost bound.
+calls=0;executions=0;
+const review=await runChatTurn({chat:async p=>{
+  calls++;
+  if(calls===1)return {content:tool('trading.eligibility.read',{symbols:['XRPUSDT']})};
+  if(calls===2){assert.match(p.messages.at(-1).content,/Cross/);return {content:tool('trading.research',{symbols:['XRPUSDT'],category:'linear'})};}
+  if(calls===3)return {content:tool('trading.plan.update',{revision:'r1',changes:{strategy:'Use detected settings within saved limits'}})};
+  assert.match(p.systemPrompt,/Do not ask permission to continue/);
+  return {content:JSON.stringify({lilthe_ui:'trade_review',summary:'Draft ready for server review. No trade started.'})};
+}},params,async request=>{executions++;const t=JSON.parse(request);return JSON.stringify(t.lucian_tool==='trading.eligibility.read'?{revision:'r1',quote:{fee:'0.001'},accountEvidence:{marginLabel:'Cross'}}:{status:'complete'});});
+assert.equal(calls,4);assert.equal(executions,3);assert.equal(JSON.parse(review).lilthe_ui,'trade_review');
+console.log('PASS eligibility/research/draft/review fits three tools without further permission prompts.');

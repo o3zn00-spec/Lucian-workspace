@@ -2396,3 +2396,11 @@ unverified or unfinished as specified above; these checks do not certify them.
 - Conversational draft creation, reusable session templates and active-rule
   amendments remain separate unfinished acceptance items. Existing Markets
   setup/authorization and current financial controls are unchanged.
+
+## 2026-10-18 — Lilthe eligibility evidence handoff
+
+Fixed the chat feasibility result discarding the authenticated quote (including account taker fee and available funding observation). Candidate results now include that quote and independently refreshed short account/order/risk-tier evidence, with explicit Cross collateral semantics and redacted per-candidate evidence failures. Saved rules and session status accompany the revision so the model need not spend another call rereading them. Existing permissions, revocation checks, connection/profile/draft race checks and all financial authorization remain unchanged.
+
+Chat guidance fits eligibility, product-matched research and an optional unapproved draft update into the existing three-tool budget, then presents the review card. It no longer requests permission to continue already-requested checks. Session readiness is distinguished from later entry/stop/target validation and exchange-confirmed protection; this change does not claim guaranteed execution or a funded lifecycle test.
+
+Validation: typecheck, lint, architecture, consolidation, production build; eligibility fixtures including permission/state races and unavailable evidence; chat continuation including three-tool review; assistant tools; autonomous policy and short-risk tests passed. Exchange calls in tests were mocked. Production acceptance and deployment identifiers are recorded separately after release.
