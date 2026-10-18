@@ -24,3 +24,9 @@ assert.match(failed,/saved draft/);assert.match(failed,/No trading session was s
 await assert.rejects(runChatTurn({chat:async()=>{throw Error('401')}},params,async()=>''),/401/);
 assert.equal(await runChatTurn({chat:async()=>({content:'Hello'})},params,async()=>{throw Error('unexpected')}),'Hello');
 console.log('PASS conversational tool continuation, preserved budget, bounded calls, duplicate suppression, post-write failure, ordinary chat.');
+
+for(const content of [JSON.stringify({lilthe_ui:'trade_review',summary:'Verified candidate details. '.repeat(55)}), '\x60\x60\x60json\n'+JSON.stringify({lilthe_ui:'trade_review',summary:'Saved proposal; review required.'})+'\n\x60\x60\x60']){
+const result=await runChatTurn({chat:async()=>({content})},params,async()=>{throw Error('unexpected tool')});assert.equal(JSON.parse(result).lilthe_ui,'trade_review');}
+const oversized=await runChatTurn({chat:async()=>({content:JSON.stringify({lilthe_ui:'trade_review',summary:'x'.repeat(4001)})})},params,async()=>{});assert.match(oversized,/couldn’t format/);
+const unsafe=await runChatTurn({chat:async()=>({content:JSON.stringify({lilthe_ui:'trade_review',summary:'x',execute:true})})},params,async()=>{});assert.match(unsafe,/couldn’t format/);
+console.log('PASS longer/fenced review summaries render; oversized and extra-authority fields still rejected.');

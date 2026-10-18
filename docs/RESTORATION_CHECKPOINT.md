@@ -1,3 +1,7 @@
+## October 17 — live eligibility acceptance and review formatting
+
+After explicit owner consent, both Bybit chat-read permissions were enabled through production UI. A real selected-model conversation invoked trading.eligibility.read (five candidates) and completed a revision-checked unapproved draft update. The final model presentation was rejected by the UI parser; no session was started. Review parsing now accepts a fenced JSON envelope and bounded summaries up to 4,000 characters (model instructed under 1,000), retaining strict keys and rejecting authority fields. Regression tests cover both valid variants and oversized/extra-field rejection. Live draft/review evidence is recorded outside the repo in current chat outputs.
+
 ## October 17 — conversational instrument feasibility
 
 Added trading.eligibility.read to Lilthe’s actual tool dispatcher. It reads a complete saved draft, prioritizes an existing session, and checks up to five USDT candidates against live instrument minimums, fee rates, available unborrowed balance, saved order/exposure caps and detected short account settings. The default sample includes saved symbols plus BTC/ETH/SOL/XRP/DOGE; it is explicitly not full-market discovery or a recommendation. Expected blockers and unavailable data are distinct. A minimum-size match does not certify stop risk, full account eligibility or profitability. Full authorization/dispatch checks remain mandatory.

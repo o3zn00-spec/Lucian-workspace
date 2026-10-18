@@ -7,7 +7,7 @@ export type ChatInteraction =
 // review always loads the saved owner plan from the server, never model fields.
 export function parseChatInteraction(content: string): ChatInteraction | null {
   try {
-    const value = JSON.parse(content.trim());
+    const value = JSON.parse(content.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, "$1"));
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     if (value.lilthe_ui === "question" && Object.keys(value).every(k => ["lilthe_ui", "question", "options"].includes(k)) &&
       typeof value.question === "string" && value.question.trim() && value.question.length <= 500 &&
@@ -21,7 +21,7 @@ export function parseChatInteraction(content: string): ChatInteraction | null {
         return point(line.from) && point(line.to);
       })) return value;
     if (value.lilthe_ui === "trade_review" && Object.keys(value).every(k => ["lilthe_ui", "summary"].includes(k)) &&
-      typeof value.summary === "string" && value.summary.length <= 1000) return value;
+      typeof value.summary === "string" && value.summary.length <= 4000) return value;
   } catch { /* Ordinary prose is not an interactive request. */ }
   return null;
 }
@@ -40,7 +40,7 @@ A proposal is never permission. Do not invent owner preferences or claim that
 a recommended plan guarantees profit. Short execution uses product linear_short: USDT perpetuals using exchange-detected Cross or Isolated margin, per-symbol leverage and one-way or hedge short slots, shown in the server review. It requires a new reviewed session and separately enabled derivatives access. Never promise account eligibility before server preview passes. Existing Spot grants remain Spot-only.
 Save supplied rules using planning tools before claiming they are saved.
 After tools confirm a complete saved plan, return ONLY:
-{"lilthe_ui":"trade_review","summary":"Brief explanation of the saved proposal"}
+{"lilthe_ui":"trade_review","summary":"Brief explanation of the saved proposal, under 1000 characters"}
 This renders a real server-backed review in this conversation. The owner loads and
 reviews exact rules, then authorizes with their password and confirmation phrase.
 Never put passwords, authority, order parameters or an execution URL in UI JSON.
