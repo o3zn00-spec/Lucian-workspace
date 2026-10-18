@@ -49,6 +49,9 @@ export interface MarketDataProvider {
   /** Fetch the 24h ticker for a symbol. */
   getTicker(symbol: string): Promise<Ticker | null>;
 
+  /** One bounded exchange snapshot for the instrument list. */
+  getTickers?: () => Promise<Ticker[]>;
+
   /** Subscribe to live price updates. Returns an unsubscribe function.
    *
    *  Optionally pass `onStatus` to receive WebSocket connection lifecycle

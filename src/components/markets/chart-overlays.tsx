@@ -92,6 +92,8 @@ export interface ChartCoord {
   timePriceToXY: (time: number, price: number) => { x: number; y: number } | null;
   /** Convert pixel {x, y} back to {time, price}. */
   xyToTimePrice: (x: number, y: number) => { time: number; price: number } | null;
+  priceToY?: (price: number) => number | null;
+  timeToX?: (time: number) => number | null;
   /** Chart container width/height for the SVG viewport. */
   width: number;
   height: number;
@@ -123,8 +125,10 @@ export function DrawingsOverlay({
     activeTool,
   );
 
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDrawingTool || !chartCoord) return;
+  const handleMouseDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!isDrawingTool || !chartCoord || e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
     const rect = svgRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -169,16 +173,17 @@ export function DrawingsOverlay({
     setDraft({ kind: activeTool as DrawingKind, p1: { x, y }, p2: { x, y } });
   };
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseMove = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!draft) return;
     const rect = svgRef.current!.getBoundingClientRect();
     setDraft({ ...draft, p2: { x: e.clientX - rect.left, y: e.clientY - rect.top } });
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.PointerEvent<SVGSVGElement>) => {
     if (!draft || !chartCoord) return;
     const tp1 = chartCoord.xyToTimePrice(draft.p1.x, draft.p1.y);
-    const tp2 = chartCoord.xyToTimePrice(draft.p2.x, draft.p2.y);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const tp2 = chartCoord.xyToTimePrice(e.clientX - rect.left, e.clientY - rect.top);
     if (tp1 && tp2) {
       onAddDrawing({
         id: `draw_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -196,11 +201,13 @@ export function DrawingsOverlay({
     <svg
       ref={svgRef}
       className="absolute inset-0 h-full w-full"
-      style={{ pointerEvents: isDrawingTool ? "auto" : "none" }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      aria-label="Chart drawing canvas"
+      data-drawing-tool={activeTool}
+      style={{ zIndex: 3, pointerEvents: isDrawingTool ? "auto" : "none", touchAction: isDrawingTool ? "none" : "auto" }}
+      onPointerDown={handleMouseDown}
+      onPointerMove={handleMouseMove}
+      onPointerUp={handleMouseUp}
+      onPointerCancel={() => setDraft(null)}
     >
       {/* Render existing drawings */}
       {drawings.filter((d) => d.visible).map((d) => (
@@ -238,7 +245,7 @@ function DrawingShape({
       const left = chartCoord.timePriceToXY(0, drawing.price);
       const right = chartCoord.timePriceToXY(chartCoord.width, drawing.price);
       // If we can't convert via time=0 (out of range), just draw at the price level.
-      const y = left?.y ?? right?.y;
+      const y = chartCoord.priceToY?.(drawing.price) ?? left?.y ?? right?.y;
       if (y === undefined) return null;
       return (
         <g>
@@ -252,7 +259,7 @@ function DrawingShape({
     case "vertical-line": {
       if (drawing.time === undefined) return null;
       const top = chartCoord.timePriceToXY(drawing.time, 0);
-      const x = top?.x;
+      const x = chartCoord.timeToX?.(drawing.time) ?? top?.x;
       if (x === undefined) return null;
       return (
         <line x1={x} y1={0} x2={x} y2={chartCoord.height} stroke={color} strokeWidth={1} strokeDasharray="4 2" />
@@ -268,7 +275,7 @@ function DrawingShape({
       const w = Math.abs(b.x - a.x);
       const h = Math.abs(b.y - a.y);
       return (
-        <rect x={x} y={y} width={w} height={h} fill={`${color}20`} stroke={color} strokeWidth={1} />
+        <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} />
       );
     }
     case "text": {
@@ -306,7 +313,7 @@ function DraftShape({
     const w = Math.abs(draft.p2.x - draft.p1.x);
     const h = Math.abs(draft.p2.y - draft.p1.y);
     return (
-      <rect x={x} y={y} width={w} height={h} fill={`${color}20`} stroke={color} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
+      <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={0.12} stroke={color} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} />
     );
   }
   return null;

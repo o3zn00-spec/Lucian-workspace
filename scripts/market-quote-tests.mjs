@@ -21,5 +21,11 @@ try {
   }
   payload = row; code = 10001;
   await assert.rejects(() => BybitProvider.getTicker('BTCUSDT'), /failed/);
+  globalThis.fetch = async url => {
+    assert.equal(url, '/api/markets/bybit?kind=tickers');
+    return {ok:true,json:async()=>({retCode:0,result:{list:[row,{...row,symbol:'ETHUSDT'},{...row,symbol:'XRPUSDT',lastPrice:'NaN'},{...row,symbol:'BTCUSDC'}]}})};
+  };
+  const all=await BybitProvider.getTickers();
+  assert.deepEqual(all.map(t=>t.symbol),['BTCUSDT','ETHUSDT']);
 } finally { globalThis.fetch = originalFetch; }
 console.log('PASS authenticated quote endpoint, symbol identity, bid/ask ordering, finite positive prices, malformed and exchange-error responses. No exchange writes.');

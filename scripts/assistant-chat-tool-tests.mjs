@@ -19,6 +19,7 @@ globalThis.activityFixtures=null;
 globalThis.activityFailure=null;
 globalThis.activityRevoke=false;
 const mocks={
+ './paper-research':`export async function collectPaperResearch(symbols,category){return {category,symbols,markets:[],warnings:[]};}`,
  './trading-eligibility':`export async function readTradingEligibility(){return {status:'fixture'};}`,
  '@/lib/bybit/autonomous-session':`export async function autonomousSnapshot(){return {session:globalThis.chatSessionFixture??null};}`,
  'server-only':'',
@@ -36,6 +37,11 @@ const {resolveChatTool,CHAT_TOOL_INSTRUCTIONS}=await bundle('src/lib/assistant/c
 const {isAssistantDestination,ASSISTANT_CAPABILITIES}=await bundle('src/lib/assistant/contracts.ts');
 assert.equal(await resolveChatTool('owner-A','Hello.'),'Hello.');assert.equal(events.length,0);
 assert.equal(await resolveChatTool('owner-A','{"other":"data"}'),' {"other":"data"}'.trim());
+for (const category of ['spot','linear']) {
+ const research=await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.research',arguments:{symbols:['XRPUSDT'],category}}));
+ assert.match(research,new RegExp('"category":"'+category+'"'));
+}
+assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.research',arguments:{symbols:['XRPUSDT'],category:'inverse'}})),/invalid/);
 const nav=await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'app.navigate',arguments:{module:'markets'}}));
 assert.match(nav,/\[Markets\]\(\/markets\)/);assert.equal(events.at(-1).userId,'owner-A');assert.equal(events.at(-1).status,'completed');
 for(const p of [

@@ -384,11 +384,11 @@ export function ChartWorkspace({
   const activeIndicators = indicatorsByPane.get(drawingsTargetPane) ?? [];
 
   // Drawing mutations scoped to the active pane.
-  const addDrawing = useCallback((d: Drawing) => {
+  const addDrawing = useCallback((d: Drawing, pane = drawingsTargetPane) => {
     setDrawingsByPane((prev) => {
       const next = new Map(prev);
-      const list = next.get(drawingsTargetPane) ?? [];
-      next.set(drawingsTargetPane, [...list, d]);
+      const list = next.get(pane) ?? [];
+      next.set(pane, [...list, d]);
       return next;
     });
   }, [drawingsTargetPane]);
@@ -1534,7 +1534,7 @@ function ChartPaneGrid({
   activeTool: string;
   drawingsByPane: Map<number, Drawing[]>;
   indicatorsByPane: Map<number, IndicatorConfig[]>;
-  onAddDrawing: (d: Drawing) => void;
+  onAddDrawing: (d: Drawing, pane?: number) => void;
   onUpdateDrawing: (id: string, patch: Partial<Drawing>) => void;
   maximizedPane: number | null;
   onToggleMaximize: (idx: number) => void;
@@ -1606,7 +1606,7 @@ function ChartPaneGrid({
               activeTool={activeTool}
               drawings={drawingsByPane.get(i) ?? []}
               indicators={indicatorsByPane.get(i) ?? []}
-              onAddDrawing={onAddDrawing}
+              onAddDrawing={(drawing) => onAddDrawing(drawing, i)}
               onUpdateDrawing={onUpdateDrawing}
               isMaximized={maximizedPane === i}
               onToggleMaximize={() => onToggleMaximize(i)}
@@ -1990,6 +1990,8 @@ export function CandleChart({
       const w = container.clientWidth;
       const h = container.clientHeight;
       return {
+        priceToY: (price: number) => series.priceToCoordinate(price),
+        timeToX: (time: number) => chart.timeScale().timeToCoordinate(time as UTCTimestamp),
         timePriceToXY: (time: number, price: number) => {
           try {
             const ts = time as UTCTimestamp;

@@ -15,14 +15,14 @@ export async function GET(request: Request) {
   const symbol = query.get("symbol") ?? "";
   const interval = query.get("interval") ?? "1";
   const limit = Number(query.get("limit") ?? "200");
-  if (!/^[A-Z0-9]{2,20}USDT$/.test(symbol) || !["kline", "tickers"].includes(kind ?? "") ||
+  if ((!(kind === "tickers" && !symbol) && !/^[A-Z0-9]{2,20}USDT$/.test(symbol)) || !["kline", "tickers"].includes(kind ?? "") ||
       !["1", "5", "15", "30", "60", "240", "D", "W"].includes(interval) ||
       !Number.isInteger(limit) || limit < 1 || limit > 1000) {
     return NextResponse.json({ error: "Invalid market data request." }, { status: 400 });
   }
   try {
     const result = await bybitPublicRequest("mainnet", kind === "kline" ? "/v5/market/kline" : "/v5/market/tickers",
-      { category: "spot", symbol, ...(kind === "kline" ? { interval, limit } : {}) });
+      { category: "spot", ...(symbol ? { symbol } : {}), ...(kind === "kline" ? { interval, limit } : {}) });
     return NextResponse.json({ retCode: 0, result }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ error: "Bybit market data is temporarily unavailable." }, { status: 502 });

@@ -29,7 +29,7 @@
  *  - X close button calls onClose prop
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +40,7 @@ import { InstrumentIcon } from "@/components/markets/instrument-icon";
 import { useFavorites } from "@/hooks/use-favorites";
 import { useMarketsStore } from "@/store/markets";
 import { isSupportedCrypto } from "@/lib/markets/symbol-mapping";
+import { startVisiblePolling } from "@/lib/visible-polling";
 import type { DataStatus } from "@/lib/markets/types";
 
 /* Filter chips arranged in two clean rows, matching the reference:
@@ -83,6 +84,8 @@ export function InstrumentsPanel({
   // These are Map<string, …> so React's default Object.is comparison won't
   // detect mutations — the store creates a new Map instance on every update
   // so the component re-renders whenever a new price/ticker lands.
+  const refreshWatchlist = useMarketsStore(s => s.refreshWatchlist);
+  useEffect(() => startVisiblePolling(refreshWatchlist, 30_000), [refreshWatchlist]);
   const prices = useMarketsStore((s) => s.prices);
   const tickers = useMarketsStore((s) => s.tickers);
   const statusBySymbol = useMarketsStore((s) => s.statusBySymbol);

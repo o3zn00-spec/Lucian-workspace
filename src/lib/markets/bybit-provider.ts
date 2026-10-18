@@ -22,6 +22,14 @@ async function envelope<T>(url: string): Promise<T> {
   return payload.result;
 }
 
+function parseTicker(row: Record<string, string>, symbol: string): Ticker {
+    const last = Number(row.lastPrice);
+    const previous = Number(row.prevPrice24h);
+    const ticker = { symbol, lastPrice: last, priceChange: last - previous, priceChangePercent: Number(row.price24hPcnt) * 100, highPrice: Number(row.highPrice24h), lowPrice: Number(row.lowPrice24h), volume: Number(row.volume24h), quoteVolume: Number(row.turnover24h), bidPrice: Number(row.bid1Price), askPrice: Number(row.ask1Price) };
+    if (row.symbol !== symbol || Object.values(ticker).some(value => typeof value === "number" && !Number.isFinite(value)) || Math.min(last, previous, ticker.bidPrice, ticker.askPrice, ticker.highPrice, ticker.lowPrice) <= 0 || ticker.bidPrice > ticker.askPrice || ticker.volume < 0 || ticker.quoteVolume < 0) throw new Error("Bybit returned malformed quotes.");
+    return ticker;
+}
+
 export const BybitProvider: MarketDataProvider = {
   id: "bybit-public",
   label: "Bybit (Crypto)",
@@ -49,11 +57,16 @@ export const BybitProvider: MarketDataProvider = {
     const result = await envelope<{ list?: Array<Record<string, string>> }>(`${REST_BASE}?kind=tickers&symbol=${encodeURIComponent(symbol)}`);
     const row = result.list?.[0];
     if (!row) return null;
-    const last = Number(row.lastPrice);
-    const previous = Number(row.prevPrice24h);
-    const ticker = { symbol, lastPrice: last, priceChange: last - previous, priceChangePercent: Number(row.price24hPcnt) * 100, highPrice: Number(row.highPrice24h), lowPrice: Number(row.lowPrice24h), volume: Number(row.volume24h), quoteVolume: Number(row.turnover24h), bidPrice: Number(row.bid1Price), askPrice: Number(row.ask1Price) };
-    if (row.symbol !== symbol || Object.values(ticker).some(value => typeof value === "number" && !Number.isFinite(value)) || Math.min(last, previous, ticker.bidPrice, ticker.askPrice, ticker.highPrice, ticker.lowPrice) <= 0 || ticker.bidPrice > ticker.askPrice || ticker.volume < 0 || ticker.quoteVolume < 0) throw new Error("Bybit returned malformed quotes.");
-    return ticker;
+    return parseTicker(row, symbol);
+  },
+
+  async getTickers(): Promise<Ticker[]> {
+    const result = await envelope<{ list?: Array<Record<string, string>> }>(`${REST_BASE}?kind=tickers`);
+    if (!Array.isArray(result.list)) throw new Error("Exchange ticker snapshot unavailable.");
+    return result.list.flatMap(row => {
+      if (!row.symbol?.endsWith("USDT")) return [];
+      try { return [parseTicker(row, row.symbol)]; } catch { return []; }
+    });
   },
 
   subscribePrice(symbol: string, callback: (update: PriceUpdate) => void, onStatus?: Status) {

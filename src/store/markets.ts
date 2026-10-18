@@ -55,6 +55,7 @@ import type { OrderSide } from "@/lib/markets/types";
 import { getInstrumentBySymbol } from "@/lib/markets/catalog";
 import {
   isSupportedCrypto,
+  LIVE_CRYPTO_LUCIAN_SYMBOLS,
   toBybitSymbol,
 } from "@/lib/markets/symbol-mapping";
 
@@ -194,6 +195,7 @@ interface MarketsState {
   updateTicker: (symbol: string, ticker: Ticker) => void;
   /** Refresh the 24h ticker for a symbol from the provider. */
   refreshTicker: (lucianSymbol: string) => Promise<void>;
+  refreshWatchlist: () => Promise<void>;
 
   // Candles cache: paneKey → array of candles. Updated by:
   //   1. Initial historical fetch on subscribe
@@ -566,6 +568,26 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
     }
   },
 
+  refreshWatchlist: async () => {
+    const provider = getProvider("crypto");
+    if (!provider?.getTickers) return;
+    try {
+      const rows = new Map((await provider.getTickers()).map(t => [t.symbol, t]));
+      set(s => {
+        const tickers = new Map(s.tickers), prices = new Map(s.prices), statusBySymbol = new Map(s.statusBySymbol);
+        for (const symbol of LIVE_CRYPTO_LUCIAN_SYMBOLS) {
+          const ticker = rows.get(toBybitSymbol(symbol));
+          if (ticker) { tickers.set(symbol, ticker); prices.set(symbol, ticker.lastPrice); statusBySymbol.set(symbol, "delayed"); }
+          else { tickers.delete(symbol); prices.delete(symbol); statusBySymbol.set(symbol, "disconnected"); }
+        }
+        return { tickers, prices, statusBySymbol };
+      });
+    } catch (e) {
+      set(s => { const statusBySymbol = new Map(s.statusBySymbol); for (const symbol of LIVE_CRYPTO_LUCIAN_SYMBOLS) statusBySymbol.set(symbol, "disconnected"); return { statusBySymbol }; });
+      throw e;
+    }
+  },
+
   candlesByKey: new Map(),
   setCandles: (key, candles) => {
     set((s) => {
@@ -654,14 +676,16 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
             throw err;
           }
         };
-        // Retry failures with backoff; a successful history load needs no timer.
-        let stopHistoryPolling = () => {};
-        stopHistoryPolling = startVisiblePolling(async () => { await loadHistory(); stopHistoryPolling(); }, 15_000);
+        // Keep real OHLC history current when WebSocket updates are absent.
+        let lastStreamAt = 0;
+        const stopHistoryPolling = startVisiblePolling(async () => {
+          if (Date.now() - lastStreamAt >= 30_000) await loadHistory();
+        }, 30_000);
 
         const unsubscribeKline = provider.subscribeKline(
           bybitSymbol,
           tf,
-          (candle) => get().upsertCandle(key, candle),
+          (candle) => { lastStreamAt = Date.now(); get().upsertCandle(key, candle); },
           (status) => {
             if (status.kind === "error" || status.kind === "closed") {
               get().setStatus(lucianSymbol, "disconnected");
@@ -713,11 +737,11 @@ export const useMarketsStore = create<MarketsState>((set, get) => ({
     if (!provider) return;
     const tf = LUCIAN_TF_TO_PROVIDER[lucianTimeframe];
     const bybitSymbol = toBybitSymbol(lucianSymbol);
-    get().setStatus(lucianSymbol, "live"); // optimistic — show "retrying"
+    get().setStatus(lucianSymbol, "delayed"); // HTTP snapshots are not streaming quotes
     try {
       const candles = await provider.getCandles(bybitSymbol, tf, 200);
       get().setCandles(key, candles);
-      get().setStatus(lucianSymbol, "live");
+      get().setStatus(lucianSymbol, "delayed");
     } catch (err) {
       console.error(`[markets] Bybit retry failed for ${lucianSymbol}:`, err);
       get().setStatus(lucianSymbol, "disconnected");

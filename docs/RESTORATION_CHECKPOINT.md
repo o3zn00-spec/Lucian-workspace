@@ -1,3 +1,7 @@
+## October 17 — market watchlist, drawings and calculated-risk mandate
+
+Repair bulk crypto quotes, streaming-failure candle refresh, drawing input/coordinate rendering and actual-pane ownership. Chat research now supports explicit perpetual category. Clarify calculated-risk judgment without mandatory indicator unanimity; execution guards and owner limits remain unchanged. See `docs/LILTHE_REQUIREMENTS_AUDIT.md` for implementation evidence and outstanding acceptance gaps. This is not a declaration that the full upgrade or funded trading lifecycle is complete.
+
 ## October 17 — worker evidence handoff
 
 The first owner-started production session held while its model described authorization/account facts as unverified. Code inspection found stale planning prose sent without explicit current authorization evidence, and funding/risk-tier data omitted from the model payload. Research now sends a sanitized current short account snapshot (Cross/Isolated labels, auto-margin applicability, flat positions/open-order check, unborrowed margin and exchange tiers), explicit verified session authorization with entry deadline, and available signed funding/time evidence. Missing funding remains null, never zero. No signature, password or credential is sent. Strategy prose cannot override authoritative evidence; exact proposed-order/stop validation remains mandatory after inference and at dispatch. Lease/status/deadline/grant are rechecked after gathering evidence before inference. Owned protection remains independent of optional research.

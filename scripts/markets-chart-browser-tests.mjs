@@ -32,6 +32,26 @@ for(let i=0;i<10;i++){await page.evaluate(()=>window.tickChart());await page.wai
 assert.equal(await page.evaluate(()=>window.savedCanvas===document.querySelector('canvas')),true,'Live updates must preserve chart instance/canvas');
 const afterRange=await page.evaluate(()=>window.fixtureChart.timeScale().getVisibleLogicalRange());
 assert.ok(Math.abs(afterRange.from-beforeRange.from)<0.001&&Math.abs(afterRange.to-beforeRange.to)<0.001,'Live ticks must preserve zoom/pan range');
+// Real pointer events exercise saved chart coordinates, not a mocked SVG renderer.
+await page.evaluate(()=>window.setDrawingTool('horizontal-line'));
+await page.locator('[data-drawing-tool="horizontal-line"]').waitFor();
+const overlay=page.getByLabel('Chart drawing canvas');
+await overlay.click({position:{x:200,y:180}});
+assert.equal(await overlay.locator('line').count(),1,'Horizontal line must render without a time coordinate');
+await page.evaluate(()=>window.setDrawingTool('trend-line'));
+await page.locator('[data-drawing-tool="trend-line"]').waitFor();
+const box=await overlay.boundingBox();
+await page.mouse.move(box.x+250,box.y+200);await page.mouse.down();
+await page.mouse.move(box.x+450,box.y+270,{steps:8});await page.mouse.up();
+assert.equal(await overlay.locator('line').count(),2,'Dragging must save a visible trend line');
+await page.evaluate(()=>window.tickChart());
+assert.equal(await overlay.locator('line').count(),2,'Price updates preserve drawings');
+await page.evaluate(()=>window.setDrawingTool('rectangle'));
+await page.locator('[data-drawing-tool="rectangle"]').waitFor();
+await page.mouse.move(box.x+300,box.y+220);await page.mouse.down();
+await page.mouse.move(box.x+500,box.y+300,{steps:8});await page.mouse.up();
+await overlay.locator('rect').waitFor();
+assert.equal(await overlay.locator('rect').count(),1,'Rectangle drag must persist');
 await page.setViewportSize({width:390,height:844});await page.waitForTimeout(100);
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 assert.equal(await page.evaluate(()=>window.savedCanvas===document.querySelector('canvas')),true,'Resize must preserve chart instance');
