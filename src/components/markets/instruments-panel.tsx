@@ -213,14 +213,14 @@ export function InstrumentsPanel({
               const displayLow = ticker?.lowPrice ?? (live ? Number.NaN : inst.low);
               const displayHigh = ticker?.highPrice ?? (live ? Number.NaN : inst.high);
               const displayChange = ticker?.priceChangePercent ?? (live ? null : inst.changePct);
-              const chgColor = !inst.marketOpen
+              const chgColor = !live && !inst.marketOpen
                 ? NEUTRAL
                 : (displayChange ?? 0) > 0
                 ? UP
                 : (displayChange ?? 0) < 0
                 ? DOWN
                 : NEUTRAL;
-              const priceColor = !inst.marketOpen
+              const priceColor = !live && !inst.marketOpen
                 ? "var(--fg)"
                 : (displayChange ?? 0) > 0
                 ? UP
@@ -298,7 +298,7 @@ export function InstrumentsPanel({
                         <StatusDot status={status} live={live} />
                       </div>
                       <div className="truncate text-[9px] leading-tight">
-                        {!inst.marketOpen ? (
+                        {!live && !inst.marketOpen ? (
                           <span style={{ color: NEUTRAL }}>Market closed</span>
                         ) : (
                           <span style={{ color: chgColor }}>
