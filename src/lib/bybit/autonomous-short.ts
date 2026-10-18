@@ -170,3 +170,25 @@ export async function assertShortHistory(userId:string,symbol:string,startedAtMs
   }
   if(fills.some(f=>typeof f.execId!=="string"||!found.has(f.execId)))fail("Complete position ownership history unavailable.");
 }
+
+// Sanitized, current evidence for proposals; this never authorizes an order.
+export async function shortResearchEvidence(userId: string, plan: AutonomousPlan) {
+  const expected = shortAccountFor(plan);
+  const config = await getBybitConfig(userId);
+  const symbols = [];
+  for (const symbol of plan.symbols) {
+    const account = await assertShortAccount(userId, symbol, true, expected);
+    await assertOwnedShortOrders(userId, symbol, []);
+    const result = await readCompleteBybitList<Row>(cursor => bybitPublicRequest(config.environment, "/v5/market/risk-limit", { category: "linear", symbol, ...(cursor ? { cursor } : {}) }), "Research risk tiers");
+    const riskTiers = result.list!.map(t => {
+      if (t.symbol !== symbol) fail("Risk tier symbol mismatch.");
+      const limit = String(t.riskLimitValue), initial = String(t.initialMargin), maintenance = String(t.maintenanceMargin), maxLeverage = String(t.maxLeverage);
+      decimal(limit); decimal(maxLeverage);
+      if (decimal(initial) > scale || decimal(maintenance, true) > decimal(initial)) fail("Invalid research margin rates.");
+      return { riskLimitUSDT: limit, initialMarginRate: initial, maintenanceMarginRate: maintenance, maxLeverage };
+    });
+    if (!riskTiers.length) fail("Research risk tiers unavailable.");
+    symbols.push({ symbol, settings: account.settings, marginMode: account.marginMode, marginLabel: account.marginMode === "REGULAR_MARGIN" ? "Cross" : "Isolated", automaticMargin: account.marginMode === "REGULAR_MARGIN" ? "not_applicable" : account.settings.autoAddMargin === 1 ? "on" : "off", positionQuantity: "0", openOrders: "none", riskTiers, observedAtMs: Date.now() });
+  }
+  return { symbols, availableUnborrowedUSDT: formatDecimal(await shortAvailable(userId, expected.marginMode)), sharedCollateralMayExceedAllocation: expected.marginMode === "REGULAR_MARGIN" || Object.values(expected.positions).some(p => p.autoAddMargin === 1), allocationIsExchangeLossCap: false, observedAtMs: Date.now() };
+}

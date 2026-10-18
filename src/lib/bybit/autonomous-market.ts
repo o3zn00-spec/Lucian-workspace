@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { bybitPublicRequest, bybitRequest, getBybitConfig } from "./client";
-import { decimal } from "./autonomous-policy";
+import { decimal, signedDecimal } from "./autonomous-policy";
 export const connectionIdentity = (c: Awaited<ReturnType<typeof getBybitConfig>>) => createHash("sha256").update(JSON.stringify([c.environment, c.apiKey, c.apiSecret])).digest("hex");
 type Rows = { list?: Array<Record<string, unknown>> };
 export async function autonomousQuote(userId: string, symbol: string, category: "spot" | "linear" = "spot") {
@@ -18,7 +18,16 @@ export async function autonomousQuote(userId: string, symbol: string, category: 
   const q = { ask: t.ask1Price as string, bid: t.bid1Price as string, last: t.lastPrice as string, ...(category === "linear" ? { mark: t.markPrice as string } : {}), step: category === "linear" ? lot.qtyStep : lot.basePrecision, tick: price.tickSize, minQty: lot.minOrderQty, minNotional: category === "linear" ? lot.minNotionalValue : lot.minOrderAmt, fee: f.takerFeeRate as string, atMs: Date.now() };
   for (const v of [q.ask, q.bid, q.last, q.step, q.tick, q.minQty, q.minNotional]) decimal(v); decimal(q.fee, true);
   if (category === "linear") decimal(q.mark);
-  return q;
+  // Funding is advisory evidence, never fabricated as zero when unavailable.
+  let funding: { rate: string; nextAtMs: number } | null = null;
+  if (category === "linear") {
+    try {
+      signedDecimal(t.fundingRate);
+      const nextAtMs = Number(t.nextFundingTime);
+      if (Number.isSafeInteger(nextAtMs) && nextAtMs > Date.now()) funding = { rate: String(t.fundingRate), nextAtMs };
+    } catch { /* Explicitly unavailable; protective order quotes remain usable. */ }
+  }
+  return { ...q, ...(category === "linear" ? { funding } : {}) };
 }
 export async function autonomousWallet(userId: string) {
   const data = await bybitRequest<{ list?: Array<{ accountType: string; coin: Array<{ coin: string; walletBalance: string; locked: string; spotBorrow?: string }> }> }>(userId, "/v5/account/wallet-balance", { query: { accountType: "UNIFIED" } });
