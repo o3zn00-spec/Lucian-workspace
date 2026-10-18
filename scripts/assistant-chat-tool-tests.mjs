@@ -19,6 +19,7 @@ globalThis.activityFixtures=null;
 globalThis.activityFailure=null;
 globalThis.activityRevoke=false;
 const mocks={
+ './trading-eligibility':`export async function readTradingEligibility(){return {status:'fixture'};}`,
  '@/lib/bybit/autonomous-session':`export async function autonomousSnapshot(){return {session:globalThis.chatSessionFixture??null};}`,
  'server-only':'',
  'next/server':'export const NextResponse={json:(body,init)=>Response.json(body,init)};',

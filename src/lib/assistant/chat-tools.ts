@@ -1,4 +1,5 @@
 import "server-only";
+import { readTradingEligibility } from "./trading-eligibility";
 import { autonomousSnapshot } from "@/lib/bybit/autonomous-session";
 import { searchPublicWeb } from "./web-research";
 import { collectPaperResearch } from "./paper-research";
@@ -48,7 +49,22 @@ owned holding, continue that session through its controls or a reviewed amendmen
 Never propose a duplicate session, adopt a manual trade, reset its ledger or cancel an
 outside order. A request for another trade does not override its remaining trade count,
 deadline or limits. Once flat and stopped, prepare the next reviewed session.
-If no existing session needs attention, read the draft:
+When the owner asks for an instrument that fits, or a draft fails minimum sizing, call:
+{"lucian_tool":"trading.eligibility.read","arguments":{}}
+Optional symbols accepts 1–5 explicit USDT symbols. This tool reads the saved draft,
+checks the existing session, current account limits, exchange minimums, fees, balance
+and short settings for a bounded sample. It requires balance and order/position read
+permissions. Call it BEFORE presenting a fitting draft; do not send the owner back to
+repeat the same impossible review. Do not claim it searched every market. A result of
+minimum_size_fits is only a candidate, not a trading recommendation or proof of protection.
+If the owner requested alternatives, use a verified fitting candidate to update ONLY
+unapproved draft symbols/settings wording with its returned revision, preserving all
+risk limits. Explain the actual checked minimum, effective cap, observed settings and
+remaining protection/risk checks. Never increase limits or switch product silently.
+If unavailable, permission_required or no candidate fits, explain that specific result.
+For this workflow the eligibility tool already checks the saved session and draft;
+do not spend separate calls reading them first unless the result requests it.
+For other planning requests, if no existing session needs attention, read the draft:
 {"lucian_tool":"trading.plan.read","arguments":{}}
 This reads the saved planning state so you can continue the conversation; no session
 starts. The Lilthe trading card supports Bybit Live or Testnet autonomous Spot or reviewed account settings USDT perpetual short
@@ -153,6 +169,7 @@ export async function resolveChatTool(ownerUserId: string, content: string, mode
   const validEnvelope = Object.keys(proposal).every(key => ["lucian_tool", "arguments"].includes(key)) &&
     args !== null && typeof args === "object" && !Array.isArray(args);
   const values = validEnvelope ? args as Record<string, unknown> : {};
+  if (validEnvelope && tool === "trading.eligibility.read") return JSON.stringify(await readTradingEligibility(ownerUserId,values));
   if (validEnvelope && tool === "trading.session.read") {
     if(Object.keys(values).length)return "Session status takes no arguments. No financial action was performed.";
     try {

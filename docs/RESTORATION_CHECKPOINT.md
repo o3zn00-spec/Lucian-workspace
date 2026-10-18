@@ -1,3 +1,11 @@
+## October 17 — conversational instrument feasibility
+
+Added trading.eligibility.read to Lilthe’s actual tool dispatcher. It reads a complete saved draft, prioritizes an existing session, and checks up to five USDT candidates against live instrument minimums, fee rates, available unborrowed balance, saved order/exposure caps and detected short account settings. The default sample includes saved symbols plus BTC/ETH/SOL/XRP/DOGE; it is explicitly not full-market discovery or a recommendation. Expected blockers and unavailable data are distinct. A minimum-size match does not certify stop risk, full account eligibility or profitability. Full authorization/dispatch checks remain mandatory.
+
+Both balance and order/position permissions are required and rechecked after reads. Results are withheld on draft, connection, profile or session drift. No financial request, settings change, authorization draft or saved-plan mutation occurs in the checker. Lilthe may update only an unapproved draft through the existing revision-checked planning tool when the owner requested an alternative. The existing three-tool/four-inference bound is unchanged.
+
+Eligibility fixtures cover the oversized BTC case, a smaller minimum, permissions and revocation, active sessions, unavailable quotes, leverage/capital blockers, owner isolation and state drift. Existing assistant tools, conversational continuation and saved-plan integration pass. Release/build and live conversational acceptance are recorded separately in current chat outputs.
+
 ## October 17 — readiness and existing-session routing
 
 Session preparation now returns actionable readiness when the proposed instrument minimum cannot fit reviewed limits, rather than offering an unusable authorization. Integer sizing checks fresh quotes, quantity increments, price allowance, fees, exposure caps and initial margin, and repeats at authorization. Perpetual gross notional may exceed margin capital; Spot cannot. Dispatch still separately checks actual stop risk and current account conditions.

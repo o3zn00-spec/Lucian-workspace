@@ -57,7 +57,7 @@ function ToolActivityState() {
             <label className="flex items-center justify-between gap-3 text-sm font-medium">Bybit Unified account balances
               <input type="checkbox" checked={data.tradingRead} disabled={busy || Boolean(error)} onChange={event => void request({ tradingRead: event.target.checked })} />
             </label>
-            <p className="mt-2 text-xs text-fg-muted">Allow a fresh read of Unified account totals and up to 12 asset balances from your configured Bybit environment. Funding wallets, orders and positions are excluded. This grants no permission to trade or move money. Balances enter chat and may be sent to your selected model in later turns. Turn off to stop future reads.</p>
+            <p className="mt-2 text-xs text-fg-muted">Allow a fresh read of Unified account totals and up to 12 asset balances from your configured Bybit environment. Funding wallets, orders and positions are excluded. This grants no permission to trade or move money. With order/position reads also enabled, Lilthe can check up to five candidate instruments using available balance, account margin/leverage settings, fee rates and saved risk limits. Results enter chat and may be sent to your selected model. Turn off to stop future reads.</p>
           </div>
           <div className="my-4 rounded-lg border border-line p-3">
             <label className="flex items-center justify-between gap-3 text-sm font-medium">Bybit open orders and positions
