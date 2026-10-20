@@ -10,7 +10,7 @@ const {validateTerminalOrder}=await import('data:text/javascript;base64,'+Buffer
 process.env.BYBIT_LIVE_MODE_ENABLED='true';process.env.LIVE_TRADING_ENABLED='true';
 const order={mode:'bybit_live',category:'linear',side:'Sell',symbol:'BTCUSDT',orderType:'Market',quantity:'0.05',leverage:1,autonomousShort:true};
 await assert.rejects(()=>validateTerminalOrder('owner',order),/Spot-only/);process.env.BYBIT_LIVE_SPOT_ONLY='false';assert.equal((await validateTerminalOrder('owner',order)).side,'Sell');
-f.maxOrder=4;await assert.rejects(()=>validateTerminalOrder('owner',order),/Order exposure/);f.maxOrder=6;f.maxExposure=4;await assert.rejects(()=>validateTerminalOrder('owner',order),/Gross account exposure/);f.maxExposure=10;
+f.maxOrder=4;await assert.rejects(()=>validateTerminalOrder('owner',order),e=>e.constructor.name==='TerminalValidationError'&&/Order exposure/.test(e.message));f.maxOrder=6;f.maxExposure=4;await assert.rejects(()=>validateTerminalOrder('owner',order),/Gross account exposure/);f.maxExposure=10;
 f.pnl='-0.5';f.funding='-0.3';f.spotLoss=-.2;await assert.rejects(()=>validateTerminalOrder('owner',order),/Daily realized/);f.spotLoss=0;assert.equal((await validateTerminalOrder('owner',order)).category,'linear');
 f.funding='bad';await assert.rejects(()=>validateTerminalOrder('owner',order));
 console.log('PASS real terminal short validation preserves live Spot lock, order/exposure caps and combined Spot/closed-PnL/funding daily loss gate. All exchange calls mocked, mutation prohibited.');

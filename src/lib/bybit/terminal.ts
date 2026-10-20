@@ -12,6 +12,8 @@ import { readCompleteBybitList } from "@/lib/bybit/pagination";
 import { readSpotRisk } from "@/lib/bybit/spot-risk";
 import { OrderCancellationError } from "@/lib/bybit/cancellation-error";
 
+import { TerminalValidationError } from "./terminal-validation-error";
+
 export type TradingMode = "bybit_testnet" | "bybit_live";
 export type TradingCategory = "spot" | "linear";
 
@@ -296,7 +298,7 @@ export async function validateTerminalOrder(userId: string, input: Record<string
   ];
   if (checks.some((check) => !check.ok)) {
     await audit(userId, "order.preview", mode, "rejected", { symbol, category, checks });
-    throw new Error(checks.filter((check) => !check.ok).map((check) => check.message).join("; "));
+    throw new TerminalValidationError(checks.filter((check) => !check.ok).map((check) => check.message).join("; "));
   }
 
   return { mode, environment: config.environment, symbol, category, side, orderType, quantity, limitPrice, leverage, marketPrice, notional, stopLoss, takeProfit, reduceOnly, positionIdx, checks, filters };

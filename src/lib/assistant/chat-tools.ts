@@ -51,14 +51,14 @@ outside order. A request for another trade does not override its remaining trade
 deadline or limits. Once flat and stopped, prepare the next reviewed session.
 When the owner asks for an instrument that fits, or a draft fails minimum sizing, call:
 {"lucian_tool":"trading.eligibility.read","arguments":{}}
-Optional symbols accepts 1–5 explicit USDT symbols. This tool reads the saved draft,
+Optional symbols accepts 1–5 explicit USDT symbols. For an owner-requested comparison of eligible longs and shorts use {"scope":"configured","products":["spot","linear_short"]}; both products are checked against unchanged dollar limits. Coverage is time-bounded: unavailable candidates were not verified. Compare fitting products, then select ONE product for the next unapproved session; never silently change an existing session. If the owner already requested this comparison, do not ask again. This tool reads the saved draft,
 checks the existing session, current account limits, exchange minimums, fees, balance
 and short settings for a bounded sample. It requires balance and order/position read
 permissions. Call it BEFORE presenting a fitting draft; do not send the owner back to
 repeat the same impossible review. Do not claim it searched every market. A result of
 minimum_size_fits is only a candidate, not a trading recommendation or proof of protection.
 If the owner requested alternatives, use a verified fitting candidate to update ONLY
-unapproved draft symbols/settings wording with its returned revision, preserving all
+unapproved draft symbols, explicitly requested product and settings wording with its returned revision, preserving all
 risk limits. Explain the actual checked minimum, effective cap, observed settings and
 remaining protection/risk checks. Never increase limits or switch product silently.
 If unavailable, permission_required or no candidate fits, explain that specific result.
@@ -100,7 +100,7 @@ is bounded by the approved duration and limits; do not promise indefinite operat
 Before market recommendations call trading.research, cite its sources and freshness,
 and distinguish unavailable coverage from no risks. Exercise calculated judgment within approved limits: uncertainty and conflicting indicators are not automatic vetoes. Do not require a particular crossover or perfect confirmation unless the owner explicitly requires it. Rank actionable setups with entry, invalidation, target, costs and concrete risks; explain a hold when no worthwhile setup fits, without inventing missing blockers.
 {"lucian_tool":"trading.research","arguments":{"symbols":["BTCUSDT"]}}
-For perpetual research include "category":"linear" in arguments; otherwise category defaults to "spot". Match research to the proposed product, never substitute Spot candles for perpetual execution.
+For perpetual research include "category":"linear" in arguments; for an owner-requested long/short comparison use "category":"both" to compare the same candidates in one call; otherwise category defaults to "spot". Match research to the proposed product, never substitute Spot candles for perpetual execution.
 This reads fresh public candles, exchange announcements and independent price/sentiment
 sources. It cannot access private accounts. For broader external web research when using OpenRouter:
 {"lucian_tool":"research.web.search","arguments":{"query":"public market research question"}}
@@ -200,15 +200,23 @@ export async function resolveChatTool(ownerUserId: string, content: string, mode
     const symbols = values.symbols;
     const query = values.query;
     const valid = tool === "trading.research"
-      ? Object.keys(values).every(k => k === "symbols" || k === "category") && (values.category === undefined || values.category === "spot" || values.category === "linear") && Array.isArray(symbols) && symbols.length > 0 && symbols.length <= 3 && symbols.every(s => typeof s === "string" && /^[A-Z0-9]{2,16}USDT$/.test(s))
+      ? Object.keys(values).every(k => k === "symbols" || k === "category") && (values.category === undefined || values.category === "spot" || values.category === "linear" || values.category === "both") && Array.isArray(symbols) && symbols.length > 0 && symbols.length <= 3 && symbols.every(s => typeof s === "string" && /^[A-Z0-9]{2,16}USDT$/.test(s))
       : Object.keys(values).length === 1 && typeof query === "string" && query.trim().length > 0 && query.length <= 120;
-    if (!valid) return "Research arguments invalid. Use up to three USDT symbols with category spot or linear, or a short news query.";
+    if (!valid) return "Research arguments invalid. Use up to three USDT symbols with category spot, linear or both, or a short news query.";
     await db.assistantActivity.create({ data: { userId: ownerUserId, tool, module: "markets", status: "started", reason: "Bounded public internet research; no private account access or orders." } });
     try {
       let result: unknown;
       if (tool === "trading.research") {
-        const research = await collectPaperResearch(symbols as string[], values.category === "linear" ? "linear" : "spot");
-        result = { ...research, markets: research.markets.map(({ candles, ...market }) => ({ ...market, latestClosedCandle: candles.at(-1), chartCandles: candles.slice(-60) })) };
+        if (values.category === "both") {
+          const categories = ["spot", "linear"] as const;
+          const comparisons = await Promise.allSettled(categories.map(category => collectPaperResearch(symbols as string[], category)));
+          result = { comparisons: comparisons.map((read, index) => read.status === "fulfilled"
+            ? { ...read.value, category: categories[index], markets: read.value.markets.map(({ candles, ...market }) => ({ ...market, latestClosedCandle: candles.at(-1) })) }
+            : { category: categories[index], status: "unavailable", message: "This product's research could not be verified; do not substitute the other product's prices." }), coverage: "Product-specific closed-candle summaries for the selected candidates; eligibility and execution remain separate checks." };
+        } else {
+          const research = await collectPaperResearch(symbols as string[], values.category === "linear" ? "linear" : "spot");
+          result = { ...research, markets: research.markets.map(({ candles, ...market }) => ({ ...market, latestClosedCandle: candles.at(-1), chartCandles: candles.slice(-60) })) };
+        }
       }
       else {
         const terms = (query as string).toLowerCase().trim().split(/\s+/);

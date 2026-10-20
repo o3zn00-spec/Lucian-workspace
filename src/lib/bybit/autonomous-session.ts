@@ -7,6 +7,7 @@ import { isConfiguredOwnerEmail } from "@/lib/auth/owner-identity";
 import { getProvider } from "@/lib/agent/providers";
 import { getBybitConfig, bybitRequest } from "./client";
 import { getTradingProfile } from "./trading";
+import { TerminalValidationError } from "./terminal-validation-error";
 import { validateTerminalOrder } from "./terminal";
 import { reconcileTerminalOrder } from "./reconciliation";
 import { collectPaperResearch } from "@/lib/assistant/paper-research";
@@ -398,7 +399,7 @@ export async function tickAutonomousSession(userId: string, id: string, generati
     if (snapshot.active) fast = await manageTrade(userId, snapshot);
     else if (snapshot.status === "running" && Date.now() >= snapshot.nextReviewMs) { await researchEntry(userId, snapshot); if (isShortPlan(snapshot.plan)) fast = Boolean((await read(db as unknown as Tx, userId))?.active); }
   } catch (e) {
-    const message = e instanceof AutonomousError ? e.message : "Exchange or model check unavailable. Recorded orders remain reserved; no financial request is retried.";
+    const message = e instanceof AutonomousError || e instanceof TerminalValidationError ? e.message : "Exchange or model check unavailable. Recorded orders remain reserved; no financial request is retried.";
     await change(userId, snapshot, "attention", message, s => { s.error = message; s.nextReviewMs = Date.now() + Math.max(60000, s.plan.webResearch ? s.plan.reviewMinutes * 60000 : 0); });
   } finally { await change(userId, snapshot, "cycle_complete", "Session cycle recorded.", s => { s.heartbeatMs = Date.now(); s.lease = null; }); }
   return { done: false, fast };
@@ -451,10 +452,19 @@ async function researchEntry(userId: string, snapshot: AutonomousSession) {
   const d = await researchDecision(userId, snapshot); if (!d) return;
   await change(userId, snapshot, "decision", d.rationale, s => { s.nextReviewMs = Date.now() + s.plan.reviewMinutes * 60000; s.error = null; });
   if (d.action !== (isShortPlan(snapshot.plan) ? "short" : "buy")) return;
-  const q = await autonomousQuote(userId, d.symbol!, sessionCategory(snapshot.plan)); evaluateAutonomousEntry(snapshot.plan, d, q, snapshot.cashCents, snapshot.realizedCents, snapshot.trades);
-  await validateTerminalOrder(userId, { autonomousShort: isShortPlan(snapshot.plan), slippageBps: snapshot.plan.slippageBps, mode: snapshot.plan.mode, category: sessionCategory(snapshot.plan), symbol: d.symbol, side: isShortPlan(snapshot.plan) ? "Sell" : "Buy", orderType: "Market", quantity: d.quantity, leverage: isShortPlan(snapshot.plan) ? Number(shortSettingsFor(snapshot.plan, d.symbol!).leverage) : 1, positionIdx: isShortPlan(snapshot.plan) ? shortSettingsFor(snapshot.plan, d.symbol!).positionIdx : 0 });
-  evaluateAutonomousEntry(snapshot.plan, d, await autonomousQuote(userId, d.symbol!, sessionCategory(snapshot.plan)), snapshot.cashCents, snapshot.realizedCents, snapshot.trades);
-  if (isShortPlan(snapshot.plan)) await assertShortEntryMargin(userId, snapshot.plan, d, q);
+  let entryStage = "fresh quote and sizing";
+  try {
+    const q = await autonomousQuote(userId, d.symbol!, sessionCategory(snapshot.plan)); evaluateAutonomousEntry(snapshot.plan, d, q, snapshot.cashCents, snapshot.realizedCents, snapshot.trades);
+    entryStage = "account-wide order and daily-loss validation";
+    await validateTerminalOrder(userId, { autonomousShort: isShortPlan(snapshot.plan), slippageBps: snapshot.plan.slippageBps, mode: snapshot.plan.mode, category: sessionCategory(snapshot.plan), symbol: d.symbol, side: isShortPlan(snapshot.plan) ? "Sell" : "Buy", orderType: "Market", quantity: d.quantity, leverage: isShortPlan(snapshot.plan) ? Number(shortSettingsFor(snapshot.plan, d.symbol!).leverage) : 1, positionIdx: isShortPlan(snapshot.plan) ? shortSettingsFor(snapshot.plan, d.symbol!).positionIdx : 0 });
+    entryStage = "final quote and sizing";
+    evaluateAutonomousEntry(snapshot.plan, d, await autonomousQuote(userId, d.symbol!, sessionCategory(snapshot.plan)), snapshot.cashCents, snapshot.realizedCents, snapshot.trades);
+    entryStage = "short margin and liquidation protection";
+    if (isShortPlan(snapshot.plan)) await assertShortEntryMargin(userId, snapshot.plan, d, q);
+  } catch (error) {
+    if (error instanceof AutonomousError || error instanceof TerminalValidationError) throw error;
+    throw new AutonomousError(`Entry check unavailable during ${entryStage}. No entry was submitted by this attempt. Existing reservations remain unchanged.`);
+  }
   await submit(userId, snapshot, "entry", { category: sessionCategory(snapshot.plan), symbol: d.symbol, side: isShortPlan(snapshot.plan) ? "Sell" : "Buy", orderType: "Market", qty: d.quantity, ...(isShortPlan(snapshot.plan) ? {positionIdx:shortSettingsFor(snapshot.plan,d.symbol!).positionIdx,reduceOnly:false} : {marketUnit: "baseCoin", isLeverage: 0}), timeInForce: "IOC", slippageToleranceType: "Percent", slippageTolerance: String(snapshot.plan.slippageBps / 100), sessionStop: d.stopPrice, sessionTarget: d.takeProfit });
 }
 async function manageTrade(userId: string, snapshot: AutonomousSession): Promise<boolean> {

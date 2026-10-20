@@ -1,3 +1,11 @@
+## October 19 — product comparison and entry diagnostics
+
+Owner requested future reviews compare eligible Spot longs and USDT perpetual shorts. Eligibility now accepts both products and the configured crypto catalog, deduplicating daily aliases, with four concurrent read pipelines and a 45-second admission budget. Every unfinished candidate is explicitly unavailable. Detailed evidence is bounded to two minimum fits per product; other minimum fits need targeted checks before selection. Research can return separate Spot/perpetual summaries in one call, including independent product failure. Draft/account limits and live authorization remain unchanged; a session still has one reviewed product.
+
+Production inspection found session c121c561 stopped at its deadline with 11 model calls and zero completed trades. It included a short proposal around October 18 13:47 PDT followed by a generic attention error, so lack of a fill cannot be attributed solely to cautious decisions. The historical error does not identify its precise cause. Application-generated terminal risk failures now retain their reason; other pre-entry failures name the validation stage without exposing provider errors or retrying orders. No claim of a verified funded lifecycle.
+
+Validation: eligibility/product isolation and configured-response bounds, research partial failures, assistant continuation, policy and short-risk fixtures; release checks recorded in current task output.
+
 ## October 17 — market watchlist, drawings and calculated-risk mandate
 
 Repair bulk crypto quotes, streaming-failure candle refresh, drawing input/coordinate rendering and actual-pane ownership. Chat research now supports explicit perpetual category. Clarify calculated-risk judgment without mandatory indicator unanimity; execution guards and owner limits remain unchanged. See `docs/LILTHE_REQUIREMENTS_AUDIT.md` for implementation evidence and outstanding acceptance gaps. This is not a declaration that the full upgrade or funded trading lifecycle is complete.

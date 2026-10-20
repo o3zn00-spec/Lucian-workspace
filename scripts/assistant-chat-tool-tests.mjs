@@ -19,7 +19,7 @@ globalThis.activityFixtures=null;
 globalThis.activityFailure=null;
 globalThis.activityRevoke=false;
 const mocks={
- './paper-research':`export async function collectPaperResearch(symbols,category){return {category,symbols,markets:[],warnings:[]};}`,
+ './paper-research':`export async function collectPaperResearch(symbols,category){if(globalThis.researchFailure===category)throw Error('SECRET');return {category,symbols,markets:[],warnings:[]};}`,
  './trading-eligibility':`export async function readTradingEligibility(){return {status:'fixture'};}`,
  '@/lib/bybit/autonomous-session':`export async function autonomousSnapshot(){return {session:globalThis.chatSessionFixture??null};}`,
  'server-only':'',
@@ -42,6 +42,11 @@ for (const category of ['spot','linear']) {
  assert.match(research,new RegExp('"category":"'+category+'"'));
 }
 assert.match(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.research',arguments:{symbols:['XRPUSDT'],category:'inverse'}})),/invalid/);
+const comparison=JSON.parse(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.research',arguments:{symbols:['XRPUSDT'],category:'both'}})));
+assert.deepEqual(comparison.comparisons.map(x=>x.category),['spot','linear']);
+globalThis.researchFailure='linear';
+const partial=JSON.parse(await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'trading.research',arguments:{symbols:['XRPUSDT'],category:'both'}})));
+assert.equal(partial.comparisons[0].category,'spot');assert.equal(partial.comparisons[1].status,'unavailable');assert.doesNotMatch(JSON.stringify(partial),/SECRET/);globalThis.researchFailure=null;
 const nav=await resolveChatTool('owner-A',JSON.stringify({lucian_tool:'app.navigate',arguments:{module:'markets'}}));
 assert.match(nav,/\[Markets\]\(\/markets\)/);assert.equal(events.at(-1).userId,'owner-A');assert.equal(events.at(-1).status,'completed');
 for(const p of [
