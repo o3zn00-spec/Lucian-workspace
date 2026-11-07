@@ -1,3 +1,11 @@
+## November 7 — decisive, cost-aware Lilthe sessions
+
+Owner reported Lilthe was too cautious to trade. Production audit of sessions ae850884 (October 21) and c121c561 found 31 model proposals and zero autonomous orders: reviews held because targets were taken from the nearest 5-minute closes (0.1–0.4%) while round-trip fees plus slippage were about 0.40%, and Spot sessions received no account evidence, so holdings and open orders were reported as unverified on every cycle.
+
+Changes: shared `src/lib/assistant/trading-mandate.ts` instructions for Spot, short and paper sessions (build setups from 1-hour/4-hour/daily structure, target at least three times round-trip cost, compare all approved symbols, act on positive-expectancy setups, hold only with a concrete reason); per-symbol `costs` evidence from the exchange fee rate and approved slippage; read-only Spot `accountEvidence` (available USDT, session-symbol holdings, open orders); research candles carry open/high/low/volume. Paper mode no longer instructs the model to favor holding. Server-enforced owner limits, stops, emergency stop, confirmation and password checks are unchanged.
+
+Validation: syntax checks and cost-calculation fixtures passed; the full build runs on the Vercel preview of branch `lilthe-decisive-trading`. Not yet evidenced: a session run with the new instructions. Profitability is not implied.
+
 ## October 19 — product comparison and entry diagnostics
 
 Owner requested future reviews compare eligible Spot longs and USDT perpetual shorts. Eligibility now accepts both products and the configured crypto catalog, deduplicating daily aliases, with four concurrent read pipelines and a 45-second admission budget. Every unfinished candidate is explicitly unavailable. Detailed evidence is bounded to two minimum fits per product; other minimum fits need targeted checks before selection. Research can return separate Spot/perpetual summaries in one call, including independent product failure. Draft/account limits and live authorization remain unchanged; a session still has one reviewed product.
