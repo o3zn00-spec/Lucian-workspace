@@ -1,5 +1,5 @@
 import "server-only";
-export type ResearchMarket = {symbol:string; intervalMinutes:number; candles:{atMs:number;close:number}[]; changePercent:number;sma20:number;sma50:number;rangePercent:number;source:string};
+export type ResearchMarket = {symbol:string; intervalMinutes:number; candles:{atMs:number;close:number;open?:number;high?:number;low?:number;volume?:number}[]; changePercent:number;sma20:number;sma50:number;rangePercent:number;source:string};
 export type ResearchContext = {kind:"coinbase"|"sentiment";symbol:string;value:number;atMs:number;source:string};
 export type PaperResearch = {context?:ResearchContext[];observedAtMs:number;markets:ResearchMarket[];announcements:{title:string;url:string;publishedAtMs:number}[];warnings:string[]};
 export type PaperReview = {atMs:number;research:PaperResearch|null;action:string;rationale:string;outcome:string};
@@ -16,12 +16,12 @@ export function parseResearchCandles(rows:unknown, symbol:string, intervalMinute
     if(!Array.isArray(row) || row.length!==7 || row.some(v=>typeof v!=="string"))throw Error("Invalid candle row.");
     const [atMs,open,high,low,close,volume,turnover]=row.map(Number);
     if(!Number.isSafeInteger(atMs) || atMs<=0 || atMs% (intervalMinutes*60000)!==0 || [open,high,low,close].some(v=>!Number.isFinite(v) || v<=0 || v>1e12) || high<Math.max(open,close) || low>Math.min(open,close) || high<low || !Number.isFinite(volume) || volume<0 || !Number.isFinite(turnover) || turnover<0)throw Error("Invalid candle values.");
-    return {atMs,close,high,low};
+    return {atMs,open,close,high,low,volume};
   }).filter(c=>c.atMs+intervalMinutes*60000<=observedAtMs).sort((a,b)=>a.atMs-b.atMs).slice(-60);
   if(candles.length<50 || candles.some((c,i)=>i>0 && c.atMs-candles[i-1].atMs!==intervalMinutes*60000) || observedAtMs-(candles.at(-1)!.atMs+intervalMinutes*60000)>intervalMinutes*60000)throw Error("Incomplete or stale candle history.");
   const average=(n:number)=>candles.slice(-n).reduce((sum,c)=>sum+c.close,0)/n;
   const first=candles[0].close,last=candles.at(-1)!.close;
-  return {symbol,intervalMinutes,candles:candles.map(({atMs,close})=>({atMs,close})),changePercent:(last/first-1)*100,sma20:average(20),sma50:average(50),rangePercent:(Math.max(...candles.map(c=>c.high))/Math.min(...candles.map(c=>c.low))-1)*100,source:`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${intervalMinutes===1440?"D":intervalMinutes}&limit=61`};
+  return {symbol,intervalMinutes,candles:candles.map(({atMs,open,high,low,close,volume})=>({atMs,open,high,low,close,volume})),changePercent:(last/first-1)*100,sma20:average(20),sma50:average(50),rangePercent:(Math.max(...candles.map(c=>c.high))/Math.min(...candles.map(c=>c.low))-1)*100,source:`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${intervalMinutes===1440?"D":intervalMinutes}&limit=61`};
 }
 export async function collectPaperResearch(symbols:string[], category: "spot" | "linear" = "spot"):Promise<PaperResearch> {
   if(!symbols.length || symbols.length>10 || symbols.some(s=>!/^[A-Z0-9]{2,16}USDT$/.test(s)))throw Error("Invalid research symbols.");
